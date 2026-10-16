@@ -68,12 +68,10 @@ function setEvent(data) {
   $("#staff-event-kicker").textContent = (eventData.name || "EVENTO").toLocaleUpperCase("es-MX");
   const cover = eventData.coverUrl || "";
   if (cover) {
-    const imageLayer = "linear-gradient(180deg,#1b292322 15%,#1b2923d9 100%),url(\"" + cover + "\")";
-    $("#event-cover").style.backgroundImage = imageLayer;
-    $("#event-backdrop").style.backgroundImage = imageLayer;
+    const imageLayer = "linear-gradient(180deg,transparent 0%,transparent 47%,rgba(255,250,246,.72) 76%,#fffaf6 100%),url(\"" + cover + "\")";
+    $("#screen-welcome").style.backgroundImage = imageLayer;
   } else {
-    $("#event-cover").style.removeProperty("background-image");
-    $("#event-backdrop").style.removeProperty("background-image");
+    $("#screen-welcome").style.removeProperty("background-image");
   }
   $("#demo-badge").hidden = !eventData.demo;
   if (date && !Number.isNaN(date.valueOf())) {
