@@ -172,7 +172,7 @@ function renderCarousel() {
     photoAction.className = "moment-card-action" + (submission ? " is-submitted" : "");
     photoAction.innerHTML = submission
       ? '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg><span>Foto enviada</span>'
-      : '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1.5-2h7L17 5"/></svg><span>Toca para subir tu foto</span>';
+      : '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1.5-2h7L17 5"/></svg><span>Toca para subir</span>';
     card.append(badge, photoAction, title, time);
     if (submission?.thumbnailUrl) {
       const thumbnail = document.createElement("img");
@@ -196,13 +196,13 @@ function renderCarousel() {
 
 function updateCarousel() {
   const cards = $$(".moment-card", $("#moment-carousel"));
-  const cardOffset = Math.min(260, window.innerWidth * 0.6);
+  const cardOffset = Math.min(205, window.innerWidth * 0.4);
   cards.forEach((card, index) => {
     let offset = index - selectedMomentIndex;
     if (offset > moments.length / 2) offset -= moments.length;
     if (offset < -moments.length / 2) offset += moments.length;
     const distance = Math.abs(offset);
-    card.style.transform = "translateX(-50%) translateX(" + offset * cardOffset + "px) scale(" + Math.max(.76, 1 - distance * .12) + ") rotateY(" + (-offset * 7) + "deg)";
+    card.style.transform = "translateX(-50%) translateX(" + offset * cardOffset + "px) scale(" + Math.max(.78, 1 - distance * .12) + ") rotateY(" + (-offset * 9) + "deg)";
     card.style.zIndex = String(10 - distance);
     card.style.opacity = distance > 1 ? "0" : distance ? ".72" : "1";
     card.style.pointerEvents = distance > 1 ? "none" : "auto";
