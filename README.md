@@ -1,31 +1,35 @@
 # Entre Momentos
 
-Experiencia web responsive para compartir recuerdos de boda. Identidad: **Una boda. Mil historias. Un recuerdo para siempre.**
+Maqueta móvil para compartir recuerdos de boda. **Una boda. Mil historias. Un recuerdo para siempre.**
 
-## Vista previa local
+## Recorrido de invitado
 
-Cloudflare Pages sirve `index.html` desde la raíz del repositorio. Para probarlo localmente, abre `index.html` o sirve la carpeta con un servidor estático.
+1. Busca su nombre y elige su registro si hay coincidencias.
+2. Ve el momento del programa y la cuenta regresiva de cinco minutos.
+3. Cuando se habilita, toca **Tomar mi foto** para abrir la cámara o elegir una imagen.
+4. Confirma una foto para compartir en ese momento. Las fotos adicionales son para el invitado.
+5. Puede descargar la foto a su teléfono desde la pantalla final.
 
-### Publicar en Cloudflare Pages
+La maqueta muestra una opción de vista previa para probar la cámara sin esperar la cuenta regresiva. La selección de invitado y el límite de una foto se simulan en el navegador; no constituyen una validación real entre dispositivos.
 
-Conecta este repositorio de GitHub como un proyecto de Pages y usa:
+## Coordinación
+
+El panel de coordinación permite editar los momentos, los horarios, los datos del evento y el enlace de Drive que corresponda a esa boda. Estos datos solo se guardan en el navegador usado para la demostración.
+
+El botón de cámara utiliza la selección de imágenes del teléfono y solicita la cámara trasera cuando el navegador lo permite. Tras confirmar, el invitado puede descargar su foto manualmente al dispositivo.
+
+## Conexiones pendientes
+
+Esta versión no carga fotos a Google Drive ni crea carpetas. Pegar el enlace del fotógrafo no autoriza a la web a escribir en Drive. Para el flujo real se debe conectar una integración segura con autorización del fotógrafo y crear una carpeta por evento y una subcarpeta por actividad. La agenda en vivo, la lista de invitados y la regla de una foto por invitado y momento también deben validarse en un servidor compartido.
+
+## Publicar en Cloudflare Pages
+
+Conecta este repositorio como un proyecto de Pages con:
 
 - Rama de producción: `main`
-- Framework preset: `None` / sin framework
+- Framework preset: `None`
 - Comando de compilación: `exit 0`
 - Directorio de salida: `.`
-- Directorio raíz (opciones avanzadas): déjalo vacío para usar la raíz del repositorio
+- Directorio raíz: vacío (raíz del repositorio)
 
-No necesita dependencias ni proceso de compilación. Consulta la [guía oficial de Cloudflare Pages para integración con Git](https://developers.cloudflare.com/pages/get-started/git-integration/) si necesitas los pasos de conexión.
-
-## Estado de esta maqueta
-
-Incluye una invitación responsive, flujo navegable del invitado, panel de coordinación por pestañas, edición de actividades, cálculo de ventanas fotográficas y un esquema de carpetas de Drive. El horario de demostración es el 15 de junio de 2026: una foto se habilita desde cinco minutos antes del inicio y se deja de aceptar cinco minutos antes del fin. El invitado debe confirmar la actividad mostrada antes de habilitar el selector de foto.
-
-Para recorrer el demo: pulsa **Formar parte**, escribe “Ana” y elige una de las dos coincidencias, confirma la actividad y selecciona una imagen. También puedes elegir **Continuar como invitado de prueba**. Para configurar, abre **Vista de coordinación** y cambia entre las pestañas; el programa y el enlace de Drive se conservan en el navegador cuando el almacenamiento local está disponible.
-
-El programa y el enlace de Drive se guardan en el almacenamiento local del navegador. La maqueta no crea carpetas ni carga imágenes en Drive: la cuenta del fotógrafo requiere una integración con autorización segura. Tampoco se ha conectado el programa externo de coordinación. La lista de invitados, autenticación, almacenamiento permanente, permisos y sincronización entre dispositivos requieren un backend. La búsqueda utiliza registros de demostración y el formulario no envía datos personales a ningún servidor.
-
-## Siguiente etapa técnica
-
-Definir el acceso de solo escritura de invitados y la cuenta destino del fotógrafo en Google Drive; conectar de manera segura el servicio de Drive para crear una carpeta de evento y una por actividad; conectar la agenda real del coordinador con actualizaciones fiables; y validar en servidor las ventanas, identidad y actividad elegida antes de recibir fotos reales.
+No necesita dependencias ni compilación. Cloudflare sirve `index.html` directamente.

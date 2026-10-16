@@ -2,86 +2,100 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f8f5ef" />
-    <meta name="description" content="Entre Momentos: una boda, mil historias. Comparte los instantes que hacen de este día un recuerdo para siempre." />
-    <title>Entre Momentos — Una boda. Mil historias.</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f3ed" />
+    <meta name="description" content="Entre Momentos — Una boda. Mil historias. Un recuerdo para siempre." />
+    <title>Entre Momentos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="manifest" href="./manifest.webmanifest" />
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <a class="brand" href="#inicio" aria-label="Entre Momentos, inicio">
-          <span class="brand-mark" aria-hidden="true">e<span>m</span></span>
-          <span class="brand-name">entre momentos<span>UNA EXPERIENCIA PARA RECORDAR</span></span>
-        </a>
-        <button class="link-button" id="mode-toggle" type="button">Vista de coordinación <span aria-hidden="true">↗</span></button>
+    <div class="app-frame">
+      <header class="app-header">
+        <button class="wordmark" id="home-button" type="button" aria-label="Ir al inicio"><span class="wordmark-symbol">e<span>m</span></span><span>ENTRE MOMENTOS</span></button>
+        <button class="quiet-button" id="open-admin" type="button">Coordinación <span aria-hidden="true">↗</span></button>
       </header>
 
-      <main id="inicio">
-        <section class="hero" aria-labelledby="hero-title">
-          <div class="hero-copy">
-            <p class="eyebrow"><span class="live-dot"></span> UNA CELEBRACIÓN PARA COMPARTIR</p>
-            <h1 id="hero-title">Una boda.<br /><em>Mil historias.</em></h1>
-            <p class="hero-subtitle">Un recuerdo para siempre.</p>
-            <p class="hero-description">Los mejores momentos también suceden entre una foto y otra. Guarda aquí los tuyos y hagamos juntos el álbum de este día.</p>
-            <button class="primary-button" id="participate" type="button">Formar parte <span aria-hidden="true">→</span></button>
-            <div class="hero-footnote"><span class="lock-icon" aria-hidden="true">◇</span> Un espacio privado para quienes celebran con nosotros</div>
+      <main>
+        <section class="screen welcome-screen" id="screen-welcome" aria-labelledby="welcome-title">
+          <div class="welcome-decoration" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="welcome-copy">
+            <p class="kicker">ANA &amp; CARLOS <span>·</span> 15 JUNIO</p>
+            <p class="welcome-pretitle">Hoy celebramos</p>
+            <h1 id="welcome-title">Una boda.<br /><em>Mil historias.</em></h1>
+            <p class="welcome-subtitle">Un recuerdo para siempre.</p>
+            <button class="primary-button" id="start-guest" type="button">Ayúdanos con tus fotos <span aria-hidden="true">→</span></button>
           </div>
-          <div class="hero-image-wrap">
-            <div class="hero-image" role="img" aria-label="Pareja de recién casados celebrando al atardecer"></div>
-            <div class="photo-caption"><span>EL COMIENZO DE TODO</span><span class="caption-line"></span><span>15 · 06 · 2026</span></div>
-            <div class="image-note"><span class="note-heart">♡</span><span>Las historias más bonitas<br />se cuentan entre todos.</span></div>
-          </div>
-          <div class="vertical-note">UN DÍA · INFINITOS RECUERDOS</div>
+          <div class="welcome-bottom"><span class="tiny-sparkle">✳</span><span>Ayúdanos con tu foto de cada momento</span></div>
         </section>
 
-        <section class="moments" aria-label="La experiencia">
-          <div class="section-heading"><span>ESTE DÍA TAMBIÉN ES TUYO</span><span class="heading-rule"></span><span>01 — 03</span></div>
-          <div class="moment-grid">
-            <article class="moment-card"><span class="moment-number">01</span><span class="moment-icon">⌁</span><h2>Busca tu nombre</h2><p>Escríbelo y selecciónate en la lista de invitados. Si hay nombres iguales, elige el registro que eres tú.</p></article>
-            <article class="moment-card"><span class="moment-number">02</span><span class="moment-icon">◎</span><h2>Captura el instante</h2><p>Sigue los retos y guarda esos momentos irrepetibles.</p></article>
-            <article class="moment-card"><span class="moment-number">03</span><span class="moment-icon">✳</span><h2>Hagamos el álbum</h2><p>Reúne las miradas de todos en un recuerdo común.</p></article>
-          </div>
+        <section class="screen guest-screen" id="screen-guest" aria-labelledby="guest-title" hidden>
+          <button class="back-button" data-back="welcome" type="button">← <span>Inicio</span></button>
+          <div class="step-heading"><p class="kicker">PARA EMPEZAR</p><h1 id="guest-title">Busca tu nombre</h1><p>Así sabremos a quién pertenece tu foto.</p></div>
+          <form id="guest-form" class="search-form">
+            <label class="field-label" for="guest-search">Nombre y apellido</label>
+            <div class="search-row"><input id="guest-search" type="search" placeholder="Ej. Ana García" autocomplete="off" required /><button class="search-button" type="submit" aria-label="Buscar">⌕</button></div>
+            <p class="form-message" id="search-message" role="status"></p>
+          </form>
+          <div class="guest-results" id="guest-results" aria-live="polite" hidden></div>
+          <p class="screen-footnote">Si hay nombres iguales, elige la referencia que te identifica.</p>
         </section>
 
-        <section class="join-panel" id="join-panel" aria-live="polite" hidden>
-          <div class="join-inner">
-            <button id="close-join" class="close-button" aria-label="Cerrar" type="button">×</button>
-            <p class="eyebrow">QUÉ ALEGRÍA TENERTE AQUÍ</p>
-            <h2>¿Cómo te llamas?</h2>
-            <p>Te buscaremos en la lista de invitados para que puedas comenzar.</p>
-            <form id="guest-form"><label for="guest-name">Escribe tu nombre</label><div class="input-row"><input id="guest-name" name="guest" placeholder="Nombre y apellido" autocomplete="name" required /><button class="primary-button" type="submit">Buscar <span aria-hidden="true">⌕</span></button></div><p id="guest-feedback" class="feedback" role="status"></p><div id="inline-matches" class="inline-matches" hidden></div><button id="continue-demo" class="continue-demo" type="button">Continuar como invitado de prueba</button></form>
-            <p class="privacy-note">Tu nombre solo se utilizará para identificar tu participación en esta celebración.</p>
+        <section class="screen moment-screen" id="screen-moment" aria-labelledby="moment-title" hidden>
+          <button class="back-button" data-back="guest" type="button">← <span>Cambiar invitado</span></button>
+          <div class="moment-meta"><span class="live-indicator"><i></i><span id="moment-state">PRÓXIMO MOMENTO</span></span><span id="moment-time">19:30</span></div>
+          <div class="moment-copy"><p class="kicker">AYÚDANOS CON TU FOTO DE</p><h1 id="moment-title">El brindis</h1><p class="moment-prompt" id="moment-prompt">Prepárate para tomar la foto<br /><strong>en <span id="countdown">05:00</span></strong></p></div>
+          <div class="moment-action" id="moment-action">
+            <div class="camera-halo"><span class="camera-glyph" aria-hidden="true">◎</span></div>
+            <p id="camera-instruction">La cámara se abrirá cuando comience el momento.</p>
+            <label class="camera-button is-disabled" id="camera-button"><input type="file" id="camera-input" accept="image/*" capture="environment" disabled /><span class="camera-button-icon" aria-hidden="true">◉</span><span id="camera-button-label">Aún no</span></label>
           </div>
+          <div class="one-photo-note"><span class="note-check">✓</span><span><strong>Una foto para compartir por momento</strong><small>Si tomas más, serán solo tuyas.</small></span></div>
+          <button class="preview-mode" id="preview-open" type="button">Vista previa: probar la cámara</button>
         </section>
 
-        <section class="guest-flow" id="guest-flow" hidden>
-          <div class="flow-top"><button class="text-button back-home" id="flow-back" type="button">← Inicio</button><span class="flow-event">ANA &amp; CARLOS · 15 JUNIO</span><button class="text-button" id="flow-coordinator" type="button">Coordinación ↗</button></div>
-          <div class="flow-content">
-            <div class="flow-welcome"><p class="eyebrow"><span class="live-dot"></span> BIENVENIDA, <span id="flow-guest-name">INVITADO</span></p><h2>Los momentos<br /><em>están pasando.</em></h2><p>Comparte tu mirada. Cada foto suma a la historia de hoy.</p></div>
-            <div class="next-activity"><div class="activity-status"><span class="live-dot"></span><span id="activity-state">SIGUIENTE ACTIVIDAD</span><span class="activity-clock" id="activity-clock">19:00</span></div><p class="activity-label">EL MOMENTO QUE VIENE</p><h3 id="activity-title">El primer baile</h3><p class="activity-detail" id="activity-detail">Salón principal · 19:00–19:30</p><div class="capture-window" id="capture-window"><span class="window-icon">◷</span><span id="window-copy">Las fotos abren 5 min antes<br /><b>Podrás empezar a las 18:55</b></span></div><div class="progress-track"><span id="activity-progress"></span></div><div class="activity-times"><span id="window-start">ABRE 18:55</span><span id="window-end">CIERRA 19:25</span></div><button class="simulate-open" id="simulate-open" type="button">Probar esta actividad como abierta</button></div>
-            <div class="upload-card"><div class="upload-heading"><div><p class="eyebrow">TU FOTO SE GUARDARÁ EN</p><h3 id="upload-destination">El primer baile</h3></div><span class="folder-icon">▱</span></div><label class="activity-confirm"><input type="checkbox" id="confirm-activity" /><span>Confirmo que esta es la actividad que quiero fotografiar</span></label><label class="upload-button" id="upload-label"><input type="file" id="photo-file" accept="image/*" capture="environment" disabled /><span class="upload-plus">＋</span><span id="upload-copy">Selecciona una foto</span><span class="upload-arrow">→</span></label><p class="upload-note" id="upload-note">La actividad aparece siempre antes de elegir la foto.</p><p id="photo-feedback" class="photo-feedback" role="status"></p></div>
-            <div class="flow-upcoming"><div class="card-top"><h3>Lo que sigue</h3><span>MINUTO A MINUTO</span></div><div id="upcoming-list"><div class="mini-activity"><span>19:30</span><span class="schedule-mark upcoming"></span><span><b>Brindis</b><small>Próxima actividad</small></span></div></div></div>
-          </div>
-          <p class="flow-demo-note">Horario actualizado por coordinación</p>
+        <section class="screen photo-screen" id="screen-photo" aria-labelledby="photo-title" hidden>
+          <button class="back-button" id="photo-back" type="button">← <span>Volver al momento</span></button>
+          <div class="step-heading"><p class="kicker">UNA FOTO · <span id="photo-activity-name">EL BRINDIS</span></p><h1 id="photo-title">¿Este es tu momento?</h1><p>Tu foto se asignará a esta actividad.</p></div>
+          <div class="photo-preview-wrap"><img id="photo-preview" alt="Vista previa de tu foto" hidden /><div class="photo-empty" id="photo-empty"><span>◉</span><b>Tu foto aparecerá aquí</b></div></div>
+          <div class="photo-actions"><button class="primary-button" id="confirm-photo" type="button" disabled>Confirmar mi foto <span aria-hidden="true">→</span></button><button class="secondary-button" id="retake-photo" type="button">Elegir otra</button></div>
+          <p class="screen-footnote" id="photo-message">Solo puedes compartir una foto en esta actividad.</p>
         </section>
 
-        <section class="dashboard" id="dashboard" hidden>
-          <div class="dashboard-heading"><div><p class="eyebrow">PANEL DE COORDINACIÓN · ESQUEMA</p><h2>Configura el ritmo del día.</h2></div><button class="text-button" id="guest-view" type="button">← Volver a la invitación</button></div>
-          <div class="admin-tabs"><button class="admin-tab active" data-admin-tab="timeline" type="button">Minuto a minuto</button><button class="admin-tab" data-admin-tab="drive" type="button">Google Drive</button><button class="admin-tab" data-admin-tab="event" type="button">Evento</button></div>
-          <section class="admin-pane" id="pane-timeline"><div class="timeline-toolbar"><div><p class="eyebrow">EVENTO · ANA &amp; CARLOS</p><h3>Programa fotográfico</h3></div><button class="outline-button" id="add-activity" type="button">＋ Agregar actividad</button></div><div class="schedule-editor" id="schedule-editor"><article class="editor-row" data-activity="Ceremonia" data-start="16:30" data-end="17:00"><span class="editor-grip">⠿</span><div class="editor-time"><label>INICIO<input class="activity-start" type="time" value="16:30" /></label><span>—</span><label>FIN<input class="activity-end" type="time" value="17:00" /></label></div><div class="editor-name"><input class="activity-name" value="Ceremonia" /><small>Fotos de la entrada y los momentos de la ceremonia</small></div><span class="folder-chip">▱ Ceremonia</span><button class="row-delete" aria-label="Eliminar actividad" type="button">×</button></article><article class="editor-row" data-activity="El primer baile" data-start="19:00" data-end="19:30"><span class="editor-grip">⠿</span><div class="editor-time"><label>INICIO<input class="activity-start" type="time" value="19:00" /></label><span>—</span><label>FIN<input class="activity-end" type="time" value="19:30" /></label></div><div class="editor-name"><input class="activity-name" value="El primer baile" /><small>El inicio de la fiesta en la pista</small></div><span class="folder-chip">▱ El primer baile</span><button class="row-delete" aria-label="Eliminar actividad" type="button">×</button></article><article class="editor-row" data-activity="Brindis" data-start="19:30" data-end="20:00"><span class="editor-grip">⠿</span><div class="editor-time"><label>INICIO<input class="activity-start" type="time" value="19:30" /></label><span>—</span><label>FIN<input class="activity-end" type="time" value="20:00" /></label></div><div class="editor-name"><input class="activity-name" value="Brindis" /><small>Palabras y brindis de celebración</small></div><span class="folder-chip">▱ Brindis</span><button class="row-delete" aria-label="Eliminar actividad" type="button">×</button></article></div><p class="rule-callout"><span>◷</span><span><b>Ventana de fotos por actividad</b><br />Abre 5 minutos antes del inicio. Cierra 5 minutos antes del final. Las fotos cargadas se asignan a la carpeta de la actividad visible.</span></p><div class="timeline-actions"><span id="save-status" role="status">Los cambios de esta maqueta se guardan solo en este navegador.</span><button class="primary-button" id="save-schedule" type="button">Guardar programa <span aria-hidden="true">→</span></button></div></section>
-          <section class="admin-pane drive-pane" id="pane-drive" hidden><div class="drive-intro"><span class="drive-mark">G</span><div><p class="eyebrow">DESTINO DE LOS RECUERDOS · ESTE EVENTO</p><h3>Carpeta de Google Drive</h3><p>Cada fotógrafo comparte el destino correspondiente a cada boda.</p></div></div><form id="drive-form" class="drive-form"><label for="drive-url">Enlace de la carpeta de este evento</label><div class="drive-input-row"><input id="drive-url" type="url" placeholder="https://drive.google.com/drive/folders/..." autocomplete="url" /><button class="outline-button" type="submit">Guardar destino</button></div><small>Pide al fotógrafo el enlace de la carpeta de Drive donde deben reunirse los recuerdos de esta boda.</small><p id="drive-feedback" class="drive-feedback" role="status"></p></form><div class="drive-status"><span class="status-orb"></span><div><b id="drive-status-title">Falta el enlace de Drive de este evento</b><small>El destino se configura de nuevo en cada boda y puede pertenecer a una cuenta distinta.</small></div></div><div class="folder-preview"><div class="folder-root">▱ &nbsp; <span id="folder-root-name">Carpeta del evento — Ana &amp; Carlos</span><em>ENLACE PROPORCIONADO POR EL FOTÓGRAFO</em></div><div class="folder-child">└ <span>▱</span> 01 — Ceremonia <small>Carpeta de esta actividad</small></div><div class="folder-child">└ <span>▱</span> 02 — El primer baile <small>Carpeta de esta actividad</small></div><div class="folder-child">└ <span>▱</span> 03 — Brindis <small>Carpeta de esta actividad</small></div></div><p class="rule-callout"><span>◇</span><span>El enlace identifica la carpeta raíz para este evento. Crear subcarpetas y guardar fotos requiere que Drive autorice a la aplicación o que el fotógrafo habilite un método de carga adecuado; guardar el enlace por sí solo no concede permisos.</span></p></section>
-          <section class="admin-pane" id="pane-event" hidden><div class="timeline-toolbar"><div><p class="eyebrow">CONTROL DEL EVENTO</p><h3>Estado y sincronización</h3></div></div><div class="event-config-grid"><label>Nombre del evento<input id="event-name" value="Ana & Carlos" /></label><label>Fecha<input type="date" value="2026-06-15" /></label><label>Fuente del minuto a minuto<select><option>Conectar agenda del coordinador</option><option>Administrar desde Entre Momentos</option></select></label><label>Actualizar cambios<select><option>En tiempo real</option><option>Cada minuto</option><option>Manual</option></select></label></div><div class="rule-callout"><span>↻</span><span><b>Cómo responder a atrasos</b><br />Cuando la coordinación cambie una hora, se recalculan las ventanas de fotos y se muestra la actividad vigente a todos los invitados. La integración con la agenda existente queda pendiente de conocer su formato y acceso.</span></div></section>
-          <p class="demo-note">Datos de ejemplo. Los cambios se guardan en este navegador; Google Drive y coordinación en vivo requieren conexión.</p>
+        <section class="screen done-screen" id="screen-done" aria-labelledby="done-title" hidden>
+          <div class="done-mark">✓</div><p class="kicker">FOTO LISTA</p><h1 id="done-title">Gracias por<br /><em>compartirla.</em></h1><p class="done-subtitle">Tu foto cuenta parte de esta historia.</p>
+          <div class="upload-status" id="upload-status"><span class="status-dot"></span><span>Vista previa: la conexión con Drive aún no está configurada.</span></div>
+          <a class="download-button" id="download-photo" href="#" download="entre-momentos.jpg">Guardar también en mi teléfono</a>
+          <button class="primary-button" id="next-moment" type="button">Ver el siguiente momento <span aria-hidden="true">→</span></button>
+        </section>
+
+        <section class="screen admin-screen" id="screen-admin" aria-labelledby="admin-title" hidden>
+          <div class="admin-top"><button class="back-button" id="close-admin" type="button">← <span>Volver</span></button><span class="kicker">COORDINACIÓN</span></div>
+          <div class="admin-title-row"><div><p class="kicker">ANA &amp; CARLOS · DEMO</p><h1 id="admin-title">El minuto a minuto</h1></div><button class="save-button" id="save-program" type="button">Guardar</button></div>
+          <nav class="admin-tabs" aria-label="Configuración"><button class="admin-tab active" data-tab="program" type="button">Programa</button><button class="admin-tab" data-tab="drive" type="button">Google Drive</button><button class="admin-tab" data-tab="settings" type="button">Evento</button></nav>
+          <div class="admin-view" id="admin-program">
+            <p class="admin-help">Cada invitado comparte una foto por momento.</p>
+            <div class="activity-list" id="activity-list"></div>
+            <button class="add-activity" id="add-activity" type="button">＋ Agregar momento</button>
+            <p class="admin-feedback" id="program-feedback" role="status">El invitado verá el siguiente momento y su cuenta regresiva.</p>
+          </div>
+          <div class="admin-view" id="admin-drive" hidden>
+            <div class="step-heading"><p class="kicker">DESTINO DE ESTA BODA</p><h2>Carpeta del fotógrafo</h2><p>El fotógrafo comparte una carpeta distinta para cada evento.</p></div>
+            <form id="drive-form" class="drive-form"><label class="field-label" for="drive-url">Enlace de Google Drive</label><input id="drive-url" type="url" placeholder="Pega aquí el enlace de la carpeta" /><button class="primary-button" type="submit">Guardar enlace <span aria-hidden="true">→</span></button><p class="admin-feedback" id="drive-feedback" role="status"></p></form>
+            <div class="drive-notice">El enlace por sí solo no permite subir fotos. La carga necesita conectar Google Drive con autorización del fotógrafo.</div>
+          </div>
+          <div class="admin-view" id="admin-settings" hidden>
+            <div class="step-heading"><p class="kicker">DETALLES DE LA BODA</p><h2>Este evento</h2><p>Identifica la celebración del enlace.</p></div>
+            <label class="field-label" for="event-name">Nombres de la pareja</label><input class="admin-input" id="event-name" value="Ana & Carlos" />
+            <label class="field-label" for="event-date">Fecha</label><input class="admin-input" id="event-date" type="date" value="2026-06-15" />
+            <div class="drive-notice">El programa se guarda en este navegador. Para coordinar cambios en vivo hace falta conectar la agenda del evento.</div>
+          </div>
         </section>
       </main>
-
-      <footer><span>ENTRE MOMENTOS</span><span>Una boda. Mil historias. Un recuerdo para siempre.</span><span>HECHO CON CARIÑO <b>♡</b></span></footer>
+      <footer class="app-footer"><span>UNA BODA. MIL HISTORIAS.</span><span id="footer-guest"></span></footer>
     </div>
     <script src="./app.js"></script>
   </body>
