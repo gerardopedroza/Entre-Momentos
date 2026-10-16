@@ -391,12 +391,7 @@ $("#guest-form").addEventListener("submit", async (event) => {
   } catch (error) { $("#search-message").textContent = error.message; }
 });
 
-const accessDialog = $("#access-dialog");
-$("#access-entry").addEventListener("click", () => { accessDialog.hidden = false; $("#close-access-dialog").focus(); });
-function closeAccessDialog() { accessDialog.hidden = true; $("#access-entry").focus(); }
-$("#close-access-dialog").addEventListener("click", closeAccessDialog);
-accessDialog.addEventListener("click", (event) => { if (event.target === accessDialog) closeAccessDialog(); });
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !accessDialog.hidden) closeAccessDialog(); });
+$("#access-entry").addEventListener("click", () => { window.location.href = "/admin.html"; });
 $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
 $("#homonym-back").addEventListener("click", () => { screen("welcome"); $("#guest-search").focus(); });
@@ -411,8 +406,6 @@ $("#carousel-stage").addEventListener("pointerup", (event) => {
 $("#carousel-stage").addEventListener("pointercancel", () => { dragStartX = null; });
 $$('[data-back="home"]').forEach((button) => button.addEventListener("click", () => screen("home")));
 $("#home-button").addEventListener("click", () => screen(guest ? "home" : "welcome"));
-$("#open-staff-portal").addEventListener("click", () => { window.location.href = "/staff.html"; });
-$("#open-admin-portal").addEventListener("click", () => { window.location.href = "/admin.html"; });
 
 $("#gallery-input").addEventListener("change", (event) => {
   const file = event.target.files?.[0];

@@ -16,94 +16,6 @@ async function load() {
   const data = await api(`/api/staff/current?eventId=${encodeURIComponent(event.id)}&access=${encodeURIComponent(access)}`);
   render(data);
 }
-async function renderStaffSelector() {
-  root.innerHTML = `<h1>Acceso STAFF</h1><p>Selecciona el lugar y el evento que vas a coordinar.</p>
-    <form class="staff-select-form" id="staff-select-form">
-      <label for="staff-venue-select">Lugar<select id="staff-venue-select" required><option value="">Selecciona un lugar</option><option value="__demo__">Evento de demostración</option></select></label>
-      <label for="staff-event-select">Evento<select id="staff-event-select" required disabled><option value="">Primero selecciona un lugar</option></select></label>
-      <label for="staff-link-input">Enlace STAFF del evento<input id="staff-link-input" type="url" placeholder="Pega el enlace que te compartió administración" autocomplete="url" /></label>
-      <button type="submit">Continuar <span aria-hidden="true">→</span></button>
-      <p class="staff-select-help">El enlace del evento confirma que tienes acceso al panel. Puedes probar la pantalla con el evento de demostración.</p>
-      <p class="staff-select-message" id="staff-select-message" role="status" aria-live="polite"></p>
-    </form>`;
-  const venueSelect = document.querySelector("#staff-venue-select");
-  const eventSelect = document.querySelector("#staff-event-select");
-  const linkInput = document.querySelector("#staff-link-input");
-  const message = document.querySelector("#staff-select-message");
-  function setEvents(rows) {
-    eventSelect.innerHTML = '<option value="">Selecciona un evento</option>' + rows.map(event => `<option value="${esc(event.id)}">${esc(event.name)} · ${esc(event.event_date || "")}</option>`).join("");
-    eventSelect.disabled = rows.length === 0;
-  }
-  try {
-    const result = await api("/api/public/venues");
-    for (const venue of result.venues || []) {
-      const option = document.createElement("option");
-      option.value = venue.id;
-      option.textContent = venue.name;
-      venueSelect.append(option);
-    }
-  } catch {
-    message.textContent = "No hay eventos conectados en este momento. La demostración sigue disponible.";
-  }
-  venueSelect.addEventListener("change", async () => {
-    message.textContent = "";
-    if (venueSelect.value === "__demo__") {
-      setEvents([{ id: "demo-event", name: "Isa & Mateo", event_date: "Vista de ejemplo" }]);
-      linkInput.required = false;
-      return;
-    }
-    linkInput.required = true;
-    eventSelect.innerHTML = '<option value="">Cargando eventos…</option>';
-    eventSelect.disabled = true;
-    if (!venueSelect.value) {
-      eventSelect.innerHTML = '<option value="">Primero selecciona un lugar</option>';
-      return;
-    }
-    try {
-      const result = await api("/api/public/events?venueId=" + encodeURIComponent(venueSelect.value));
-      setEvents(result.events || []);
-      if (!result.events?.length) message.textContent = "No hay un evento activo hoy en este lugar.";
-    } catch (error) {
-      eventSelect.innerHTML = '<option value="">No se pudieron cargar los eventos</option>';
-      message.textContent = error.message;
-    }
-  });
-  document.querySelector("#staff-select-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const selectedEvent = eventSelect.value;
-    if (!selectedEvent) { message.textContent = "Selecciona un evento."; return; }
-    if (selectedEvent === "demo-event") { renderDemoStaff(); return; }
-    let token = "";
-    try {
-      const staffUrl = new URL(linkInput.value.trim());
-      if (staffUrl.origin !== location.origin || !staffUrl.pathname.endsWith("/staff.html")) throw new Error();
-      token = staffUrl.searchParams.get("access") || "";
-    } catch {
-      message.textContent = "Pega el enlace STAFF completo del evento.";
-      return;
-    }
-    if (!token) { message.textContent = "Ese enlace no contiene acceso a STAFF."; return; }
-    const button = event.currentTarget.querySelector("button[type=submit]");
-    button.disabled = true;
-    message.textContent = "Verificando el evento…";
-    try {
-      const result = await api("/api/staff/events?access=" + encodeURIComponent(token));
-      if (!(result.events || []).some(item => String(item.id) === String(selectedEvent))) throw new Error("El enlace STAFF no corresponde al evento seleccionado.");
-      location.href = "./staff.html?access=" + encodeURIComponent(token);
-    } catch (error) {
-      message.textContent = error.message;
-      button.disabled = false;
-    }
-  });
-}
-function renderDemoStaff() {
-  root.innerHTML = `<p class="staff-select-help">VISTA DE DEMOSTRACIÓN</p><h1>Isa &amp; Mateo</h1><p>Jardín Los Olivos · hoy</p><div class="staff-status">Programa del evento · vista de ejemplo</div>
-    <article class="contest"><h2>Entrada de los novios</h2><p>Próximamente · 17:00</p></article>
-    <article class="contest"><h2>El brindis</h2><p>En curso · 19:30</p><p>Líder provisional: Ana López · 2 fotos</p></article>
-    <article class="contest"><h2>Primer baile</h2><p>Próximamente · 21:00</p></article>
-    <p class="staff-select-help">Los datos reales solo aparecen con el enlace STAFF del evento.</p><button class="staff-button" id="back-to-staff-select" type="button">Elegir otro evento</button>`;
-  document.querySelector("#back-to-staff-select").addEventListener("click", renderStaffSelector);
-}
 function render(data) {
   root.innerHTML = `<h1>${esc(data.event.name)}</h1><p>${esc(data.event.venueName)} · ${esc(data.event.eventDate)}</p><div class="staff-status">Estado del evento: ${data.contests.some(c => c.state === "active") ? "Hay dinámicas en curso" : "Consulta la agenda y los resultados"}</div>${(data.contests || []).map(contest => `
     <article class="contest"><h2>${esc(contest.name)}</h2><p>${contest.state === "upcoming" ? "Próximamente" : contest.state === "active" ? "En curso" : contest.state === "closed" || contest.state === "finished" ? "Cerrado" : esc(contest.state)}</p>
@@ -116,5 +28,5 @@ function render(data) {
     catch (error) { feedback.textContent = error.message; button.disabled = false; }
   }));
 }
-if (access) load().catch(error => { root.innerHTML = `<h1>Acceso STAFF</h1><p class="staff-error">${esc(error.message)}</p><p>Solicita al administrador que te comparta el enlace correspondiente.</p>`; });
-else renderStaffSelector();
+if (access) load().catch(error => { root.innerHTML = `<h1>Acceso STAFF</h1><p class="staff-error">${esc(error.message)}</p><p>Solicita al administrador que te comparta el enlace directo de este evento.</p>`; });
+else root.innerHTML = `<h1>Acceso STAFF</h1><p>Solicita al administrador el enlace directo del evento que vas a coordinar.</p>`;

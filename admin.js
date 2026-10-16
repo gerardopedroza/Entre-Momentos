@@ -25,7 +25,7 @@ async function loadEvents() {
     <article class="admin-card" data-event="${esc(event.id)}">
       <div class="event-grid"><div><h2>${esc(event.name)}</h2><div class="event-meta">${esc(event.venue_name)} · ${esc(event.event_date)} · Estado: ${event.state === "active" ? "Activo" : event.state === "draft" ? "Preparación" : esc(event.state)}</div></div><div class="event-meta">${Number(event.guest_count || 0)} invitados · ${Number(event.activity_count || 0)} actividades</div></div>
       <div class="url-row"><strong>INVITADOS</strong><input aria-label="Enlace para invitados" readonly value="${esc(event.guestUrl)}"><button class="admin-button secondary" data-copy="guest">Copiar</button></div>
-      <div class="url-row"><strong>STAFF</strong><input aria-label="Enlace del staff" readonly value="${esc(event.staffUrl)}"><button class="admin-button secondary" data-copy="staff">Copiar</button></div>
+      <div class="url-row"><strong>STAFF</strong><input aria-label="Enlace directo del staff" readonly value="${esc(event.staffUrl)}"><div class="url-actions"><a class="admin-button secondary" href="${esc(event.staffUrl)}" target="_blank" rel="noopener noreferrer">Abrir</a><button class="admin-button secondary" data-copy="staff">Copiar</button></div></div>
       <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="admin-button secondary" data-rotate="${esc(event.id)}">Renovar enlace STAFF</button></div>
     </article>`).join("") : '<div class="admin-card"><h2>Aún no hay eventos</h2><p>Cuando haya eventos registrados, sus enlaces para invitados y STAFF aparecerán aquí.</p></div>';
   $("#events-list").querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", async () => {

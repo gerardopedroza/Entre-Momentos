@@ -10,12 +10,6 @@ export async function handleStaffApi(ctx, path) {
     if (!access || !eventId) return null;
     return db.prepare("SELECT id,venue_id FROM events WHERE id=? AND public_staff_slug=? AND state='active'").bind(eventId, access).first();
   }
-  if (path === "/api/staff/venues" && request.method === "GET") {
-    const event = await db.prepare("SELECT e.venue_id FROM events e WHERE e.public_staff_slug=? AND e.state='active'").bind(access).first();
-    if (!event) return fail("El enlace de STAFF no es válido o ya fue renovado.", 401, "staff_link_invalid");
-    const venue = await db.prepare("SELECT id,name,slug,timezone FROM venues WHERE id=? AND active=1").bind(event.venue_id).first();
-    return json({ venues: venue ? [venue] : [] });
-  }
   if (path === "/api/staff/events" && request.method === "GET") {
     const tokenEvent = await db.prepare("SELECT id,venue_id,name,slug,event_date FROM events WHERE public_staff_slug=? AND state='active'").bind(access).first();
     if (!tokenEvent) return fail("El enlace de STAFF no es válido o ya fue renovado.", 401, "staff_link_invalid");

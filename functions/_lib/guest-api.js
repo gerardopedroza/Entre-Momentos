@@ -118,18 +118,6 @@ export async function handleGuestApi(ctx, path) {
   const method = request.method;
   const url = new URL(request.url);
 
-  if (path === "/api/public/venues" && method === "GET") {
-    const rows = await db.prepare("SELECT id,name,slug FROM venues WHERE active=1 ORDER BY name").all();
-    return json({ venues: rows.results || [] });
-  }
-  if (path === "/api/public/events" && method === "GET") {
-    const venueId = url.searchParams.get("venueId");
-    const venue = await db.prepare("SELECT * FROM venues WHERE id=? AND active=1").bind(venueId).first();
-    if (!venue) return fail("Elige un lugar válido.", 404, "venue_not_found");
-    const date = getEventDateLocal(new Date(), venue.timezone);
-    const rows = await db.prepare("SELECT id,name,slug,event_date FROM events WHERE venue_id=? AND event_date=? AND state='active' ORDER BY name").bind(venue.id, date).all();
-    return json({ events: rows.results || [] });
-  }
   if (path === "/api/events/current" && method === "GET") {
     const session = await guestSession(request, env);
     const event = await resolvePublicEvent(request, env, session);
