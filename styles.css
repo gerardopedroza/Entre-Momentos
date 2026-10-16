@@ -31,6 +31,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .wordmark { display: flex; align-items: center; gap: 9px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 10px; font-weight: 600; letter-spacing: 1.4px; }
 .wordmark-symbol { color: var(--olive); font: italic 24px/1 var(--serif); letter-spacing: -4px; }
 .wordmark-symbol span { color: var(--copper); }
+.role-access { position: relative; }
+.role-access-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #849087; cursor: pointer; }
+.role-access-button:hover, .role-access-button[aria-expanded="true"] { background: #eef0e9; color: var(--olive-dark); }
+.role-access-button svg { width: 20px; height: 20px; fill: currentColor; }
+.role-access-menu { position: absolute; z-index: 8; top: calc(100% + 8px); right: -8px; display: grid; width: 218px; gap: 3px; padding: 7px; border: 1px solid #e9e4da; border-radius: 13px; background: #fffefa; box-shadow: 0 12px 30px #29352f20; }
+.role-access-menu[hidden] { display: none; }
+.role-access-menu button { display: grid; gap: 3px; padding: 10px 11px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 13px; font-weight: 600; }
+.role-access-menu button:hover { background: #f4f3ed; }
+.role-access-menu button span { color: var(--muted); font-size: 11px; font-weight: 400; }
 .quiet-button, .back-button { padding: 9px 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
 main { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; padding: 20px 22px; overflow: hidden; animation: enter .2s ease-out; }

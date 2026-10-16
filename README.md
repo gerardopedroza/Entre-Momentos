@@ -7,7 +7,8 @@ Web móvil para que los invitados compartan una foto y una dedicatoria en cada m
 - `/admin.html`: administración privada. Al iniciar sesión muestra, para cada evento, el enlace de invitados y el enlace STAFF, con botones para copiar. También permite registrar lugares y crear eventos con su propia carpeta de Google Drive.
 - El enlace de invitados usa el formato `/l/{lugar}?event={evento}`. El invitado puede buscar con su nombre, apellido o ambos; si hay coincidencias, elige su nombre en la lista.
 - El enlace STAFF incluye una clave aleatoria limitada a un evento. Abre directamente el panel de ese evento, sin contraseña. La administración puede renovarlo; al hacerlo, el enlace anterior deja de funcionar.
-- `/staff.html` sin clave informa que se debe abrir el enlace STAFF compartido por la administración.
+- El icono discreto de la página inicial abre las opciones STAFF y Administración. Administración pide usuario y contraseña; STAFF permite seleccionar lugar y evento y comprobar el enlace STAFF de ese evento. También ofrece una vista de demostración.
+- `/staff.html` sin clave muestra el selector de lugar y evento. Para acceder a datos reales, se pega el enlace STAFF que comparte Administración; el enlace directo generado por Administración sigue abriendo el evento correspondiente.
 
 Los enlaces de eventos en preparación se pueden copiar antes del evento, pero solo funcionarán cuando el evento esté activo. La URL de Drive se captura por evento para admitir que cada boda use una carpeta distinta.
 

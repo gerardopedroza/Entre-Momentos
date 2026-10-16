@@ -16,6 +16,15 @@
       <div class="event-backdrop" id="event-backdrop" aria-hidden="true"></div>
       <header class="app-header">
         <button class="wordmark" id="home-button" type="button" aria-label="Ir al inicio"><span class="wordmark-symbol">em</span><span>ENTRE MOMENTOS</span></button>
+        <div class="role-access">
+          <button class="role-access-button" id="role-access-button" type="button" aria-label="Acceso de STAFF o Administración" aria-expanded="false" aria-controls="role-access-menu">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <nav class="role-access-menu" id="role-access-menu" aria-label="Acceso privado" hidden>
+            <button id="open-staff-portal" type="button">STAFF <span>Elegir lugar y evento</span></button>
+            <button id="open-admin-portal" type="button">Administración <span>Acceso privado</span></button>
+          </nav>
+        </div>
       </header>
       <main>
         <section class="screen identify-screen" id="screen-welcome" aria-labelledby="welcome-title">
