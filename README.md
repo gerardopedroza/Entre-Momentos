@@ -11,9 +11,10 @@ Cloudflare Pages sirve `index.html` desde la raíz del repositorio. Para probarl
 Conecta este repositorio de GitHub como un proyecto de Pages y usa:
 
 - Rama de producción: `main`
+- Framework preset: `None` / sin framework
 - Comando de compilación: `exit 0`
 - Directorio de salida: `.`
-- Directorio raíz: `/`
+- Directorio raíz (opciones avanzadas): déjalo vacío para usar la raíz del repositorio
 
 No necesita dependencias ni proceso de compilación. Consulta la [guía oficial de Cloudflare Pages para integración con Git](https://developers.cloudflare.com/pages/get-started/git-integration/) si necesitas los pasos de conexión.
 
