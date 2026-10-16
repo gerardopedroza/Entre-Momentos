@@ -71,14 +71,28 @@ export async function handleAdminApi(ctx, path) {
         const data = await readJson(request);
         const name = String(data.name || venue.name).trim();
         const slug = slugify(data.slug || name);
+        if (name.length < 2 || !slug) return fail("Escribe un nombre y una URL corta válidos.");
+        const driveRootFolderId = Object.hasOwn(data, "driveRootUrl") ? (driveIdFromUrl(data.driveRootUrl) || null) : venue.drive_root_folder_id;
         try {
           await db.prepare("UPDATE venues SET name=?,slug=?,timezone=?,drive_root_folder_id=?,active=?,updated_at=? WHERE id=?")
-            .bind(name, slug, data.timezone || venue.timezone, driveIdFromUrl(data.driveRootUrl) || venue.drive_root_folder_id, data.active === false ? 0 : 1, nowIso(), id).run();
+            .bind(name, slug, data.timezone || venue.timezone, driveRootFolderId, data.active === false ? 0 : 1, nowIso(), id).run();
         } catch (error) { if (/UNIQUE/i.test(error.message)) return fail("Ese enlace corto ya está en uso.", 409, "venue_slug_taken"); throw error; }
         await log(db, "venue.updated", "venue", id);
         return json({ venue: await db.prepare("SELECT * FROM venues WHERE id=?").bind(id).first() });
       }
       if (method === "DELETE" || (method === "POST" && action === "deactivate")) {
+        if (method === "DELETE") {
+          const events = (await db.prepare("SELECT id,name FROM events WHERE venue_id=?").bind(id).all()).results || [];
+          const stamp = nowIso();
+          await db.batch([
+            db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,NULL,'admin','administrator','venue.deleted','venue',?,?,?)")
+              .bind(newId(), id, JSON.stringify({ deletedEvents: events.length }), stamp),
+            db.prepare("DELETE FROM prize_deliveries WHERE contest_id IN (SELECT c.id FROM contests c JOIN events e ON e.id=c.event_id WHERE e.venue_id=?)").bind(id),
+            db.prepare("DELETE FROM events WHERE venue_id=?").bind(id),
+            db.prepare("DELETE FROM venues WHERE id=?").bind(id),
+          ]);
+          return json({ ok: true, deletedEvents: events.length });
+        }
         await db.prepare("UPDATE venues SET active=0,updated_at=? WHERE id=?").bind(nowIso(), id).run();
         await db.prepare("UPDATE events SET state='inactive',updated_at=? WHERE venue_id=? AND state='active'").bind(nowIso(), id).run();
         await log(db, "venue.deactivated", "venue", id);
@@ -99,7 +113,17 @@ export async function handleAdminApi(ctx, path) {
       const action = actionParts.join("/");
       const event = await eventOr404(db, id);
       if (method === "PUT" && !action) return await updateEvent(request, env, event);
-      if (method === "DELETE" || (method === "POST" && action === "archive")) {
+      if (method === "DELETE") {
+        const stamp = nowIso();
+        await db.batch([
+          db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?,'admin','administrator','event.deleted','event',?,?,?)")
+            .bind(newId(), id, id, JSON.stringify({ name: event.name }), stamp),
+          db.prepare("DELETE FROM prize_deliveries WHERE contest_id IN (SELECT id FROM contests WHERE event_id=?)").bind(id),
+          db.prepare("DELETE FROM events WHERE id=?").bind(id),
+        ]);
+        return json({ ok: true, deleted: true });
+      }
+      if (method === "POST" && action === "archive") {
         await db.prepare("UPDATE events SET state='inactive',updated_at=? WHERE id=?").bind(nowIso(), id).run();
         await log(db, "event.archived", "event", id, id);
         return json({ ok: true, state: "inactive" });

@@ -41,10 +41,47 @@ async function loadDashboard() {
   showLoggedIn();
 }
 function renderVenues() {
-  $("#venues-list").innerHTML = state.venues.length ? state.venues.map((venue) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(venue.name)}</h3><div class="admin-meta">/${esc(venue.slug)} · ${Number(venue.event_count || 0)} evento(s) · ${esc(venue.timezone)}</div></div><span class="admin-badge ${venue.active ? "active" : ""}">${venue.active ? "Activo" : "Inactivo"}</span></div></article>`).join("") : '<div class="empty-state">Aún no hay lugares. Registra el primero para crear un evento.</div>';
+  $("#venues-list").innerHTML = state.venues.length ? state.venues.map((venue) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(venue.name)}</h3><div class="admin-meta">/${esc(venue.slug)} · ${Number(venue.event_count || 0)} evento(s) · ${esc(venue.timezone)}</div></div><span class="admin-badge ${venue.active ? "active" : ""}">${venue.active ? "Activo" : "Inactivo"}</span></div><div class="admin-actions"><button class="admin-button secondary" type="button" data-edit-venue="${esc(venue.id)}">Editar lugar</button><button class="admin-button secondary" type="button" data-delete-venue="${esc(venue.id)}">Eliminar lugar</button></div></article>`).join("") : '<div class="empty-state">Aún no hay lugares. Registra el primero para crear un evento.</div>';
+  $$('[data-edit-venue]', $("#venues-list")).forEach((button) => button.addEventListener("click", () => editVenue(button.dataset.editVenue)));
+  $$('[data-delete-venue]', $("#venues-list")).forEach((button) => button.addEventListener("click", () => deleteVenue(button.dataset.deleteVenue)));
 }
 function eventCard(event, configButton = true) {
-  return `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(event.name)}</h3><div class="admin-meta">${esc(event.venue_name)} · ${dateLabel(event.event_date)}</div></div><span class="admin-badge ${event.state === "active" ? "active" : ""}">${eventStateLabel(event.state)}</span></div><div class="admin-meta" style="margin-top:8px">${Number(event.guest_count || 0)} invitados · ${Number(event.activity_count || 0)} momentos${event.drive_status === "ready" ? " · Drive conectado" : " · Drive pendiente"}</div><div class="admin-actions">${configButton ? `<button class="admin-button secondary" type="button" data-configure="${esc(event.id)}">Configurar evento</button>` : ""}<a class="admin-button secondary" href="${esc(event.staffUrl)}" target="_blank" rel="noopener noreferrer">Abrir STAFF</a><button class="admin-button" type="button" data-copy-staff="${esc(event.id)}" aria-label="Copiar URL de STAFF para ${esc(event.name)}"><svg aria-hidden="true" viewBox="0 0 24 24" style="width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>Copiar URL STAFF</button></div></article>`;
+  return `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(event.name)}</h3><div class="admin-meta">${esc(event.venue_name)} · ${dateLabel(event.event_date)}</div></div><span class="admin-badge ${event.state === "active" ? "active" : ""}">${eventStateLabel(event.state)}</span></div><div class="admin-meta" style="margin-top:8px">${Number(event.guest_count || 0)} invitados · ${Number(event.activity_count || 0)} momentos${event.drive_status === "ready" ? " · Drive conectado" : " · Drive pendiente"}</div><div class="admin-actions">${configButton ? `<button class="admin-button secondary" type="button" data-configure="${esc(event.id)}">Modificar evento</button><button class="admin-button secondary" type="button" data-delete-event="${esc(event.id)}">Eliminar evento</button>` : ""}<a class="admin-button secondary" href="${esc(event.staffUrl)}" target="_blank" rel="noopener noreferrer">Abrir STAFF</a><button class="admin-button" type="button" data-copy-staff="${esc(event.id)}" aria-label="Copiar URL de STAFF para ${esc(event.name)}"><svg aria-hidden="true" viewBox="0 0 24 24" style="width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>Copiar URL STAFF</button></div></article>`;
+}
+function editVenue(id) {
+  const venue = state.venues.find((item) => item.id === id);
+  if (!venue) return;
+  const form = $("#venue-edit-form");
+  form.elements.id.value = venue.id;
+  form.elements.name.value = venue.name;
+  form.elements.slug.value = venue.slug;
+  form.elements.timezone.value = venue.timezone;
+  form.elements.driveRootUrl.value = venue.drive_root_folder_id ? `https://drive.google.com/drive/folders/${venue.drive_root_folder_id}` : "";
+  $("#venue-editor").hidden = false;
+  $("#venue-editor").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+async function deleteVenue(id) {
+  const venue = state.venues.find((item) => item.id === id);
+  if (!venue) return;
+  const eventCount = Number(venue.event_count || 0);
+  const consequence = eventCount ? ` También se eliminarán permanentemente sus ${eventCount} evento(s), junto con su agenda e invitados.` : "";
+  if (!confirm(`¿Eliminar el lugar «${venue.name}»?${consequence} Se borrará la configuración del sitio; las carpetas y fotos de Google Drive no se eliminarán. Esta acción no se puede deshacer.`)) return;
+  try {
+    await api(`/api/admin/venues/${encodeURIComponent(id)}`, { method: "DELETE" });
+    $("#venue-editor").hidden = true;
+    message(`Lugar «${venue.name}» eliminado${eventCount ? " junto con sus eventos" : ""}.`);
+    await loadDashboard();
+  } catch (error) { message(error.message); }
+}
+async function deleteEvent(id) {
+  const event = state.events.find((item) => item.id === id);
+  if (!event || !confirm(`¿Eliminar permanentemente el evento «${event.name}» de ${event.venue_name}? También se eliminarán su agenda, invitados y configuración. Su carpeta y fotos de Google Drive se conservarán. Esta acción no se puede deshacer.`)) return;
+  try {
+    await api(`/api/admin/events/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (state.selected === id) { state.selected = null; state.details = null; $("#event-editor").hidden = true; }
+    message(`Evento «${event.name}» eliminado.`);
+    await loadDashboard();
+  } catch (error) { message(error.message); }
 }
 function bindStaffCopy(root = document) {
   $$('[data-copy-staff]', root).forEach((button) => button.addEventListener("click", async () => {
@@ -60,6 +97,7 @@ function bindStaffCopy(root = document) {
 function renderEvents() {
   $("#events-list").innerHTML = state.events.length ? state.events.map((event) => eventCard(event)).join("") : '<div class="empty-state">Aún no hay eventos. Crea uno después de registrar el lugar.</div>';
   $$('[data-configure]', $("#events-list")).forEach((button) => button.addEventListener("click", () => selectEvent(button.dataset.configure)));
+  $$('[data-delete-event]', $("#events-list")).forEach((button) => button.addEventListener("click", () => deleteEvent(button.dataset.deleteEvent)));
   bindStaffCopy($("#events-list"));
 }
 function renderStaff() {
@@ -188,6 +226,14 @@ $("#venue-form").addEventListener("submit", async (event) => {
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
+$("#venue-edit-form").addEventListener("submit", async (event) => {
+  event.preventDefault(); const form = event.currentTarget; const button = $("button[type=submit]", form); button.disabled = true;
+  const data = Object.fromEntries(new FormData(form));
+  try { await send(`/api/admin/venues/${encodeURIComponent(data.id)}`, "PUT", data); $("#venue-editor").hidden = true; message("Cambios del lugar guardados."); await loadDashboard(); }
+  catch (error) { message(error.message); }
+  finally { button.disabled = false; }
+});
+$("#cancel-venue-edit").addEventListener("click", () => { $("#venue-editor").hidden = true; $("#venue-edit-form").reset(); });
 $("#event-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
   const data = Object.fromEntries(new FormData(form)); data.contestsEnabled = form.elements.contestsEnabled.checked;
