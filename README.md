@@ -2,6 +2,8 @@
 
 Maqueta móvil para compartir recuerdos de boda. **Una boda. Mil historias. Un recuerdo para siempre.**
 
+Es un sitio web que se abre desde un enlace o código QR en el navegador del teléfono; no requiere descargar una aplicación.
+
 ## Recorrido de invitado
 
 1. Busca su nombre y elige su registro si hay coincidencias.
@@ -12,17 +14,17 @@ Maqueta móvil para compartir recuerdos de boda. **Una boda. Mil historias. Un r
 
 Desde la portada también puede abrir el programa o dejar una frase para los novios. Los mensajes de la demostración se guardan junto con el nombre en el navegador local.
 
-La maqueta muestra una opción de vista previa para probar la cámara sin esperar la cuenta regresiva. La selección de invitado y el límite de una foto se simulan en el navegador; no constituyen una validación real entre dispositivos.
+La maqueta muestra una opción de vista previa para probar la cámara sin esperar la cuenta regresiva. La selección de invitado y el límite de una foto se simulan en el navegador; no constituyen una validación real entre dispositivos. Una foto fuera de horario aún puede enviarse al álbum, pero queda marcada como fuera de la dinámica.
 
 ## Coordinación
 
-El panel de coordinación permite editar los momentos, los horarios, los datos del evento y el enlace de Drive que corresponda a esa boda. Estos datos solo se guardan en el navegador usado para la demostración.
+El panel de coordinación permite editar los momentos, los horarios, los datos del evento, la foto de portada y el enlace de Drive que corresponda a esa boda. Estos datos y la única imagen de portada solo se guardan en el navegador usado para la demostración.
 
-El botón de cámara utiliza la selección de imágenes del teléfono y solicita la cámara trasera cuando el navegador lo permite. Tras confirmar, el invitado puede descargar su foto manualmente al dispositivo.
+El botón de cámara utiliza la selección de imágenes del teléfono y solicita la cámara trasera cuando el navegador lo permite. La foto del invitado se mantiene solo en memoria mientras se previsualiza y se elimina de la página al confirmar; esta maqueta no la guarda ni la envía a Drive.
 
 ## Conexiones pendientes
 
-Esta versión no carga fotos ni mensajes a Google Drive ni crea carpetas. Pegar el enlace del fotógrafo no autoriza a la web a escribir en Drive. Para el flujo real se debe conectar una integración segura con autorización del fotógrafo y crear una carpeta por evento, una subcarpeta por actividad y guardar ahí las fotos y mensajes con el nombre del invitado. La agenda en vivo, la lista de invitados y la regla de una foto por invitado y momento también deben validarse en un servidor compartido.
+Esta versión no carga fotos ni mensajes a Google Drive ni crea carpetas. Pegar el enlace del fotógrafo no autoriza a la web a escribir en Drive. Para el flujo real se debe conectar una integración segura con autorización del fotógrafo y crear una carpeta por evento, una subcarpeta por actividad y guardar ahí las fotos y mensajes con el nombre del invitado. La agenda en vivo, la lista de invitados y la regla de una foto por invitado y momento también deben validarse en un servidor compartido. La foto de portada elegida en administración solo se refleja en ese navegador hasta que se configure el almacenamiento compartido del evento.
 
 ## Publicar en Cloudflare Pages
 

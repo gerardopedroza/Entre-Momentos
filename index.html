@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="manifest" href="./manifest.webmanifest" />
   </head>
   <body>
     <div class="app-frame">
@@ -21,7 +20,7 @@
 
       <main>
         <section class="screen welcome-screen" id="screen-welcome" aria-labelledby="welcome-title">
-          <article class="event-cover" aria-label="Álbum de la boda">
+          <article class="event-cover" id="event-cover" aria-label="Álbum de la boda">
             <span class="cover-label">EL ÁLBUM DE NUESTRA BODA</span>
             <div class="cover-caption"><p id="event-date-display">15 JUNIO 2026</p><h1 id="welcome-title"><span id="event-name-display">Ana &amp; Carlos</span><span class="cover-sparkle">✦</span></h1><span class="cover-slogan">Una boda. Mil historias. Un recuerdo para siempre.</span></div>
           </article>
@@ -80,7 +79,7 @@
             <p id="camera-instruction">La cámara se abrirá cuando comience el momento.</p>
             <label class="camera-button is-disabled" id="camera-button"><input type="file" id="camera-input" accept="image/*" capture="environment" disabled /><span class="camera-button-icon" aria-hidden="true">◉</span><span id="camera-button-label">Aún no</span></label>
           </div>
-          <div class="one-photo-note"><span class="note-check">✓</span><span><strong>Una foto para compartir por momento</strong><small>Si tomas más, serán solo tuyas.</small></span></div>
+          <div class="one-photo-note"><span class="note-check">✓</span><span><strong>Una foto por momento</strong><small>Fuera de horario, va al álbum pero no cuenta.</small></span></div>
           <button class="preview-mode" id="preview-open" type="button">Vista previa: probar la cámara</button>
         </section>
 
@@ -93,9 +92,8 @@
         </section>
 
         <section class="screen done-screen" id="screen-done" aria-labelledby="done-title" hidden>
-          <div class="done-mark">✓</div><p class="kicker">FOTO LISTA</p><h1 id="done-title">Gracias por<br /><em>compartirla.</em></h1><p class="done-subtitle">Tu foto cuenta parte de esta historia.</p>
-          <div class="upload-status" id="upload-status"><span class="status-dot"></span><span>Vista previa: la conexión con Drive aún no está configurada.</span></div>
-          <a class="download-button" id="download-photo" href="#" download="entre-momentos.jpg">Guardar también en mi teléfono</a>
+          <div class="done-mark">✓</div><p class="kicker">GRACIAS POR COMPARTIR</p><h1 id="done-title">Tu foto<br /><em>está lista.</em></h1><p class="done-subtitle" id="done-subtitle">Tu foto cuenta parte de esta historia.</p>
+          <div class="upload-status" id="upload-status"><span class="status-dot"></span><span>En espera de conexión con Drive.</span></div>
           <button class="primary-button" id="next-moment" type="button">Ver el siguiente momento <span aria-hidden="true">→</span></button>
         </section>
 
@@ -118,6 +116,8 @@
             <div class="step-heading"><p class="kicker">DETALLES DE LA BODA</p><h2>Este evento</h2><p>Identifica la celebración del enlace.</p></div>
             <label class="field-label" for="event-name">Nombres de la pareja</label><input class="admin-input" id="event-name" value="Ana & Carlos" />
             <label class="field-label" for="event-date">Fecha</label><input class="admin-input" id="event-date" type="date" value="2027-06-15" />
+            <label class="field-label" for="cover-image">Foto de portada</label><label class="cover-upload"><input id="cover-image" type="file" accept="image/*" /><span>Elegir foto de los novios o del lugar</span><span aria-hidden="true">＋</span></label>
+            <p class="cover-help">Esta es la única imagen que se guarda en la web. Las fotos de los invitados no se almacenan aquí.</p>
             <div class="drive-notice">El programa se guarda en este navegador. Para coordinar cambios en vivo hace falta conectar la agenda del evento.</div>
           </div>
         </section>

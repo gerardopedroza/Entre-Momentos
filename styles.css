@@ -143,6 +143,7 @@ h1, h2, p { margin-top: 0; }
 .camera-button-icon { font-size: 20px; }
 .camera-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .camera-button.is-disabled { background: #d5d9d0; color: #747c72; cursor: not-allowed; }
+.camera-button.is-late { background: #9b755c; color: white; }
 .camera-button.is-disabled input { pointer-events: none; }
 .one-photo-note { display: flex; min-height: 63px; align-items: center; gap: 11px; padding: 10px 13px; border: 1px solid #e3e4d8; border-radius: 4px; background: #faf9f4; }
 .note-check { display: grid; flex: 0 0 27px; width: 27px; height: 27px; place-items: center; border-radius: 50%; background: #e7eee6; color: var(--olive-dark); font-size: 15px; }
@@ -165,6 +166,9 @@ h1, h2, p { margin-top: 0; }
 .done-subtitle { margin: 2px 0 26px; color: var(--muted); font-size: 14px; }
 .upload-status { display: flex; width: 100%; gap: 9px; align-items: center; padding: 13px; border: 1px solid #e1e2d8; border-radius: 4px; color: #747e73; text-align: left; font-size: 12px; line-height: 1.4; }
 .status-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: #c49566; }
+#upload-status[data-state="on-time"] .status-dot { background: #617967; }
+#upload-status[data-state="late"] .status-dot { background: #c49566; }
+#upload-status[data-state="preview"] .status-dot { background: #a4a69b; }
 .download-button { display: grid; width: 100%; min-height: 52px; place-items: center; margin: 12px 0 8px; border: 1px solid #cbd3c8; border-radius: 4px; color: var(--olive-dark); font-size: 13px; text-decoration: none; }
 .done-screen > .primary-button { width: 100%; margin-top: 3px; }
 .admin-screen { padding: 14px 20px 18px; }
@@ -200,6 +204,10 @@ h1, h2, p { margin-top: 0; }
 .drive-notice { margin-top: 19px; padding: 13px; border-left: 2px solid #c79470; background: #f0eee6; color: #737a70; font-size: 12px; line-height: 1.5; }
 #admin-settings .step-heading { margin: 13px 0 22px; }
 #admin-settings .field-label { margin-top: 18px; }
+.cover-upload { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; border: 1px solid #dfe1d7; border-radius: 4px; background: var(--card); color: var(--olive-dark); cursor: pointer; font-size: 14px; }
+.cover-upload input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+.cover-upload span:last-child { font-size: 20px; }
+.cover-help { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .screen:has(.photo-preview-wrap) { padding-bottom: 17px; }
 @media (max-height: 680px) {
   .app-header { flex-basis: 54px; }

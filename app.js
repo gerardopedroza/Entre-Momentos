@@ -22,6 +22,8 @@ let openSeconds = 0;
 let isPreviewOpen = false;
 let selectedPhoto = null;
 let photoUrl = "";
+let photoIsOnTime = false;
+let photoIsPreview = false;
 let clockInterval = null;
 
 function read(key) {
@@ -56,6 +58,14 @@ function updateEventCover() {
     $("#event-date-display").textContent = date.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }).toLocaleUpperCase("es-MX");
     $("#schedule-date").textContent = date.toLocaleDateString("es-MX", { day: "numeric", month: "long" }).toLocaleUpperCase("es-MX");
   }
+  const coverImage = read("em-cover:" + safeKey(eventName));
+  if (coverImage) {
+    $("#event-cover").style.backgroundImage = "linear-gradient(180deg, #24332c00 38%, #1b2825c9 100%), url(\"" + coverImage + "\")";
+    $("#event-cover").classList.add("has-cover-image");
+  } else {
+    $("#event-cover").style.removeProperty("background-image");
+    $("#event-cover").classList.remove("has-cover-image");
+  }
 }
 function renderPublicSchedule() {
   const list = $("#public-schedule");
@@ -87,8 +97,9 @@ function refreshMoment() {
   $("#moment-title").textContent = activity.name;
   $("#photo-activity-name").textContent = activity.name.toLocaleUpperCase("es-MX");
   $("#moment-time").textContent = activity.start;
-  $("#camera-input").disabled = !opened || closed;
-  $("#camera-button").classList.toggle("is-disabled", !opened || closed);
+  $("#camera-input").disabled = !opened && !closed;
+  $("#camera-button").classList.toggle("is-disabled", !opened && !closed);
+  $("#camera-button").classList.toggle("is-late", closed);
   $("#moment-state").textContent = isPreviewOpen ? "VISTA PREVIA" : opened ? "MOMENTO ABIERTO" : closed ? "MOMENTO CERRADO" : "PRÓXIMO MOMENTO";
   $("#moment-prompt").innerHTML = isPreviewOpen
     ? `Vista previa de la cámara<br /><strong>Lista para probar</strong>`
@@ -97,20 +108,29 @@ function refreshMoment() {
       : closed
         ? `La toma de este momento<br /><strong>ya cerró</strong>`
         : `Prepárate para tomar la foto<br /><strong>en <span id="countdown">${formatSeconds(countdownSeconds)}</span></strong>`;
-  $("#camera-instruction").textContent = opened ? "Una toma para compartir este momento." : closed ? "Espera el siguiente momento del programa." : "Te avisamos cuando se abra la cámara.";
-  $("#camera-button-label").textContent = opened ? "Tomar mi foto" : closed ? "Momento cerrado" : "Aún no";
+  $("#camera-instruction").textContent = opened ? "Tu foto cuenta para la dinámica." : closed ? "Puedes subirla al álbum; ya no cuenta para la dinámica." : "La carga se activa cinco minutos antes.";
+  $("#camera-button-label").textContent = opened ? "Subir mi foto" : closed ? "Subir al álbum" : "Aún no";
   $("#preview-open").hidden = isPreviewOpen || opened || closed;
-  $("#footer-guest").textContent = currentGuest;
   const alreadyShared = currentGuest && read(quotaKey());
   if (alreadyShared) {
     $("#camera-input").disabled = true;
     $("#camera-button").classList.add("is-disabled");
-    $("#camera-button-label").textContent = "Foto compartida";
-    $("#camera-instruction").textContent = "Ya compartiste una foto de este momento.";
+    $("#camera-button").classList.remove("is-late");
+    $("#camera-button-label").textContent = "Foto enviada";
+    $("#camera-instruction").textContent = "Ya compartiste tu foto de este momento.";
     $("#moment-state").textContent = "MOMENTO COMPARTIDO";
     $("#moment-prompt").innerHTML = `Gracias por ayudar<br /><strong>con este momento.</strong>`;
     $("#preview-open").hidden = true;
   }
+}
+function clearTemporaryPhoto() {
+  if (photoUrl) URL.revokeObjectURL(photoUrl);
+  photoUrl = "";
+  selectedPhoto = null;
+  $("#camera-input").value = "";
+  $("#photo-preview").removeAttribute("src");
+  $("#photo-preview").hidden = true;
+  $("#photo-empty").hidden = false;
 }
 function beginGuestFlow(guest) {
   const guestName = typeof guest === "string" ? guest : guest.name;
@@ -214,23 +234,36 @@ $("#camera-input").addEventListener("change", (event) => {
   selectedPhoto = file;
   if (photoUrl) URL.revokeObjectURL(photoUrl);
   photoUrl = URL.createObjectURL(file);
+  photoIsPreview = isPreviewOpen;
+  photoIsOnTime = !photoIsPreview && openSeconds > 0;
   $("#photo-preview").src = photoUrl;
   $("#photo-preview").hidden = false;
   $("#photo-empty").hidden = true;
   $("#confirm-photo").disabled = false;
-  $("#photo-message").textContent = `Foto lista para “${getActivity().name}”. Solo se admitirá esta toma para la actividad.`;
+  $("#photo-message").textContent = photoIsPreview
+    ? "Prueba de cámara. Esta foto no se enviará ni contará."
+    : photoIsOnTime
+      ? "Dentro de horario. Esta foto cuenta para la dinámica."
+      : "Fuera de horario. Irá al álbum, pero no contará para la dinámica.";
   screen("photo");
 });
 $("#confirm-photo").addEventListener("click", () => {
   if (!selectedPhoto || !currentGuest) return;
-  write(quotaKey(), "confirmed");
-  $("#upload-status span:last-child").textContent = "La foto está lista. La conexión de Drive aún no está configurada.";
-  $("#download-photo").href = photoUrl;
-  $("#download-photo").download = `entre-momentos-${safeKey(getActivity().name)}.${selectedPhoto.name.split(".").pop() || "jpg"}`;
+  photoIsOnTime = !photoIsPreview && openSeconds > 0;
+  if (!photoIsPreview) write(quotaKey(), photoIsOnTime ? "sent-on-time-demo" : "sent-late-demo");
+  $("#done-title").innerHTML = photoIsPreview ? "Vista previa<br /><em>completada.</em>" : "Tu foto<br /><em>está lista.</em>";
+  $("#done-subtitle").textContent = photoIsPreview ? "La imagen solo se usó para probar este flujo." : photoIsOnTime ? "Esta foto participa en la dinámica." : "Esta foto irá al álbum, pero queda fuera de la dinámica.";
+  $("#upload-status").dataset.state = photoIsPreview ? "preview" : photoIsOnTime ? "on-time" : "late";
+  $("#upload-status span:last-child").textContent = photoIsPreview
+    ? "Vista previa. No se envió a Drive ni quedó guardada en esta web."
+    : photoIsOnTime
+      ? "Pendiente de envío a Drive. La foto no se guarda en esta web."
+      : "Fuera de horario. Pendiente de envío a Drive; no cuenta para la dinámica.";
+  clearTemporaryPhoto();
   screen("done");
 });
-$("#retake-photo").addEventListener("click", () => { $("#camera-input").value = ""; screen("moment"); refreshMoment(); });
-$("#photo-back").addEventListener("click", () => { $("#camera-input").value = ""; selectedPhoto = null; screen("moment"); refreshMoment(); });
+$("#retake-photo").addEventListener("click", () => { clearTemporaryPhoto(); screen("moment"); refreshMoment(); });
+$("#photo-back").addEventListener("click", () => { clearTemporaryPhoto(); screen("moment"); refreshMoment(); });
 $("#preview-open").addEventListener("click", () => { isPreviewOpen = true; refreshMoment(); });
 $("#next-moment").addEventListener("click", showNextActivity);
 $("#home-button").addEventListener("click", () => { clearInterval(clockInterval); screen("welcome"); });
@@ -288,7 +321,32 @@ $("#event-date").addEventListener("change", (event) => {
 $("#event-name").addEventListener("input", updateEventCover);
 $("#event-date").addEventListener("change", updateEventCover);
 updateEventCover();
+$("#cover-image").addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file || !file.type.startsWith("image/")) return;
+  const source = URL.createObjectURL(file);
+  const image = new Image();
+  image.onload = () => {
+    const maxEdge = 1400;
+    const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(image.width * scale);
+    canvas.height = Math.round(image.height * scale);
+    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    const eventName = $("#event-name").value.trim() || "Ana & Carlos";
+    write("em-cover:" + safeKey(eventName), dataUrl);
+    $("#event-cover").style.backgroundImage = "linear-gradient(180deg, #24332c00 38%, #1b2825c9 100%), url(\"" + dataUrl + "\")";
+    $("#event-cover").classList.add("has-cover-image");
+    URL.revokeObjectURL(source);
+  };
+  image.onerror = () => URL.revokeObjectURL(source);
+  image.src = source;
+});
 
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+  navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister())).catch(() => {});
+}
+if ("caches" in window) {
+  caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("entre-momentos-")).map((key) => caches.delete(key)))).catch(() => {});
 }
