@@ -340,6 +340,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   box-shadow: 0 4px 0 #205b4940,0 7px 12px #286b5912;
   filter: grayscale(.15);
 }
+.photo-review-actions .send-photo-button {
+  justify-self: end;
+  width: 50px;
+  min-height: 50px !important;
+  padding: 0;
+  border-radius: 50%;
+}
+.send-photo-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .screen:not(.staff-login-screen):not(.admin-screen) .secondary-button {
   border: 1px solid #ffffff;
   border-bottom: 3px solid #cdbfe1;
