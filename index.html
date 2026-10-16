@@ -30,9 +30,8 @@
             <div class="guest-rule"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Al enviarla, queda definitiva</span></div>
           </div>
           <form id="guest-form" class="identity-form">
-            <label class="field-label" for="guest-search">Tu nombre</label><input id="guest-search" type="text" placeholder="Nombre y apellido" autocomplete="name" required />
-            <label class="field-label" for="guest-code">Código de invitación</label><input id="guest-code" type="text" placeholder="Código de tu invitación" autocomplete="one-time-code" required />
-            <button class="primary-button" type="submit">Entrar al álbum <span aria-hidden="true">→</span></button>
+            <label class="field-label" for="guest-search">Tu nombre o apellido</label><input id="guest-search" type="search" placeholder="Ej. Ana o García" autocomplete="name" minlength="2" required />
+            <button class="primary-button" type="submit">Buscar mi nombre <span aria-hidden="true">→</span></button>
             <p class="form-message" id="search-message" role="status"></p>
             <div class="guest-results" id="guest-results" aria-live="polite" hidden></div>
             <button class="demo-entry" id="demo-entry" type="button">Explorar vista de demostración</button>

@@ -5,7 +5,7 @@ Web móvil para que los invitados compartan una foto y una dedicatoria en cada m
 ## Enlaces y accesos
 
 - `/admin.html`: administración privada. Al iniciar sesión muestra, para cada evento, el enlace de invitados y el enlace STAFF, con botones para copiar. También permite registrar lugares y crear eventos con su propia carpeta de Google Drive.
-- El enlace de invitados usa el formato `/l/{lugar}?event={evento}`. El invitado escribe su nombre y código de invitación.
+- El enlace de invitados usa el formato `/l/{lugar}?event={evento}`. El invitado puede buscar con su nombre, apellido o ambos; si hay coincidencias, elige su nombre en la lista.
 - El enlace STAFF incluye una clave aleatoria limitada a un evento. Abre directamente el panel de ese evento, sin contraseña. La administración puede renovarlo; al hacerlo, el enlace anterior deja de funcionar.
 - `/staff.html` sin clave informa que se debe abrir el enlace STAFF compartido por la administración.
 

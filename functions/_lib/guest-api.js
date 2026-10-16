@@ -78,27 +78,34 @@ async function resolveEventFromBody(data, request, env) {
   return resolvePublicEvent(request, env);
 }
 
-async function invitationHash(env, code) {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode((env.SESSION_PEPPER || "") + ":" + String(code || "").trim().toUpperCase()));
-  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 async function identifyGuest(request, env, select = false) {
   const data = await readJson(request, 8192);
   const event = await resolveEventFromBody(data, request, env);
   if (!event) return fail("No hay una boda activa en este enlace.", 404, "event_unavailable");
-  const code = String(data.invitationCode || "").trim();
   const name = normalizeName(data.name || "");
-  if (code.length < 6 || !name) return fail("Escribe tu nombre y el código de invitación.");
+  if (select && !String(data.guestId || "")) return fail("Elige tu nombre de la lista.");
+  if (!select && name.length < 2) return fail("Escribe tu nombre o apellido para buscarte.");
   let guest;
   if (select) {
-    guest = await env.DB.prepare("SELECT id,name,table_id FROM event_guests WHERE id=? AND event_id=? AND active=1 AND invitation_code_hash=?")
-      .bind(String(data.guestId || ""), event.id, await invitationHash(env, code)).first();
+    guest = await env.DB.prepare("SELECT id,name,table_id FROM event_guests WHERE id=? AND event_id=? AND active=1")
+      .bind(String(data.guestId), event.id).first();
   } else {
-    guest = await env.DB.prepare("SELECT id,name,table_id FROM event_guests WHERE event_id=? AND name_key=? AND active=1 AND invitation_code_hash=?")
-      .bind(event.id, name, await invitationHash(env, code)).first();
+    const terms = [...new Set(name.split(/\s+/).filter((term) => term.length > 1))];
+    if (!terms.length) return fail("Escribe al menos dos letras de tu nombre o apellido.");
+    const conditions = terms.map(() => "instr(g.name_key,?)>0").join(" AND ");
+    const matches = await env.DB.prepare(`SELECT g.id,g.name,g.name_key,g.table_id,t.name AS table_name
+      FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
+      WHERE g.event_id=? AND g.active=1 AND ${conditions}
+      ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 12`)
+      .bind(event.id, ...terms, name).all();
+    const found = matches.results || [];
+    if (!found.length) return fail("No encontré ese nombre en la lista del evento. Revisa cómo está escrito.", 404, "guest_not_found");
+    if (found.length > 1 || found[0].name_key !== name) {
+      return json({ matches: found.map((match) => ({ id: match.id, name: match.name, reference: match.table_name ? "Mesa " + match.table_name : "Toca para confirmar" })) });
+    }
+    guest = found[0];
   }
-  if (!guest) return fail("No encontramos esa invitación. Revisa el nombre y el código.", 401, "invitation_not_found");
+  if (!guest) return fail("No encontré a esa persona en la lista del evento.", 404, "guest_not_found");
   const session = await createGuestSession(env, guest, event.id);
   const payload = await eventForGuest(env.DB, guest.id, event.id);
   const table = guest.table_id ? await env.DB.prepare("SELECT name FROM event_tables WHERE id=? AND event_id=?").bind(guest.table_id, event.id).first() : null;

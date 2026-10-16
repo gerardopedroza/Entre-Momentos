@@ -272,7 +272,7 @@ function toast(message) {
 }
 function requestId() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2); }
 
-function guestChoice(profile, code) {
+function guestChoice(profile) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "guest-result";
@@ -284,7 +284,7 @@ function guestChoice(profile, code) {
   const name = document.createElement("strong");
   name.textContent = profile.name || "Invitado";
   const reference = document.createElement("small");
-  reference.textContent = profile.reference || "Confirma que eres tú";
+  reference.textContent = profile.reference || "Toca para entrar al álbum";
   identity.append(name, reference);
   const arrow = document.createElement("span");
   arrow.className = "result-arrow";
@@ -292,7 +292,7 @@ function guestChoice(profile, code) {
   button.append(initial, identity, arrow);
   button.addEventListener("click", async () => {
     button.disabled = true;
-    try { await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id, invitationCode: code }) })); }
+    try { await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id }) })); }
     catch (error) { button.disabled = false; $("#search-message").textContent = error.message; }
   });
   $("#guest-results").append(button);
@@ -325,15 +325,15 @@ async function refreshEvent() {
 
 $("#guest-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const code = $("#guest-code").value.trim();
-  $("#search-message").textContent = "Buscando tu invitación…";
+  const name = $("#guest-search").value.trim();
+  $("#search-message").textContent = "Buscando tu nombre…";
   $("#guest-results").replaceChildren();
   $("#guest-results").hidden = true;
   try {
-    const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: $("#guest-search").value.trim(), invitationCode: code }) });
-    if (result.matches?.length > 1) {
-      $("#search-message").textContent = "Elige tu nombre y referencia.";
-      result.matches.forEach((profile) => guestChoice(profile, code));
+    const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    if (Array.isArray(result.matches)) {
+      $("#search-message").textContent = result.matches.length > 1 ? "Encontré varias personas. Elige la tuya." : "Confirma que eres tú.";
+      result.matches.forEach((profile) => guestChoice(profile));
       $("#guest-results").hidden = false;
     } else await enterGuest(result);
   } catch (error) { $("#search-message").textContent = error.message; }

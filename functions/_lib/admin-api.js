@@ -275,8 +275,6 @@ async function createGuest(request, env) {
   const event = await eventOr404(db, data.eventId);
   const name = String(data.name || "").trim();
   if (name.length < 2) return fail("Escribe el nombre del invitado.");
-  const code = String(data.invitationCode || makeInvitationCode()).trim().toUpperCase();
-  if (code.length < 6 || code.length > 24) return fail("El código debe tener de 6 a 24 caracteres.");
   let tableId = null;
   const tableName = String(data.tableName || "").trim();
   if (tableName) {
@@ -285,20 +283,14 @@ async function createGuest(request, env) {
     if (!found) await db.prepare("INSERT INTO event_tables (id,event_id,name,position) VALUES (?,?,?,0)").bind(tableId, event.id, tableName).run();
   }
   const id = newId();
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode((env.SESSION_PEPPER || "") + ":" + code));
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode((env.SESSION_PEPPER || "") + ":unused:" + crypto.randomUUID()));
   const hashHex = [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   try {
     await db.prepare("INSERT INTO event_guests (id,event_id,name,name_key,invitation_code_hash,table_id,active,created_at) VALUES (?,?,?,?,?,?,1,?)")
       .bind(id, event.id, name, name.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim(), hashHex, tableId, nowIso()).run();
   } catch (error) { if (/UNIQUE/i.test(error.message)) return fail("Ese código ya está asignado a otra invitación.", 409, "invitation_code_used"); throw error; }
   await log(db, "guest.created", "guest", id, event.id);
-  return json({ guest: { id, eventId: event.id, name, tableName: tableName || null }, invitationCode: code }, 201);
-}
-
-function makeInvitationCode() {
-  const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
+  return json({ guest: { id, eventId: event.id, name, tableName: tableName || null } }, 201);
 }
 
 async function createPrize(request, env) {
