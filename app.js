@@ -23,7 +23,8 @@ let uploadRequestId = "";
 let staffDashboard = null;
 let staffAuthenticated = false;
 let isDemo = false;
-let demoSearchEnabled = false;
+// The bare site URL is a clickable demo; event links always carry ?event= and use the live guest list.
+let demoSearchEnabled = !new URLSearchParams(window.location.search).has("event");
 let isSending = false;
 let dragStartX = null;
 let serverClockOffset = 0;
@@ -378,8 +379,8 @@ $("#demo-entry").addEventListener("click", () => {
   $("#guest-search").value = "Ana";
   $("#homonym-results").replaceChildren();
   $("#homonym-feedback").textContent = "";
-  $("#search-message").textContent = "Presiona «Buscar mi nombre» para ver las dos Ana López.";
-  $("#guest-search").focus();
+  $("#search-message").textContent = "Abriendo la prueba con dos invitadas homónimas…";
+  $("#guest-form").requestSubmit();
 });
 $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
