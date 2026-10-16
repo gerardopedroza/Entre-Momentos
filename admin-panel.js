@@ -26,6 +26,97 @@ function eventStateLabel(value) { return ({ active: "Activo", draft: "Preparaci�
 function dateLabel(date) { return date ? new Date(`${date}T12:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "Fecha pendiente"; }
 function timeLabel(value) { return value ? new Date(value).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Horario pendiente"; }
 
+let lastPlaceSearchAt = 0;
+function timezoneOption(select, timezone) {
+  if (!timezone) return;
+  if (![...select.options].some((option) => option.value === timezone)) {
+    const option = new Option(timezone, timezone);
+    select.add(option);
+  }
+  select.value = timezone;
+}
+function attachPlaceAutocomplete(formId, suggestionsId, statusId) {
+  const form = $(formId);
+  const input = form.elements.name;
+  const list = $(suggestionsId);
+  const status = $(statusId);
+  let timer = null;
+  let controller = null;
+  let places = [];
+  const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
+  const choose = async (place) => {
+    const properties = place.properties || {};
+    const name = properties.name || properties.city || properties.county || properties.state;
+    const locality = properties.city || properties.district || properties.county;
+    const detail = [locality, properties.state, properties.country].filter((part, index, all) => part && all.indexOf(part) === index && part !== name);
+    input.value = [name, ...detail].filter(Boolean).join(", ");
+    close();
+    status.textContent = "Lugar elegido. Buscando su zona horaria…";
+    const [longitude, latitude] = place.geometry?.coordinates || [];
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) { status.textContent = "No pude determinar la zona horaria; selecciónala manualmente."; return; }
+    try {
+      const query = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) });
+      const response = await fetch(`https://timeapi.io/api/timezone/coordinate?${query}`, { headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error("timezone_lookup_failed");
+      const data = await response.json();
+      const timezone = data.timeZone || data.timezone;
+      if (!timezone) throw new Error("timezone_missing");
+      timezoneOption(form.elements.timezone, timezone);
+      status.textContent = `Zona horaria detectada: ${timezone}.`;
+    } catch {
+      status.textContent = "No pude detectar la zona horaria. Selecciónala en la lista.";
+    }
+  };
+  const show = (features) => {
+    places = features;
+    list.innerHTML = features.map((place, index) => {
+      const properties = place.properties || {};
+      const name = properties.name || properties.city || properties.county || "Lugar";
+      const detail = [properties.city || properties.district || properties.county, properties.state, properties.country]
+        .filter((part, partIndex, all) => part && all.indexOf(part) === partIndex && part !== name).join(", ");
+      return `<button type="button" role="option" aria-selected="false" data-place-index="${index}">${esc(name)}<small>${esc(detail)}</small></button>`;
+    }).join("");
+    list.hidden = !features.length;
+    input.setAttribute("aria-expanded", String(features.length > 0));
+    $$('[data-place-index]', list).forEach((button) => {
+      button.addEventListener("mousedown", (event) => event.preventDefault());
+      button.addEventListener("click", () => choose(places[Number(button.dataset.placeIndex)]));
+    });
+  };
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    controller?.abort();
+    const query = input.value.trim();
+    close();
+    if (query.length < 3) { status.textContent = "Escribe al menos 3 letras para ver sugerencias."; return; }
+    status.textContent = "Buscando lugares…";
+    timer = setTimeout(async () => {
+      const wait = Math.max(0, 1000 - (Date.now() - lastPlaceSearchAt));
+      if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+      if (input.value.trim() !== query) return;
+      lastPlaceSearchAt = Date.now();
+      controller = new AbortController();
+      try {
+        const params = new URLSearchParams({ q: query, lang: "es", limit: "6", lat: "23.6345", lon: "-102.5528", location_bias_scale: "0.2" });
+        const response = await fetch(`https://photon.komoot.io/api/?${params}`, { signal: controller.signal, headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error("place_search_failed");
+        const data = await response.json();
+        const features = Array.isArray(data.features) ? data.features : [];
+        show(features);
+        status.textContent = features.length ? "Elige el resultado correcto; la zona horaria se completará sola." : "No encontré sugerencias. Puedes escribir el lugar manualmente.";
+      } catch (error) {
+        if (error.name !== "AbortError") status.textContent = "No pude consultar sugerencias; puedes escribir el lugar manualmente.";
+      }
+    }, 550);
+  });
+  input.addEventListener("focus", () => { if (list.childElementCount) { list.hidden = false; input.setAttribute("aria-expanded", "true"); } });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") close();
+    if (event.key === "ArrowDown" && !list.hidden) { event.preventDefault(); $("button", list)?.focus(); }
+  });
+  document.addEventListener("click", (event) => { if (!form.contains(event.target)) close(); });
+}
+
 async function loadDashboard() {
   const data = await api("/api/admin/dashboard");
   state.venues = data.venues || [];
@@ -226,6 +317,8 @@ $("#venue-form").addEventListener("submit", async (event) => {
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
+attachPlaceAutocomplete("#venue-form", "#venue-suggestions", "#venue-search-status");
+attachPlaceAutocomplete("#venue-edit-form", "#venue-edit-suggestions", "#venue-edit-search-status");
 $("#venue-edit-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button[type=submit]", form); button.disabled = true;
   const data = Object.fromEntries(new FormData(form));
