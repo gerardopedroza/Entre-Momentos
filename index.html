@@ -9,22 +9,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="app-frame">
       <div class="event-backdrop" id="event-backdrop" aria-hidden="true"></div>
       <header class="app-header">
         <button class="wordmark" id="home-button" type="button" aria-label="Ir al inicio"><span class="wordmark-symbol">em</span><span>ENTRE MOMENTOS</span></button>
-        <div class="role-access">
-          <button class="role-access-button" id="role-access-button" type="button" aria-label="Acceso de STAFF o Administración" aria-expanded="false" aria-controls="role-access-menu">
-            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-          </button>
-          <nav class="role-access-menu" id="role-access-menu" aria-label="Acceso privado" hidden>
-            <button id="open-staff-portal" type="button">STAFF <span>Elegir lugar y evento</span></button>
-            <button id="open-admin-portal" type="button">Administración <span>Acceso privado</span></button>
-          </nav>
-        </div>
       </header>
       <main>
         <section class="screen identify-screen" id="screen-welcome" aria-labelledby="welcome-title">
@@ -41,7 +32,7 @@
             <label class="field-label" for="guest-search">Tu nombre o apellido</label><input id="guest-search" type="search" placeholder="Ej. Ana o García" autocomplete="name" minlength="2" required />
             <button class="primary-button" type="submit">Buscar mi nombre <span aria-hidden="true">→</span></button>
             <p class="form-message" id="search-message" role="status"></p>
-            <button class="demo-entry" id="demo-entry" type="button">Probar búsqueda con Ana (dos homónimas)</button>
+            <button class="demo-entry" id="access-entry" type="button">Administración y STAFF</button>
           </form>
         </section>
 
@@ -99,8 +90,17 @@
           <div class="admin-view staff-data-view" id="admin-event" hidden><h2>Datos del evento</h2><form id="staff-event-form" class="message-form"><label class="field-label" for="staff-event-name">Nombres de la pareja</label><input class="admin-input" id="staff-event-name" required /><label class="field-label" for="staff-event-date">Fecha</label><input class="admin-input" id="staff-event-date" type="date" /><label class="field-label" for="staff-cover-image">Foto de portada</label><input id="staff-cover-image" type="file" accept="image/*" /><label class="field-label" for="staff-drive-url">Carpeta de Drive del fotógrafo</label><input class="admin-input" id="staff-drive-url" type="url" placeholder="Enlace compartido por el fotógrafo" /><button class="primary-button" type="submit">Guardar evento <span aria-hidden="true">→</span></button><p class="form-message" id="staff-event-feedback" role="status"></p></form></div>
         </section>
       </main>
+      <div class="access-dialog-backdrop" id="access-dialog" hidden>
+        <section class="access-dialog" role="dialog" aria-modal="true" aria-labelledby="access-dialog-title">
+          <button class="access-dialog-close" id="close-access-dialog" type="button" aria-label="Cerrar">×</button>
+          <p class="kicker">ACCESO PRIVADO</p>
+          <h2 id="access-dialog-title">¿A dónde quieres entrar?</h2>
+          <button class="access-choice" id="open-admin-portal" type="button"><strong>Administrador</strong><span>Usuario y contraseña</span></button>
+          <button class="access-choice" id="open-staff-portal" type="button"><strong>STAFF</strong><span>Seleccionar lugar y evento</span></button>
+        </section>
+      </div>
       <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     </div>
-    <script src="./app.js"></script>
+    <script src="/app.js"></script>
   </body>
 </html>

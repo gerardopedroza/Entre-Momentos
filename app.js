@@ -374,14 +374,12 @@ $("#guest-form").addEventListener("submit", async (event) => {
   } catch (error) { $("#search-message").textContent = error.message; }
 });
 
-$("#demo-entry").addEventListener("click", () => {
-  demoSearchEnabled = true;
-  $("#guest-search").value = "Ana";
-  $("#homonym-results").replaceChildren();
-  $("#homonym-feedback").textContent = "";
-  $("#search-message").textContent = "Abriendo la prueba con dos invitadas homónimas…";
-  $("#guest-form").requestSubmit();
-});
+const accessDialog = $("#access-dialog");
+$("#access-entry").addEventListener("click", () => { accessDialog.hidden = false; $("#close-access-dialog").focus(); });
+function closeAccessDialog() { accessDialog.hidden = true; $("#access-entry").focus(); }
+$("#close-access-dialog").addEventListener("click", closeAccessDialog);
+accessDialog.addEventListener("click", (event) => { if (event.target === accessDialog) closeAccessDialog(); });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !accessDialog.hidden) closeAccessDialog(); });
 $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
 $("#homonym-back").addEventListener("click", () => { screen("welcome"); $("#guest-search").focus(); });
@@ -398,24 +396,8 @@ $("#carousel-stage").addEventListener("pointerup", (event) => {
 $("#carousel-stage").addEventListener("pointercancel", () => { dragStartX = null; });
 $$('[data-back="home"]').forEach((button) => button.addEventListener("click", () => screen("home")));
 $("#home-button").addEventListener("click", () => screen(guest ? "home" : "welcome"));
-const roleAccessButton = $("#role-access-button");
-const roleAccessMenu = $("#role-access-menu");
-function closeRoleAccessMenu() {
-  roleAccessMenu.hidden = true;
-  roleAccessButton.setAttribute("aria-expanded", "false");
-}
-roleAccessButton.addEventListener("click", () => {
-  roleAccessMenu.hidden = !roleAccessMenu.hidden;
-  roleAccessButton.setAttribute("aria-expanded", String(!roleAccessMenu.hidden));
-});
-$("#open-staff-portal").addEventListener("click", () => { window.location.href = "./staff.html"; });
-$("#open-admin-portal").addEventListener("click", () => { window.location.href = "./admin.html"; });
-document.addEventListener("click", (event) => {
-  if (!event.target.closest(".role-access")) closeRoleAccessMenu();
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeRoleAccessMenu();
-});
+$("#open-staff-portal").addEventListener("click", () => { window.location.href = "/staff.html"; });
+$("#open-admin-portal").addEventListener("click", () => { window.location.href = "/admin.html"; });
 
 $("#gallery-input").addEventListener("change", (event) => {
   const file = event.target.files?.[0];

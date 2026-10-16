@@ -31,15 +31,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .wordmark { display: flex; align-items: center; gap: 9px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 10px; font-weight: 600; letter-spacing: 1.4px; }
 .wordmark-symbol { color: var(--olive); font: italic 24px/1 var(--serif); letter-spacing: -4px; }
 .wordmark-symbol span { color: var(--copper); }
-.role-access { position: relative; }
-.role-access-button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #849087; cursor: pointer; }
-.role-access-button:hover, .role-access-button[aria-expanded="true"] { background: #eef0e9; color: var(--olive-dark); }
-.role-access-button svg { width: 20px; height: 20px; fill: currentColor; }
-.role-access-menu { position: absolute; z-index: 8; top: calc(100% + 8px); right: -8px; display: grid; width: 218px; gap: 3px; padding: 7px; border: 1px solid #e9e4da; border-radius: 13px; background: #fffefa; box-shadow: 0 12px 30px #29352f20; }
-.role-access-menu[hidden] { display: none; }
-.role-access-menu button { display: grid; gap: 3px; padding: 10px 11px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 13px; font-weight: 600; }
-.role-access-menu button:hover { background: #f4f3ed; }
-.role-access-menu button span { color: var(--muted); font-size: 11px; font-weight: 400; }
 .quiet-button, .back-button { padding: 9px 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
 main { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; padding: 20px 22px; overflow: hidden; animation: enter .2s ease-out; }
@@ -71,6 +62,16 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .form-message { min-height: 18px; margin: 0; color: var(--olive-dark); font-size: 12px; line-height: 1.35; }
 #search-message:empty { display: none; }
 .demo-entry { justify-self: center; min-height: 30px; padding: 0 8px; border: 0; background: transparent; color: #777f74; cursor: pointer; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.access-dialog-backdrop { position: absolute; z-index: 9; inset: 0; display: grid; place-items: center; padding: 22px; background: #23322f70; backdrop-filter: blur(5px); }
+.access-dialog-backdrop[hidden] { display: none; }
+.access-dialog { position: relative; display: grid; width: min(100%,360px); gap: 10px; padding: 25px 20px 20px; border: 1px solid #ffffffbd; border-radius: 20px; background: #fffefa; box-shadow: 0 22px 60px #1c292644; }
+.access-dialog .kicker { margin-bottom: 0; color: #927b83; }
+.access-dialog h2 { margin: 0 32px 5px 0; color: #334454; font: 400 25px/1.12 var(--serif); }
+.access-dialog-close { position: absolute; top: 12px; right: 12px; display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: #fff0e8; color: #b96f60; cursor: pointer; font-size: 24px; }
+.access-choice { display: grid; gap: 4px; min-height: 58px; padding: 11px 13px; border: 1px solid #e7e4da; border-radius: 12px; background: #fff; color: var(--ink); cursor: pointer; text-align: left; }
+.access-choice:hover { border-color: #9ab9a9; background: #f7faf6; }
+.access-choice strong { font-size: 14px; font-weight: 600; }
+.access-choice span { color: var(--muted); font-size: 12px; }
 .guest-result { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 10px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); text-align: left; cursor: pointer; }
 .guest-initial { display: grid; flex: 0 0 32px; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--sage); color: var(--olive-dark); font: 15px var(--serif); }
 .guest-identity { display: grid; flex: 1; gap: 2px; }
