@@ -21,15 +21,15 @@
 
       <main>
         <section class="screen welcome-screen" id="screen-welcome" aria-labelledby="welcome-title">
-          <div class="welcome-decoration" aria-hidden="true"><span></span><span></span><span></span></div>
-          <div class="welcome-copy">
-            <p class="kicker">ANA &amp; CARLOS <span>·</span> 15 JUNIO</p>
-            <p class="welcome-pretitle">Hoy celebramos</p>
-            <h1 id="welcome-title">Una boda.<br /><em>Mil historias.</em></h1>
-            <p class="welcome-subtitle">Un recuerdo para siempre.</p>
-            <button class="primary-button" id="start-guest" type="button">Ayúdanos con tus fotos <span aria-hidden="true">→</span></button>
+          <article class="event-cover" aria-label="Álbum de la boda">
+            <span class="cover-label">EL ÁLBUM DE NUESTRA BODA</span>
+            <div class="cover-caption"><p id="event-date-display">15 JUNIO 2026</p><h1 id="welcome-title"><span id="event-name-display">Ana &amp; Carlos</span><span class="cover-sparkle">✦</span></h1><span class="cover-slogan">Una boda. Mil historias. Un recuerdo para siempre.</span></div>
+          </article>
+          <button class="upload-entry" id="start-guest" type="button"><span class="upload-entry-icon" aria-hidden="true">＋</span><span>Subir mi foto</span><span class="entry-arrow" aria-hidden="true">→</span></button>
+          <div class="quick-actions">
+            <button class="program-entry" id="show-program" type="button"><span class="program-entry-icon" aria-hidden="true">◷</span><span><strong>Programa</strong><small>Momentos de hoy</small></span></button>
+            <button class="program-entry" id="open-message" type="button"><span class="message-entry-icon" aria-hidden="true">♡</span><span><strong>Dejar un mensaje</strong><small>Para los novios</small></span></button>
           </div>
-          <div class="welcome-bottom"><span class="tiny-sparkle">✳</span><span>Ayúdanos con tu foto de cada momento</span></div>
         </section>
 
         <section class="screen guest-screen" id="screen-guest" aria-labelledby="guest-title" hidden>
@@ -42,6 +42,33 @@
           </form>
           <div class="guest-results" id="guest-results" aria-live="polite" hidden></div>
           <p class="screen-footnote">Si hay nombres iguales, elige la referencia que te identifica.</p>
+        </section>
+
+        <section class="screen schedule-screen" id="screen-schedule" aria-labelledby="schedule-title" hidden>
+          <button class="back-button" data-back="welcome" type="button">← <span>Inicio</span></button>
+          <div class="step-heading"><p class="kicker" id="schedule-date">15 JUNIO</p><h1 id="schedule-title">Momentos de hoy</h1></div>
+          <div class="public-schedule" id="public-schedule"></div>
+          <p class="screen-footnote">La coordinación puede ajustar los horarios.</p>
+        </section>
+
+        <section class="screen message-screen" id="screen-message" aria-labelledby="message-title" hidden>
+          <button class="back-button" data-back="welcome" type="button">← <span>Inicio</span></button>
+          <div class="step-heading"><p class="kicker">UN RECUERDO PARA EL ÁLBUM</p><h1 id="message-title">Déjales unas palabras</h1></div>
+          <form id="message-form" class="message-form">
+            <label class="field-label" for="message-author">Tu nombre</label>
+            <input class="admin-input" id="message-author" maxlength="80" placeholder="¿Quién escribe?" autocomplete="name" required />
+            <label class="field-label" for="message-text">Tu mensaje</label>
+            <textarea id="message-text" maxlength="240" placeholder="Una frase para recordar este día…" required></textarea>
+            <div class="message-form-bottom"><span id="message-count">0 / 240</span><button class="primary-button" type="submit">Guardar mensaje <span aria-hidden="true">→</span></button></div>
+          </form>
+        </section>
+
+        <section class="screen message-done-screen" id="screen-message-done" aria-labelledby="message-done-title" hidden>
+          <div class="done-mark">♡</div><p class="kicker">UN RECUERDO MÁS</p><h1 id="message-done-title">Gracias por<br /><em>estas palabras.</em></h1>
+          <blockquote id="saved-message-preview"></blockquote>
+          <p class="message-author-preview" id="saved-message-author"></p>
+          <div class="upload-status"><span class="status-dot"></span><span id="message-drive-status">Guardado en esta demostración. La conexión con Drive aún no está configurada.</span></div>
+          <button class="primary-button" id="message-home" type="button">Volver al álbum</button>
         </section>
 
         <section class="screen moment-screen" id="screen-moment" aria-labelledby="moment-title" hidden>
@@ -90,12 +117,11 @@
           <div class="admin-view" id="admin-settings" hidden>
             <div class="step-heading"><p class="kicker">DETALLES DE LA BODA</p><h2>Este evento</h2><p>Identifica la celebración del enlace.</p></div>
             <label class="field-label" for="event-name">Nombres de la pareja</label><input class="admin-input" id="event-name" value="Ana & Carlos" />
-            <label class="field-label" for="event-date">Fecha</label><input class="admin-input" id="event-date" type="date" value="2026-06-15" />
+            <label class="field-label" for="event-date">Fecha</label><input class="admin-input" id="event-date" type="date" value="2027-06-15" />
             <div class="drive-notice">El programa se guarda en este navegador. Para coordinar cambios en vivo hace falta conectar la agenda del evento.</div>
           </div>
         </section>
       </main>
-      <footer class="app-footer"><span>UNA BODA. MIL HISTORIAS.</span><span id="footer-guest"></span></footer>
     </div>
     <script src="./app.js"></script>
   </body>

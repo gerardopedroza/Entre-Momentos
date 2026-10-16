@@ -47,6 +47,28 @@ function screen(name) {
   document.body.dataset.screen = name;
 }
 function getActivity() { return activities[activityIndex] || defaultActivities[0]; }
+function updateEventCover() {
+  const eventName = $("#event-name").value.trim() || "Ana & Carlos";
+  const eventDate = $("#event-date").value;
+  $("#event-name-display").textContent = eventName;
+  if (eventDate) {
+    const date = new Date(eventDate + "T12:00:00");
+    $("#event-date-display").textContent = date.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }).toLocaleUpperCase("es-MX");
+    $("#schedule-date").textContent = date.toLocaleDateString("es-MX", { day: "numeric", month: "long" }).toLocaleUpperCase("es-MX");
+  }
+}
+function renderPublicSchedule() {
+  const list = $("#public-schedule");
+  list.replaceChildren();
+  activities.slice(0, 5).forEach((activity) => {
+    const row = document.createElement("div");
+    row.className = "public-activity";
+    row.innerHTML = '<time></time><span class="public-activity-mark"></span><strong></strong>';
+    $("time", row).textContent = activity.start;
+    $("strong", row).textContent = activity.name;
+    list.append(row);
+  });
+}
 function formatSeconds(value) {
   const n = Math.max(0, value);
   return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
@@ -157,6 +179,25 @@ function showNextActivity() {
 }
 
 $("#start-guest").addEventListener("click", () => { screen("guest"); $("#guest-search").focus(); });
+$("#show-program").addEventListener("click", () => { renderPublicSchedule(); screen("schedule"); });
+$("#open-message").addEventListener("click", () => { $("#message-author").value = ""; $("#message-text").value = ""; $("#message-count").textContent = "0 / 240"; screen("message"); $("#message-author").focus(); });
+$("#message-text").addEventListener("input", (event) => { $("#message-count").textContent = event.target.value.length + " / 240"; });
+$("#message-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const author = $("#message-author").value.trim();
+  const message = $("#message-text").value.trim();
+  if (!author || !message) return;
+  const key = "em-messages:" + safeKey($("#event-name").value || "Ana & Carlos");
+  let saved = [];
+  try { saved = JSON.parse(read(key) || "[]"); } catch { saved = []; }
+  saved.push({ author, message, createdAt: new Date().toISOString() });
+  write(key, JSON.stringify(saved));
+  $("#saved-message-preview").textContent = "“" + message + "”";
+  $("#saved-message-author").textContent = "— " + author;
+  $("#message-drive-status").textContent = "Guardado en esta demostración. La conexión con Drive aún no está configurada.";
+  screen("message-done");
+});
+$("#message-home").addEventListener("click", () => screen("welcome"));
 $("#guest-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const query = $("#guest-search").value.trim().toLocaleLowerCase("es-MX");
@@ -193,7 +234,7 @@ $("#photo-back").addEventListener("click", () => { $("#camera-input").value = ""
 $("#preview-open").addEventListener("click", () => { isPreviewOpen = true; refreshMoment(); });
 $("#next-moment").addEventListener("click", showNextActivity);
 $("#home-button").addEventListener("click", () => { clearInterval(clockInterval); screen("welcome"); });
-$('.back-button[data-back="welcome"]').addEventListener("click", () => screen("welcome"));
+$$('.back-button[data-back="welcome"]').forEach((button) => button.addEventListener("click", () => screen("welcome")));
 $('.back-button[data-back="guest"]').addEventListener("click", () => screen("guest"));
 $("#open-admin").addEventListener("click", () => { renderActivities(); screen("admin"); });
 $("#close-admin").addEventListener("click", () => { screen(currentGuest ? "moment" : "welcome"); refreshMoment(); });
@@ -216,6 +257,7 @@ $("#save-program").addEventListener("click", () => {
   write("em-activities", JSON.stringify(activities));
   write("em-event-name", $("#event-name").value.trim() || "Ana & Carlos");
   write("em-event-date", $("#event-date").value);
+  updateEventCover();
   activityIndex = Math.min(activityIndex, activities.length - 1);
   $("#program-feedback").textContent = "Programa guardado en este navegador.";
   renderActivities();
@@ -242,6 +284,10 @@ $("#event-name").addEventListener("input", () => {
 $("#event-date").addEventListener("change", (event) => {
   if (event.target.value) $(".admin-top .kicker").textContent = `EVENTO · ${event.target.value}`;
 });
+
+$("#event-name").addEventListener("input", updateEventCover);
+$("#event-date").addEventListener("change", updateEventCover);
+updateEventCover();
 
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
