@@ -28,7 +28,7 @@ Los enlaces de eventos en preparación se pueden copiar antes del evento, pero s
 
 ## Configuración necesaria para operar en Cloudflare
 
-El repositorio incluye páginas estáticas, Cloudflare Pages Functions y la migración de esquema en `migrations/0001_platform.sql`. Para habilitar operaciones reales, el proyecto de Pages debe tener un binding D1 llamado `DB` y ejecutar esa migración. Configura también estas variables secretas en Pages:
+El repositorio incluye páginas estáticas, Cloudflare Pages Functions y la migración de esquema en `migrations/0001_platform.sql`. Para habilitar operaciones reales, el proyecto de Pages debe tener un binding D1 llamado `DB` y ejecutar las migraciones en orden (`0001_platform.sql` y `0002_guest_nickname.sql`). La segunda agrega el apodo opcional de cada invitado. Configura también estas variables secretas en Pages:
 
 - `ADMIN_USERNAME` y `ADMIN_PASSWORD_HASH`: acceso a administración.
 - `SESSION_PEPPER`: valor secreto aleatorio para proteger sesiones y códigos de invitación.

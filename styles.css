@@ -469,3 +469,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   .screen:not(.staff-login-screen):not(.admin-screen) button,
   .gallery-button { transition: none; }
 }
+
+.home-nickname { margin: 2px 0 0; color: #858b91; font-size: 12px; line-height: 1.2; }
+.guest-identity .guest-nickname { color: #858b91; font-size: 11px; }

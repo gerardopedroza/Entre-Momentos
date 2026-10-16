@@ -86,6 +86,9 @@ function showHome(profile, data, demo = false) {
   submissions = new Map();
   (profile?.submissions || []).forEach((item) => submissions.set(String(item.momentId), item));
   $("#home-guest-name").textContent = profile?.name || profile?.displayName || "invitado";
+  const nickname = profile?.nickname || "";
+  $("#home-guest-nickname").textContent = nickname;
+  $("#home-guest-nickname").hidden = !nickname;
   const count = eventData.presence?.activeCount;
   const hasLiveCount = Number.isInteger(count) && count >= 0;
   $("#connected-count").textContent = hasLiveCount ? String(count) : "—";
@@ -311,9 +314,13 @@ function guestChoice(profile) {
   identity.className = "guest-identity";
   const name = document.createElement("strong");
   name.textContent = profile.name || "Invitado";
+  const nickname = profile.nickname ? document.createElement("small") : null;
+  if (nickname) { nickname.className = "guest-nickname"; nickname.textContent = profile.nickname; }
   const reference = document.createElement("small");
   reference.textContent = profile.reference || "Toca para entrar al álbum";
-  identity.append(name, reference);
+  identity.append(name);
+  if (nickname) identity.append(nickname);
+  identity.append(reference);
   const arrow = document.createElement("span");
   arrow.className = "result-arrow";
   arrow.textContent = "→";
@@ -322,7 +329,7 @@ function guestChoice(profile) {
     button.disabled = true;
     try {
       if (demoSearchEnabled) {
-        showHome({ id: profile.id, name: profile.name, table: profile.reference?.replace(/^Mesa /, "") }, demoEvent, true);
+        showHome({ id: profile.id, name: profile.name, nickname: profile.nickname, table: profile.reference?.replace(/^Mesa /, "") }, demoEvent, true);
         return;
       }
       await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id }) }));

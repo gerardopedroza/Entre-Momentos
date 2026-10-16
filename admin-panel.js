@@ -229,7 +229,7 @@ function renderEventDetails() {
   const { activities, guests, contests } = state.details;
   $("#activities-list").innerHTML = activities.length ? activities.map((activity) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(activity.position)}. ${esc(activity.name)}</h3><div class="admin-meta">${timeLabel(activity.starts_at)} – ${new Date(activity.ends_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></div><button class="admin-button secondary" type="button" data-delete-activity="${esc(activity.id)}">Quitar</button></div><div class="admin-meta">Fotos: ${timeLabel(activity.photo_opens_at)} a ${new Date(activity.photo_closes_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></article>`).join("") : '<div class="empty-state">Agrega los momentos de la boda para construir el minuto a minuto.</div>';
   $$('[data-delete-activity]', $("#activities-list")).forEach((button) => button.addEventListener("click", () => deactivate(`/api/admin/activities/${encodeURIComponent(button.dataset.deleteActivity)}`, "Actividad quitada.")));
-  $("#guests-list").innerHTML = guests.length ? guests.map((guest) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(guest.name)}</h3><div class="admin-meta">${guest.table_name ? `Mesa ${esc(guest.table_name)} · ` : ""}${guest.active ? `${Number(guest.photos_sent || 0)} foto(s) enviadas` : "Invitación desactivada"}</div></div>${guest.active ? `<button class="admin-button secondary" type="button" data-delete-guest="${esc(guest.id)}">Desactivar</button>` : '<span class="admin-badge">Inactivo</span>'}</div></article>`).join("") : '<div class="empty-state">Agrega a las personas invitadas o carga la lista desde una hoja CSV.</div>';
+  $("#guests-list").innerHTML = guests.length ? guests.map((guest) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(guest.name)}</h3>${guest.nickname ? `<div class="admin-meta">Apodo: ${esc(guest.nickname)}</div>` : ""}<div class="admin-meta">${guest.table_name ? `Mesa ${esc(guest.table_name)} · ` : ""}${guest.active ? `${Number(guest.photos_sent || 0)} foto(s) enviadas` : "Invitación desactivada"}</div></div>${guest.active ? `<button class="admin-button secondary" type="button" data-delete-guest="${esc(guest.id)}">Desactivar</button>` : '<span class="admin-badge">Inactivo</span>'}</div></article>`).join("") : '<div class="empty-state">Agrega a las personas invitadas o carga la lista desde un archivo CSV o Excel.</div>';
   $$('[data-delete-guest]', $("#guests-list")).forEach((button) => button.addEventListener("click", () => deactivate(`/api/admin/guests/${encodeURIComponent(button.dataset.deleteGuest)}`, "Invitación desactivada.")));
   const currentActivity = $("#contest-form [name=activityId]").value;
   $("#contest-form [name=activityId]").innerHTML = '<option value="">Cierre de todo el evento</option>' + activities.filter((a) => a.active).map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
@@ -242,6 +242,7 @@ async function deactivate(path, successText) {
   catch (error) { message(error.message); }
 }
 
+function cleanHeader(value) { return String(value ?? "").replace(/^\uFEFF/, "").toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, ""); }
 function parseCSV(text) {
   const firstLine = text.split(/\r?\n/, 1)[0] || "";
   const delimiter = firstLine.includes(";") && !firstLine.includes(",") ? ";" : firstLine.includes("\t") && !firstLine.includes(",") ? "\t" : ",";
@@ -256,43 +257,73 @@ function parseCSV(text) {
   }
   row.push(value.trim()); if (row.some(Boolean)) rows.push(row);
   if (rows.length < 2) throw new Error("El archivo no contiene filas para importar.");
-  const clean = (v) => String(v).replace(/^\uFEFF/, "").toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-  const headers = rows[0].map(clean);
+  const headers = rows[0].map(cleanHeader);
   return rows.slice(1).map((cols) => Object.fromEntries(headers.map((header, index) => [header, cols[index] || ""])));
 }
-function col(row, names) { for (const name of names) { const value = row[name]; if (value) return value.trim(); } return ""; }
+function parseExcel(buffer) {
+  if (!window.XLSX) throw new Error("No se pudo cargar el lector de Excel. Revisa tu conexión e inténtalo de nuevo.");
+  const workbook = window.XLSX.read(buffer, { cellDates: false });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!sheet) throw new Error("El archivo no contiene una hoja de cálculo.");
+  const records = window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
+  if (!records.length) throw new Error("El archivo no contiene filas para importar.");
+  return records.map((record) => Object.fromEntries(Object.entries(record).map(([key, value]) => [cleanHeader(key), value])));
+}
+async function readImportFile(file) {
+  const extension = file.name.split(".").pop().toLocaleLowerCase("es-MX");
+  if (["xls", "xlsx"].includes(extension)) return parseExcel(await file.arrayBuffer());
+  return parseCSV((await file.text()).replace(/^\uFEFF/, ""));
+}
+function col(row, names) { for (const name of names) { const value = row[name]; if (value !== undefined && value !== null && String(value).trim()) return String(value).trim(); } return ""; }
 function dateTime(value, date) {
+  if (typeof value === "number" && value >= 0 && value < 1) {
+    const minutes = Math.round(value * 24 * 60) % (24 * 60);
+    return `${date}T${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}:00`;
+  }
   const source = String(value || "").trim();
-  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(source)) return `${date}T${source.length === 5 ? `${source}:00` : source}`;
+  const time = source.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?$/i);
+  if (time) {
+    let hour = Number(time[1]);
+    const suffix = time[4]?.replace(/\./g, "").toLowerCase();
+    if (suffix) hour = (hour % 12) + (suffix === "pm" ? 12 : 0);
+    if (hour > 23 || Number(time[2]) > 59) throw new Error(`La hora «${source}» no es válida.`);
+    return `${date}T${String(hour).padStart(2, "0")}:${time[2]}:${time[3] || "00"}`;
+  }
   const parsed = new Date(source);
   if (!Number.isNaN(parsed.valueOf())) return parsed.toISOString();
   throw new Error(`No se reconoce la hora «${source}». Usa HH:MM o fecha y hora.`);
 }
-async function importCSV(input, kind) {
+async function importFile(input, kind) {
   const file = input.files?.[0]; if (!file || !state.details) return;
   input.disabled = true;
   try {
-    const rows = parseCSV((await file.text()).replace(/^\uFEFF/, ""));
+    const rows = await readImportFile(file);
     let imported = 0;
+    let skipped = 0;
+    let firstRowError = "";
     if (kind === "guests") {
       for (const row of rows) {
-        const name = col(row, ["nombre", "invitado", "name", "nombrecompleto"]);
-        if (!name) continue;
-        await send("/api/admin/guests", "POST", { eventId: state.selected, name, tableName: col(row, ["mesa", "table", "mesanumero"]) }); imported++;
+        const firstName = col(row, ["nombre", "nombres", "nombreyapellido", "nombreapellido", "firstname", "givenname"]);
+        const lastName = col(row, ["apellido", "apellidos", "lastname", "surname"]);
+        const fullName = col(row, ["nombrecompleto", "invitado", "name"]);
+        const name = [firstName, lastName].filter(Boolean).join(" ") || fullName;
+        if (!name) { skipped++; continue; }
+        try { await send("/api/admin/guests", "POST", { eventId: state.selected, firstName, lastName, name, nickname: col(row, ["apodo", "sobrenombre", "nickname", "alias"]), tableName: col(row, ["mesa", "table", "mesanumero"]) }); imported++; }
+        catch (error) { skipped++; firstRowError ||= error.message; }
       }
     } else {
       let position = state.details.activities.length;
       for (const row of rows) {
-        const name = col(row, ["actividad", "momento", "nombre", "name"]);
-        const starts = col(row, ["inicio", "horainicio", "empieza", "start", "startsat"]);
-        const ends = col(row, ["fin", "horafin", "termina", "end", "endsat"]);
-        if (!name || !starts || !ends) continue;
-        position++;
-        await send("/api/admin/activities", "POST", { eventId: state.selected, name, position, startsAt: dateTime(starts, state.details.event.event_date), endsAt: dateTime(ends, state.details.event.event_date) }); imported++;
+        const name = col(row, ["nombredelaactividad", "actividad", "momento", "nombre", "name"]);
+        const starts = col(row, ["horadeinicio", "horainicio", "inicio", "empieza", "start", "startsat"]);
+        const ends = col(row, ["horafin", "horadefin", "fin", "termina", "end", "endsat"]);
+        if (!name || !starts || !ends) { skipped++; continue; }
+        try { await send("/api/admin/activities", "POST", { eventId: state.selected, name, position: position + 1, startsAt: dateTime(starts, state.details.event.event_date), endsAt: dateTime(ends, state.details.event.event_date) }); position++; imported++; }
+        catch (error) { skipped++; firstRowError ||= error.message; }
       }
     }
     await selectEvent(state.selected); await loadDashboard();
-    message(`${imported} ${kind === "guests" ? "invitado(s)" : "actividad(es)"} importado(s).`);
+    message(`${imported} ${kind === "guests" ? "invitado(s)" : "actividad(es)"} importado(s).${skipped ? ` Se omitieron ${skipped} fila(s)${firstRowError ? `; primer error: ${firstRowError}` : " por falta de datos requeridos"}.` : ""}`);
   } catch (error) { message(`No se completó la importación: ${error.message}`); }
   finally { input.disabled = false; input.value = ""; }
 }
@@ -355,8 +386,8 @@ $("#guest-form").addEventListener("submit", async (event) => {
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
-$("#activity-csv").addEventListener("change", (event) => importCSV(event.currentTarget, "activities"));
-$("#guest-csv").addEventListener("change", (event) => importCSV(event.currentTarget, "guests"));
+$("#activity-csv").addEventListener("change", (event) => importFile(event.currentTarget, "activities"));
+$("#guest-csv").addEventListener("change", (event) => importFile(event.currentTarget, "guests"));
 
 $("#contest-form [name=hasPrize]").addEventListener("change", (event) => { $("#prize-fields").hidden = !event.target.checked; $("#felicitation-fields").hidden = event.target.checked; });
 $("#contest-form").addEventListener("submit", async (event) => {

@@ -87,13 +87,13 @@ async function identifyGuest(request, env, select = false) {
   if (!select && name.length < 2) return fail("Escribe tu nombre o apellido para buscarte.");
   let guest;
   if (select) {
-    guest = await env.DB.prepare("SELECT id,name,table_id FROM event_guests WHERE id=? AND event_id=? AND active=1")
+    guest = await env.DB.prepare("SELECT id,name,nickname,table_id FROM event_guests WHERE id=? AND event_id=? AND active=1")
       .bind(String(data.guestId), event.id).first();
   } else {
     const terms = [...new Set(name.split(/\s+/).filter((term) => term.length > 1))];
     if (!terms.length) return fail("Escribe al menos dos letras de tu nombre o apellido.");
-    const conditions = terms.map(() => "instr(g.name_key,?)>0").join(" AND ");
-    const matches = await env.DB.prepare(`SELECT g.id,g.name,g.name_key,g.table_id,t.name AS table_name
+    const conditions = terms.map(() => "instr(g.name_key,?)>0").join(" OR ");
+    const matches = await env.DB.prepare(`SELECT g.id,g.name,g.nickname,g.name_key,g.table_id,t.name AS table_name
       FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
       WHERE g.event_id=? AND g.active=1 AND ${conditions}
       ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 6`)
@@ -101,7 +101,7 @@ async function identifyGuest(request, env, select = false) {
     const found = matches.results || [];
     if (!found.length) return fail("No encontré ese nombre en la lista del evento. Revisa cómo está escrito.", 404, "guest_not_found");
     if (found.length > 1 || found[0].name_key !== name) {
-      return json({ matches: found.slice(0, 5).map((match) => ({ id: match.id, name: match.name, reference: match.table_name ? "Mesa " + match.table_name : "Toca para confirmar" })), hasMore: found.length > 5 });
+      return json({ matches: found.slice(0, 5).map((match) => ({ id: match.id, name: match.name, nickname: match.nickname, reference: match.table_name ? "Mesa " + match.table_name : "Toca para confirmar" })), hasMore: found.length > 5 });
     }
     guest = found[0];
   }
@@ -109,7 +109,7 @@ async function identifyGuest(request, env, select = false) {
   const session = await createGuestSession(env, guest, event.id);
   const payload = await eventForGuest(env.DB, guest.id, event.id);
   const table = guest.table_id ? await env.DB.prepare("SELECT name FROM event_tables WHERE id=? AND event_id=?").bind(guest.table_id, event.id).first() : null;
-  return json({ guest: { id: guest.id, name: guest.name, table: table?.name || null }, event: payload.event, submissions: payload.submissions, winnerNotice: payload.winnerNotice }, 200, { "Set-Cookie": session.header });
+  return json({ guest: { id: guest.id, name: guest.name, nickname: guest.nickname || null, table: table?.name || null }, event: payload.event, submissions: payload.submissions, winnerNotice: payload.winnerNotice }, 200, { "Set-Cookie": session.header });
 }
 
 export async function handleGuestApi(ctx, path) {
@@ -126,7 +126,7 @@ export async function handleGuestApi(ctx, path) {
     const shaped = await shapeEvent(db, event, venue);
     if (!session || session.event_id !== event.id) return json({ event: { ...shaped, serverTime: nowIso() }, serverTime: nowIso() });
     const payload = await eventForGuest(db, session.guest_id, event.id);
-    return json({ ...payload, guest: { id: session.guest_id, name: session.name, tableId: session.table_id }, serverTime: nowIso(), event: { ...payload.event, serverTime: nowIso() } });
+    return json({ ...payload, guest: { id: session.guest_id, name: session.name, nickname: session.nickname || null, tableId: session.table_id }, serverTime: nowIso(), event: { ...payload.event, serverTime: nowIso() } });
   }
   if (path === "/api/guests/identify" && method === "POST") return identifyGuest(request, env, false);
   if (path === "/api/guests/identify/select" && method === "POST") return identifyGuest(request, env, true);

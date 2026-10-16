@@ -28,7 +28,7 @@ export async function adminSession(request, env) {
 export async function guestSession(request, env) {
   const token = cookie(request, "em_guest");
   if (!token || !env.DB) return null;
-  return env.DB.prepare(`SELECT s.event_id, g.id AS guest_id, g.name, g.table_id
+  return env.DB.prepare(`SELECT s.event_id, g.id AS guest_id, g.name, g.nickname, g.table_id
     FROM guest_sessions s JOIN event_guests g ON g.id = s.guest_id
     WHERE s.id_hash = ? AND s.expires_at > ? AND g.active = 1`)
     .bind(await sha256(token), nowIso()).first();
