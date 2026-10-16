@@ -1,0 +1,4 @@
+/admin.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/admin-panel.js
+  Cache-Control: no-cache, no-store, must-revalidate
