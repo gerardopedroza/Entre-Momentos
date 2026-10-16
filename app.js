@@ -196,15 +196,16 @@ function renderCarousel() {
 
 function updateCarousel() {
   const cards = $$(".moment-card", $("#moment-carousel"));
-  const cardOffset = Math.min(205, window.innerWidth * 0.4);
+  const cardOffset = Math.min(145, window.innerWidth * 0.33);
   cards.forEach((card, index) => {
     let offset = index - selectedMomentIndex;
     if (offset > moments.length / 2) offset -= moments.length;
     if (offset < -moments.length / 2) offset += moments.length;
     const distance = Math.abs(offset);
-    card.style.transform = "translateX(-50%) translateX(" + offset * cardOffset + "px) scale(" + Math.max(.78, 1 - distance * .12) + ") rotateY(" + (-offset * 9) + "deg)";
+    const side = Math.sign(offset);
+    card.style.transform = "translateX(-50%) translateX(" + offset * cardOffset + "px) translateY(" + (distance ? -7 : 0) + "px) translateZ(" + (distance ? -28 : 20) + "px) scale(" + Math.max(.8, 1 - distance * .12) + ") rotateY(" + (-side * 4) + "deg) rotateZ(" + (side * 1.2) + "deg)";
     card.style.zIndex = String(10 - distance);
-    card.style.opacity = distance > 1 ? "0" : distance ? ".72" : "1";
+    card.style.opacity = distance > 1 ? "0" : distance ? ".94" : "1";
     card.style.pointerEvents = distance > 1 ? "none" : "auto";
     card.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
   });
