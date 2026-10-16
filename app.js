@@ -204,7 +204,7 @@ function updateCarousel() {
     if (offset > moments.length / 2) offset -= moments.length;
     if (offset < -moments.length / 2) offset += moments.length;
     const distance = Math.abs(offset);
-    card.style.transform = "translate(-50%, -50%) translateX(" + offset * cardOffset + "px) scale(" + Math.max(.76, 1 - distance * .12) + ") rotateY(" + (-offset * 10) + "deg)";
+    card.style.transform = "translateX(-50%) translateX(" + offset * cardOffset + "px) scale(" + Math.max(.76, 1 - distance * .12) + ") rotateY(" + (-offset * 7) + "deg)";
     card.style.zIndex = String(10 - distance);
     card.style.opacity = distance > 1 ? "0" : distance ? ".72" : "1";
     card.style.pointerEvents = distance > 1 ? "none" : "auto";

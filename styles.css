@@ -84,15 +84,15 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .home-action svg { width: 22px; height: 22px; }
 .presence-action { color: #778178; cursor: default; }
 .presence-action small { color: var(--muted); font-size: 10px; }
-.carousel-section { display: flex; flex: 1 1 46%; flex-direction: column; min-height: 0; }
+.carousel-section { display: flex; flex: 1 1 0; flex-direction: column; min-height: 0; }
 .moment-prompt { display: flex; flex: 0 0 auto; min-height: 33px; align-items: center; margin: 0 0 3px; padding: 7px 10px; border-left: 2px solid var(--copper); border-radius: 0 4px 4px 0; background: #f0eee7; color: var(--ink); font-size: 13px; font-weight: 500; line-height: 1.3; }
 .carousel-heading { display: flex; flex: 0 0 44px; align-items: center; justify-content: space-between; }
 .carousel-heading h2 { margin: 2px 0 0; font: 400 22px/1.1 var(--serif); }
 .carousel-controls { display: flex; gap: 6px; }
 .carousel-controls button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #deded4; border-radius: 50%; background: #fffefa; color: var(--olive-dark); cursor: pointer; font-size: 23px; line-height: 1; }
-.carousel-stage { position: relative; display: grid; flex: 1; min-height: 130px; place-items: center; overflow: hidden; touch-action: pan-y; }
-.moment-carousel { position: relative; width: 100%; height: 100%; min-height: 130px; perspective: 900px; }
-.moment-card { position: absolute; top: 50%; left: 50%; display: flex; width: min(88%, 42dvh); height: auto; aspect-ratio: 1.55; flex-direction: column; justify-content: end; overflow: hidden; padding: clamp(12px,4vw,18px); border: 0; border-radius: 8px; background: linear-gradient(160deg,#e3d7c9,#aeb9ab 52%,#617568); color: white; text-align: left; box-shadow: 0 10px 24px #29352f24; cursor: pointer; transition: transform .28s, opacity .28s, filter .28s; }
+.carousel-stage { position: relative; display: grid; flex: 1; min-height: 150px; place-items: end center; overflow: hidden; touch-action: pan-y; }
+.moment-carousel { position: relative; width: 100%; height: 100%; min-height: 150px; perspective: 900px; }
+.moment-card { position: absolute; top: auto; bottom: 0; left: 50%; display: flex; width: min(72%, 42dvh); height: auto; aspect-ratio: 1.55; flex-direction: column; justify-content: end; overflow: hidden; padding: clamp(12px,4vw,18px); border: 1px solid #ffffff75; border-radius: 14px; background: linear-gradient(160deg,#e3d7c9,#aeb9ab 52%,#617568); background-position: center; background-size: cover; color: white; text-align: left; box-shadow: 0 10px 24px #29352f24; cursor: pointer; transition: transform .28s, opacity .28s, filter .28s; }
 .moment-card::before { position: absolute; inset: 0; background: linear-gradient(180deg,transparent 25%,#1d2a26cf); content: ""; }
 .moment-card.is-active { z-index: 2; opacity: 1; transform: translateX(-50%) scale(1); }
 .moment-card.is-prev { z-index: 1; opacity: .76; transform: translateX(-116%) scale(.84); filter: saturate(.72); }
