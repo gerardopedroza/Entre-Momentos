@@ -19,7 +19,7 @@ function showLoggedIn() { loginCard.hidden = true; shell.hidden = false; }
 function navigate(view) {
   $$(".admin-view").forEach((section) => { section.hidden = section.id !== `view-${view}`; });
   $$(".admin-nav [data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  $("#admin-content").scrollTo({ top: 0, behavior: "smooth" });
 }
 function optionHtml(venues, selected = "") { return '<option value="">Selecciona un lugar</option>' + venues.filter((v) => v.active).map((v) => `<option value="${esc(v.id)}" ${v.id === selected ? "selected" : ""}>${esc(v.name)}</option>`).join(""); }
 function eventStateLabel(value) { return ({ active: "Activo", draft: "Preparación", inactive: "Inactivo", finished: "Finalizado" })[value] || value; }
@@ -218,6 +218,8 @@ $("#logout").addEventListener("click", async () => { try { await api("/api/admin
 $$('[data-view]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.view)));
 $$('[data-go]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.go)));
 $$('[data-event-tab]').forEach((button) => button.addEventListener("click", () => setEventTab(button.dataset.eventTab)));
+$("#admin-content").addEventListener("scroll", (event) => { $("#admin-scroll-top").hidden = event.currentTarget.scrollTop < 240; }, { passive: true });
+$("#admin-scroll-top").addEventListener("click", () => $("#admin-content").scrollTo({ top: 0, behavior: "smooth" }));
 
 $("#venue-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
