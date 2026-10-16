@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f5f0" />
+  <title>Administración · Entre Momentos</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body.admin-page{min-height:100svh;overflow:auto;background:#f7f5f0;color:#20312e;font-family:Arial,sans-serif}
+    .admin-wrap{width:min(900px,100%);margin:auto;padding:32px 20px 60px}
+    .admin-top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ded8cb;padding-bottom:18px}
+    .admin-brand{font-family:Georgia,serif;font-size:24px}.admin-brand small{display:block;font:11px Arial,sans-serif;letter-spacing:.18em;color:#8c806e;margin-top:5px}
+    .admin-card{background:#fff;border:1px solid #e5dfd5;border-radius:14px;padding:22px;margin:18px 0;box-shadow:0 8px 28px #342c1b0a}
+    .admin-card h2{font:24px Georgia,serif;margin:0 0 8px}.admin-card p{color:#77766f;line-height:1.5}
+    .admin-form{display:grid;gap:12px;max-width:420px}.admin-form label{font-size:14px;font-weight:600}.admin-form input{font:16px Arial;padding:13px;border:1px solid #d9d3c7;border-radius:8px;width:100%;box-sizing:border-box}
+    .admin-button{border:0;border-radius:8px;background:#30443e;color:white;padding:12px 16px;font:600 15px Arial;cursor:pointer}.admin-button.secondary{background:#eee9df;color:#39463e}.admin-button:disabled{opacity:.5;cursor:wait}
+    .url-row{display:grid;grid-template-columns:90px 1fr auto;align-items:center;gap:12px;margin-top:12px}.url-row strong{font-size:13px;letter-spacing:.06em}.url-row input{min-width:0;font:13px Arial;padding:11px;border:1px solid #ded8cb;border-radius:7px;background:#faf9f6;color:#54564f}
+    .event-meta{font-size:14px;color:#77766f}.event-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px}
+    #admin-feedback{min-height:22px;color:#8c5f35;font-size:14px} .url-help{font-size:13px!important;margin-bottom:0}
+    @media(max-width:600px){.admin-wrap{padding:20px 14px 40px}.url-row{grid-template-columns:1fr auto}.url-row strong{grid-column:1/-1}.url-row input{grid-column:1}.event-grid{grid-template-columns:1fr}.admin-card{padding:18px}.admin-brand{font-size:21px}}
+  </style>
+</head>
+<body class="admin-page">
+  <main class="admin-wrap">
+    <header class="admin-top"><div class="admin-brand">Entre Momentos<small>ADMINISTRACIÓN DE EVENTOS</small></div><button id="logout" class="admin-button secondary" type="button" hidden>Cerrar sesión</button></header>
+    <section id="login-card" class="admin-card" hidden>
+      <h2>Acceso de administración</h2><p>Inicia sesión para consultar y compartir los enlaces de cada evento.</p>
+      <form id="login-form" class="admin-form"><label>Usuario<input id="username" autocomplete="username" required /></label><label>Contraseña<input id="password" type="password" autocomplete="current-password" required /></label><button class="admin-button">Entrar</button></form>
+    </section>
+    <section id="events-panel" hidden>
+      <div class="admin-card"><h2>Registrar un lugar</h2><p>Primero registra el lugar donde se celebrará la boda.</p><form id="venue-form" class="admin-form"><label>Nombre del lugar<input name="name" placeholder="Jardín Los Olivos" required minlength="2"></label><button class="admin-button">Guardar lugar</button></form></div>
+      <div class="admin-card"><h2>Crear un evento</h2><p>Cada boda usa su propia carpeta de Drive, proporcionada por el fotógrafo.</p><form id="event-form" class="admin-form"><label>Nombre de la boda<input name="name" placeholder="Isa & Mateo" required minlength="2"></label><label>Lugar<select name="venueId" required><option value="">Selecciona un lugar</option></select></label><label>Fecha<input name="eventDate" type="date" required></label><label>Carpeta de Drive de esta boda<input name="driveFolderUrl" type="url" placeholder="https://drive.google.com/drive/folders/…" required></label><label>Estado<select name="state"><option value="draft">Preparación</option><option value="active">Activo</option></select></label><button class="admin-button">Crear evento</button></form></div>
+      <div class="admin-card"><h2>Enlaces de tus eventos</h2><p>Copia el enlace correspondiente y compártelo con invitados o con el STAFF del evento.</p><div id="events-list"></div><p class="url-help">Un evento en preparación se podrá abrir cuando lo actives. El enlace STAFF solo da acceso a su evento. Si lo renuevas, el enlace anterior deja de funcionar.</p></div>
+    </section>
+    <p id="admin-feedback" role="status" aria-live="polite"></p>
+  </main>
+  <script src="admin.js" defer></script>
+</body>
+</html>

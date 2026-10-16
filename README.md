@@ -1,39 +1,34 @@
 # Entre Momentos
 
-Maqueta móvil para compartir recuerdos de boda. **Una boda. Mil historias. Un recuerdo para siempre.**
+Web móvil para que los invitados compartan una foto y una dedicatoria en cada momento de la boda. **Una boda. Mil historias. Un recuerdo para siempre.** No requiere instalar una aplicación.
 
-Es un sitio web que se abre desde un enlace o código QR en el navegador del teléfono; no requiere descargar una aplicación.
+## Enlaces y accesos
 
-## Recorrido de invitado
+- `/admin.html`: administración privada. Al iniciar sesión muestra, para cada evento, el enlace de invitados y el enlace STAFF, con botones para copiar. También permite registrar lugares y crear eventos con su propia carpeta de Google Drive.
+- El enlace de invitados usa el formato `/l/{lugar}?event={evento}`. El invitado escribe su nombre y código de invitación.
+- El enlace STAFF incluye una clave aleatoria limitada a un evento. Abre directamente el panel de ese evento, sin contraseña. La administración puede renovarlo; al hacerlo, el enlace anterior deja de funcionar.
+- `/staff.html` sin clave informa que se debe abrir el enlace STAFF compartido por la administración.
 
-1. Busca su nombre y elige su registro si hay coincidencias.
-2. Ve el momento del programa y la cuenta regresiva de cinco minutos.
-3. Cuando se habilita, toca **Tomar mi foto** para abrir la cámara o elegir una imagen.
-4. Confirma una foto para compartir en ese momento. Las fotos adicionales son para el invitado.
-5. Puede descargar la foto a su teléfono desde la pantalla final.
+Los enlaces de eventos en preparación se pueden copiar antes del evento, pero solo funcionarán cuando el evento esté activo. La URL de Drive se captura por evento para admitir que cada boda use una carpeta distinta.
 
-Desde la portada también puede abrir el programa o dejar una frase para los novios. Los mensajes de la demostración se guardan junto con el nombre en el navegador local.
+## Qué hace la plataforma
 
-La maqueta muestra una opción de vista previa para probar la cámara sin esperar la cuenta regresiva. La selección de invitado y el límite de una foto se simulan en el navegador; no constituyen una validación real entre dispositivos. Una foto fuera de horario aún puede enviarse al álbum, pero queda marcada como fuera de la dinámica.
+- La agenda abre la carga de fotos cinco minutos antes de cada actividad y la cierra cinco minutos antes de que termine. El servidor decide a qué actividad corresponde la foto y si participa en una dinámica.
+- Cada invitado puede enviar una foto por actividad. Una foto enviada fuera del horario todavía se conserva para el álbum, pero no participa en esa dinámica.
+- El navegador solo mantiene temporalmente la imagen durante la selección y vista previa. El archivo se manda a la carpeta de Drive del evento y no se guarda en la web.
+- Las dedicatorias se asocian con el nombre de quien las escribió y se sincronizan a una hoja de cálculo de ese evento.
+- El enlace STAFF muestra resultados de dinámicas y permite registrar la entrega de premios.
 
-## Coordinación
+## Configuración necesaria para operar en Cloudflare
 
-El panel de coordinación permite editar los momentos, los horarios, los datos del evento, la foto de portada y el enlace de Drive que corresponda a esa boda. Estos datos y la única imagen de portada solo se guardan en el navegador usado para la demostración.
+El repositorio incluye páginas estáticas, Cloudflare Pages Functions y la migración de esquema en `migrations/0001_platform.sql`. Para habilitar operaciones reales, el proyecto de Pages debe tener un binding D1 llamado `DB` y ejecutar esa migración. Configura también estas variables secretas en Pages:
 
-El botón de cámara utiliza la selección de imágenes del teléfono y solicita la cámara trasera cuando el navegador lo permite. La foto del invitado se mantiene solo en memoria mientras se previsualiza y se elimina de la página al confirmar; esta maqueta no la guarda ni la envía a Drive.
+- `ADMIN_USERNAME` y `ADMIN_PASSWORD_HASH`: acceso a administración.
+- `SESSION_PEPPER`: valor secreto aleatorio para proteger sesiones y códigos de invitación.
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` y `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`: cuenta de servicio que crea carpetas y hojas, y carga fotos.
 
-## Conexiones pendientes
+Cada carpeta de Drive debe compartirse explícitamente con el correo de la cuenta de servicio, con permiso de edición. No hace falta hacerla pública. La integración aún no puede operar hasta que esas credenciales y el binding de Cloudflare estén configurados. El enlace de carpeta por sí solo no concede acceso.
 
-Esta versión no carga fotos ni mensajes a Google Drive ni crea carpetas. Pegar el enlace del fotógrafo no autoriza a la web a escribir en Drive. Para el flujo real se debe conectar una integración segura con autorización del fotógrafo y crear una carpeta por evento, una subcarpeta por actividad y guardar ahí las fotos y mensajes con el nombre del invitado. La agenda en vivo, la lista de invitados y la regla de una foto por invitado y momento también deben validarse en un servidor compartido. La foto de portada elegida en administración solo se refleja en ese navegador hasta que se configure el almacenamiento compartido del evento.
+## Publicar
 
-## Publicar en Cloudflare Pages
-
-Conecta este repositorio como un proyecto de Pages con:
-
-- Rama de producción: `main`
-- Framework preset: `None`
-- Comando de compilación: `exit 0`
-- Directorio de salida: `.`
-- Directorio raíz: vacío (raíz del repositorio)
-
-No necesita dependencias ni compilación. Cloudflare sirve `index.html` directamente.
+Conecta este repositorio con Cloudflare Pages usando la rama de producción `main`, preset `None`, comando de compilación vacío y directorio de salida `.`. Las Pages Functions atienden `/api/*`; la migración y los secretos descritos arriba son necesarios para el modo real. Sin ellos, la vista de demostración visual sirve para recorrer el diseño, pero no crea eventos ni guarda fotos.

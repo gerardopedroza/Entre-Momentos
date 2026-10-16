@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f5f3ed" />
+    <meta name="theme-color" content="#24332c" />
     <meta name="description" content="Entre Momentos — Una boda. Mil historias. Un recuerdo para siempre." />
     <title>Entre Momentos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -13,115 +13,78 @@
   </head>
   <body>
     <div class="app-frame">
+      <div class="event-backdrop" id="event-backdrop" aria-hidden="true"></div>
       <header class="app-header">
-        <button class="wordmark" id="home-button" type="button" aria-label="Ir al inicio"><span class="wordmark-symbol">e<span>m</span></span><span>ENTRE MOMENTOS</span></button>
-        <button class="quiet-button" id="open-admin" type="button">Coordinación <span aria-hidden="true">↗</span></button>
+        <button class="wordmark" id="home-button" type="button" aria-label="Ir al inicio"><span class="wordmark-symbol">em</span><span>ENTRE MOMENTOS</span></button>
+        <button class="quiet-button" id="open-admin" type="button">Staff</button>
       </header>
-
       <main>
-        <section class="screen welcome-screen" id="screen-welcome" aria-labelledby="welcome-title">
-          <article class="event-cover" id="event-cover" aria-label="Álbum de la boda">
-            <span class="cover-label">EL ÁLBUM DE NUESTRA BODA</span>
-            <div class="cover-caption"><p id="event-date-display">15 JUNIO 2026</p><h1 id="welcome-title"><span id="event-name-display">Ana &amp; Carlos</span><span class="cover-sparkle">✦</span></h1><span class="cover-slogan">Una boda. Mil historias. Un recuerdo para siempre.</span></div>
+        <section class="screen identify-screen" id="screen-welcome" aria-labelledby="welcome-title">
+          <article class="event-cover" id="event-cover">
+            <span class="cover-label">ÁLBUM DE BODA</span>
+            <div class="cover-caption"><p id="event-date-display">EVENTO DE DEMOSTRACIÓN</p><h1 id="welcome-title"><span id="event-name-display">Entre Momentos</span></h1><span class="cover-slogan">Una boda. Mil historias. Un recuerdo para siempre.</span></div>
           </article>
-          <button class="upload-entry" id="start-guest" type="button"><span class="upload-entry-icon" aria-hidden="true">＋</span><span>Subir mi foto</span><span class="entry-arrow" aria-hidden="true">→</span></button>
-          <div class="quick-actions">
-            <button class="program-entry" id="show-program" type="button"><span class="program-entry-icon" aria-hidden="true">◷</span><span><strong>Programa</strong><small>Momentos de hoy</small></span></button>
-            <button class="program-entry" id="open-message" type="button"><span class="message-entry-icon" aria-hidden="true">♡</span><span><strong>Dejar un mensaje</strong><small>Para los novios</small></span></button>
+          <div class="guest-rules" aria-label="Reglas para compartir fotos">
+            <div class="guest-rule"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1.5-2h7L17 5"/></svg><span>Una foto por momento</span></div>
+            <div class="guest-rule"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Fuera de horario, sí va al álbum; no cuenta en el reto</span></div>
+            <div class="guest-rule"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Al enviarla, queda definitiva</span></div>
           </div>
-        </section>
-
-        <section class="screen guest-screen" id="screen-guest" aria-labelledby="guest-title" hidden>
-          <button class="back-button" data-back="welcome" type="button">← <span>Inicio</span></button>
-          <div class="step-heading"><p class="kicker">PARA EMPEZAR</p><h1 id="guest-title">Busca tu nombre</h1><p>Así sabremos a quién pertenece tu foto.</p></div>
-          <form id="guest-form" class="search-form">
-            <label class="field-label" for="guest-search">Nombre y apellido</label>
-            <div class="search-row"><input id="guest-search" type="search" placeholder="Ej. Ana García" autocomplete="off" required /><button class="search-button" type="submit" aria-label="Buscar">⌕</button></div>
+          <form id="guest-form" class="identity-form">
+            <label class="field-label" for="guest-search">Tu nombre</label><input id="guest-search" type="text" placeholder="Nombre y apellido" autocomplete="name" required />
+            <label class="field-label" for="guest-code">Código de invitación</label><input id="guest-code" type="text" placeholder="Código de tu invitación" autocomplete="one-time-code" required />
+            <button class="primary-button" type="submit">Entrar al álbum <span aria-hidden="true">→</span></button>
             <p class="form-message" id="search-message" role="status"></p>
+            <div class="guest-results" id="guest-results" aria-live="polite" hidden></div>
+            <button class="demo-entry" id="demo-entry" type="button">Explorar vista de demostración</button>
           </form>
-          <div class="guest-results" id="guest-results" aria-live="polite" hidden></div>
-          <p class="screen-footnote">Si hay nombres iguales, elige la referencia que te identifica.</p>
         </section>
 
-        <section class="screen schedule-screen" id="screen-schedule" aria-labelledby="schedule-title" hidden>
-          <button class="back-button" data-back="welcome" type="button">← <span>Inicio</span></button>
-          <div class="step-heading"><p class="kicker" id="schedule-date">15 JUNIO</p><h1 id="schedule-title">Momentos de hoy</h1></div>
-          <div class="public-schedule" id="public-schedule"></div>
-          <p class="screen-footnote">La coordinación puede ajustar los horarios.</p>
+        <section class="screen home-screen" id="screen-home" aria-labelledby="home-title" hidden>
+          <div class="home-heading"><div><p class="kicker" id="home-event-kicker">EL ÁLBUM DE HOY</p><h1 id="home-title">Hola, <span id="home-guest-name">invitado</span></h1></div><span class="demo-badge" id="demo-badge" hidden>DEMO</span></div>
+          <nav class="home-actions" aria-label="Acciones principales">
+            <button id="home-upload" type="button" class="home-action"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5 17 5-5 3 3 2-2 4 4"/></svg><span>Subir</span></button>
+            <button id="home-dedication" type="button" class="home-action"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22z"/><path d="M4 5.5v14A2.5 2.5 0 0 1 6.5 17H20"/></svg><span>Dedicatoria</span></button>
+            <div class="home-action presence-action" aria-live="polite"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1z"/><path d="M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1h-4"/></svg><span id="connected-count">Invitados</span><small id="presence-status">Sin datos en vivo</small></div>
+          </nav>
+          <section class="carousel-section" aria-label="Momentos de la boda">
+            <p class="moment-prompt" id="moment-prompt" aria-live="polite">Elige un momento para compartir tu foto.</p>
+            <div class="carousel-heading"><div><p class="kicker">ELIGE UN MOMENTO</p><h2>Momentos</h2></div><div class="carousel-controls"><button id="carousel-prev" type="button" aria-label="Momento anterior">‹</button><button id="carousel-next" type="button" aria-label="Momento siguiente">›</button></div></div>
+            <div class="carousel-stage" id="carousel-stage"><div class="moment-carousel" id="moment-carousel" aria-live="polite"></div></div>
+            <div class="carousel-pagination" id="carousel-pagination"></div>
+          </section>
+          <section class="upload-panel" id="upload-panel" aria-labelledby="upload-title">
+            <div class="upload-panel-heading"><div><p class="kicker" id="selected-moment-state">ELIGE UNA TARJETA</p><h2 id="upload-title">Sube tu foto</h2></div><button class="close-panel" id="cancel-upload" type="button" aria-label="Cerrar carga">×</button></div>
+            <p class="upload-hint" id="upload-hint">Selecciona un momento para empezar.</p>
+            <label class="gallery-button" id="gallery-button"><input type="file" id="gallery-input" accept="image/*" /><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5 17 5-5 3 3 2-2 4 4"/></svg><span>Seleccionar de mi galería</span></label>
+            <div class="photo-review" id="photo-review" hidden><img id="photo-preview" alt="Vista previa de la fotografía seleccionada" /><div class="photo-review-actions"><button class="primary-button" id="send-photo" type="button" disabled>Enviar foto <span aria-hidden="true">→</span></button><button class="secondary-button" id="change-photo" type="button">Cambiar</button><button class="text-button" id="cancel-photo" type="button">Cancelar</button></div><p class="form-message" id="photo-feedback" role="status"></p></div>
+          </section>
         </section>
 
         <section class="screen message-screen" id="screen-message" aria-labelledby="message-title" hidden>
-          <button class="back-button" data-back="welcome" type="button">← <span>Inicio</span></button>
+          <button class="back-button" data-back="home" type="button">← <span>Álbum</span></button>
           <div class="step-heading"><p class="kicker">UN RECUERDO PARA EL ÁLBUM</p><h1 id="message-title">Déjales unas palabras</h1></div>
-          <form id="message-form" class="message-form">
-            <label class="field-label" for="message-author">Tu nombre</label>
-            <input class="admin-input" id="message-author" maxlength="80" placeholder="¿Quién escribe?" autocomplete="name" required />
-            <label class="field-label" for="message-text">Tu mensaje</label>
-            <textarea id="message-text" maxlength="240" placeholder="Una frase para recordar este día…" required></textarea>
-            <div class="message-form-bottom"><span id="message-count">0 / 240</span><button class="primary-button" type="submit">Guardar mensaje <span aria-hidden="true">→</span></button></div>
-          </form>
+          <form id="message-form" class="message-form"><label class="field-label" for="message-text">Tu dedicatoria</label><textarea id="message-text" maxlength="240" placeholder="Una frase para recordar este día…" required></textarea><div class="message-form-bottom"><span id="message-count">0 / 240</span><button class="primary-button" type="submit">Enviar dedicatoria <span aria-hidden="true">→</span></button></div><p class="form-message" id="message-feedback" role="status"></p></form>
         </section>
 
-        <section class="screen message-done-screen" id="screen-message-done" aria-labelledby="message-done-title" hidden>
-          <div class="done-mark">♡</div><p class="kicker">UN RECUERDO MÁS</p><h1 id="message-done-title">Gracias por<br /><em>estas palabras.</em></h1>
-          <blockquote id="saved-message-preview"></blockquote>
-          <p class="message-author-preview" id="saved-message-author"></p>
-          <div class="upload-status"><span class="status-dot"></span><span id="message-drive-status">Guardado en esta demostración. La conexión con Drive aún no está configurada.</span></div>
-          <button class="primary-button" id="message-home" type="button">Volver al álbum</button>
+        <section class="screen schedule-screen" id="screen-schedule" aria-labelledby="schedule-title" hidden>
+          <button class="back-button" data-back="home" type="button">← <span>Álbum</span></button><div class="step-heading"><p class="kicker" id="schedule-date">EVENTO</p><h1 id="schedule-title">Momentos de hoy</h1></div><div class="public-schedule" id="public-schedule"></div><p class="screen-footnote" id="schedule-note"></p>
         </section>
 
-        <section class="screen moment-screen" id="screen-moment" aria-labelledby="moment-title" hidden>
-          <button class="back-button" data-back="guest" type="button">← <span>Cambiar invitado</span></button>
-          <div class="moment-meta"><span class="live-indicator"><i></i><span id="moment-state">PRÓXIMO MOMENTO</span></span><span id="moment-time">19:30</span></div>
-          <div class="moment-copy"><p class="kicker">AYÚDANOS CON TU FOTO DE</p><h1 id="moment-title">El brindis</h1><p class="moment-prompt" id="moment-prompt">Prepárate para tomar la foto<br /><strong>en <span id="countdown">05:00</span></strong></p></div>
-          <div class="moment-action" id="moment-action">
-            <div class="camera-halo"><span class="camera-glyph" aria-hidden="true">◎</span></div>
-            <p id="camera-instruction">La cámara se abrirá cuando comience el momento.</p>
-            <label class="camera-button is-disabled" id="camera-button"><input type="file" id="camera-input" accept="image/*" capture="environment" disabled /><span class="camera-button-icon" aria-hidden="true">◉</span><span id="camera-button-label">Aún no</span></label>
-          </div>
-          <div class="one-photo-note"><span class="note-check">✓</span><span><strong>Una foto por momento</strong><small>Fuera de horario, va al álbum pero no cuenta.</small></span></div>
-          <button class="preview-mode" id="preview-open" type="button">Vista previa: probar la cámara</button>
-        </section>
-
-        <section class="screen photo-screen" id="screen-photo" aria-labelledby="photo-title" hidden>
-          <button class="back-button" id="photo-back" type="button">← <span>Volver al momento</span></button>
-          <div class="step-heading"><p class="kicker">UNA FOTO · <span id="photo-activity-name">EL BRINDIS</span></p><h1 id="photo-title">¿Este es tu momento?</h1><p>Tu foto se asignará a esta actividad.</p></div>
-          <div class="photo-preview-wrap"><img id="photo-preview" alt="Vista previa de tu foto" hidden /><div class="photo-empty" id="photo-empty"><span>◉</span><b>Tu foto aparecerá aquí</b></div></div>
-          <div class="photo-actions"><button class="primary-button" id="confirm-photo" type="button" disabled>Confirmar mi foto <span aria-hidden="true">→</span></button><button class="secondary-button" id="retake-photo" type="button">Elegir otra</button></div>
-          <p class="screen-footnote" id="photo-message">Solo puedes compartir una foto en esta actividad.</p>
-        </section>
-
-        <section class="screen done-screen" id="screen-done" aria-labelledby="done-title" hidden>
-          <div class="done-mark">✓</div><p class="kicker">GRACIAS POR COMPARTIR</p><h1 id="done-title">Tu foto<br /><em>está lista.</em></h1><p class="done-subtitle" id="done-subtitle">Tu foto cuenta parte de esta historia.</p>
-          <div class="upload-status" id="upload-status"><span class="status-dot"></span><span>En espera de conexión con Drive.</span></div>
-          <button class="primary-button" id="next-moment" type="button">Ver el siguiente momento <span aria-hidden="true">→</span></button>
+        <section class="screen staff-login-screen" id="screen-staff-login" aria-labelledby="staff-login-title" hidden>
+          <button class="back-button" data-back="home" type="button">← <span>Álbum</span></button><div class="step-heading"><p class="kicker">ACCESO PRIVADO</p><h1 id="staff-login-title">Personal del evento</h1><p>Inicia sesión con tu cuenta autorizada.</p></div>
+          <form id="staff-login-form" class="message-form"><label class="field-label" for="staff-email">Correo</label><input class="admin-input" id="staff-email" type="email" autocomplete="username" required /><label class="field-label" for="staff-password">Contraseña</label><input class="admin-input" id="staff-password" type="password" autocomplete="current-password" required /><button class="primary-button" type="submit">Iniciar sesión <span aria-hidden="true">→</span></button><p class="form-message" id="staff-login-feedback" role="status">La autenticación debe habilitarse en el servidor.</p></form>
         </section>
 
         <section class="screen admin-screen" id="screen-admin" aria-labelledby="admin-title" hidden>
-          <div class="admin-top"><button class="back-button" id="close-admin" type="button">← <span>Volver</span></button><span class="kicker">COORDINACIÓN</span></div>
-          <div class="admin-title-row"><div><p class="kicker">ANA &amp; CARLOS · DEMO</p><h1 id="admin-title">El minuto a minuto</h1></div><button class="save-button" id="save-program" type="button">Guardar</button></div>
-          <nav class="admin-tabs" aria-label="Configuración"><button class="admin-tab active" data-tab="program" type="button">Programa</button><button class="admin-tab" data-tab="drive" type="button">Google Drive</button><button class="admin-tab" data-tab="settings" type="button">Evento</button></nav>
-          <div class="admin-view" id="admin-program">
-            <p class="admin-help">Cada invitado comparte una foto por momento.</p>
-            <div class="activity-list" id="activity-list"></div>
-            <button class="add-activity" id="add-activity" type="button">＋ Agregar momento</button>
-            <p class="admin-feedback" id="program-feedback" role="status">El invitado verá el siguiente momento y su cuenta regresiva.</p>
-          </div>
-          <div class="admin-view" id="admin-drive" hidden>
-            <div class="step-heading"><p class="kicker">DESTINO DE ESTA BODA</p><h2>Carpeta del fotógrafo</h2><p>El fotógrafo comparte una carpeta distinta para cada evento.</p></div>
-            <form id="drive-form" class="drive-form"><label class="field-label" for="drive-url">Enlace de Google Drive</label><input id="drive-url" type="url" placeholder="Pega aquí el enlace de la carpeta" /><button class="primary-button" type="submit">Guardar enlace <span aria-hidden="true">→</span></button><p class="admin-feedback" id="drive-feedback" role="status"></p></form>
-            <div class="drive-notice">El enlace por sí solo no permite subir fotos. La carga necesita conectar Google Drive con autorización del fotógrafo.</div>
-          </div>
-          <div class="admin-view" id="admin-settings" hidden>
-            <div class="step-heading"><p class="kicker">DETALLES DE LA BODA</p><h2>Este evento</h2><p>Identifica la celebración del enlace.</p></div>
-            <label class="field-label" for="event-name">Nombres de la pareja</label><input class="admin-input" id="event-name" value="Ana & Carlos" />
-            <label class="field-label" for="event-date">Fecha</label><input class="admin-input" id="event-date" type="date" value="2027-06-15" />
-            <label class="field-label" for="cover-image">Foto de portada</label><label class="cover-upload"><input id="cover-image" type="file" accept="image/*" /><span>Elegir foto de los novios o del lugar</span><span aria-hidden="true">＋</span></label>
-            <p class="cover-help">Esta es la única imagen que se guarda en la web. Las fotos de los invitados no se almacenan aquí.</p>
-            <div class="drive-notice">El programa se guarda en este navegador. Para coordinar cambios en vivo hace falta conectar la agenda del evento.</div>
-          </div>
+          <div class="admin-top"><button class="back-button" id="close-admin" type="button">← <span>Salir</span></button><span class="kicker">STAFF</span></div><div class="admin-title-row"><div><p class="kicker" id="staff-event-kicker">EVENTO</p><h1 id="admin-title">Control del evento</h1></div></div>
+          <nav class="admin-tabs" aria-label="Herramientas del staff"><button class="admin-tab active" data-tab="program" type="button">Programa</button><button class="admin-tab" data-tab="tables" type="button">Mesas</button><button class="admin-tab" data-tab="contests" type="button">Retos</button><button class="admin-tab" data-tab="event" type="button">Evento</button></nav>
+          <div class="admin-view" id="admin-program"><p class="admin-help">Momentos configurados para el evento.</p><div class="activity-list" id="activity-list"></div><p class="admin-feedback" id="program-feedback" role="status">Los datos aparecerán cuando se conecte la agenda del evento.</p></div>
+          <div class="admin-view staff-data-view" id="admin-tables" hidden><h2>Plano de mesas</h2><div class="empty-state" id="staff-tables"><p>La distribución de mesas no está conectada.</p><small>El plano y los invitados asignados deben venir de los datos reales del evento.</small></div></div>
+          <div class="admin-view staff-data-view" id="admin-contests" hidden><h2>Concursos</h2><div class="empty-state" id="staff-contests"><p>No hay concursos conectados.</p><small>Los retos, participantes y premios deben venir de la configuración real.</small></div></div>
+          <div class="admin-view staff-data-view" id="admin-event" hidden><h2>Datos del evento</h2><form id="staff-event-form" class="message-form"><label class="field-label" for="staff-event-name">Nombres de la pareja</label><input class="admin-input" id="staff-event-name" required /><label class="field-label" for="staff-event-date">Fecha</label><input class="admin-input" id="staff-event-date" type="date" /><label class="field-label" for="staff-cover-image">Foto de portada</label><input id="staff-cover-image" type="file" accept="image/*" /><label class="field-label" for="staff-drive-url">Carpeta de Drive del fotógrafo</label><input class="admin-input" id="staff-drive-url" type="url" placeholder="Enlace compartido por el fotógrafo" /><button class="primary-button" type="submit">Guardar evento <span aria-hidden="true">→</span></button><p class="form-message" id="staff-event-feedback" role="status"></p></form></div>
         </section>
       </main>
+      <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     </div>
     <script src="./app.js"></script>
   </body>

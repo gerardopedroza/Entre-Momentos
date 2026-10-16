@@ -1,352 +1,593 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const storageFallback = new Map();
-const demoGuests = [
-  { name: "Ana García", detail: "Familia de la novia" },
-  { name: "Ana García", detail: "Familia del novio" },
-  { name: "Carlos López", detail: "Familia del novio" },
-  { name: "María Torres", detail: "Amiga de la pareja" },
-  { name: "Luis Hernández", detail: "Familia de la novia" },
-];
-const defaultActivities = [
-  { name: "El brindis", start: "19:30", end: "20:00" },
-  { name: "El primer baile", start: "21:00", end: "21:30" },
-  { name: "La pista se llena", start: "22:00", end: "22:30" },
-];
-let activities = readJSON("em-activities", defaultActivities);
-let currentGuest = "";
-let currentGuestId = "";
-let activityIndex = 0;
-let countdownSeconds = 300;
-let openSeconds = 0;
-let isPreviewOpen = false;
+const demoEvent = {
+  id: "demo-event",
+  name: "Isa & Mateo",
+  date: "2026-10-15",
+  demo: true,
+  moments: [
+    { id: "demo-entrada", name: "Entrada de los novios", state: "sample", start: "17:00" },
+    { id: "demo-brindis", name: "El brindis", state: "sample", start: "19:30" },
+    { id: "demo-baile", name: "Primer baile", state: "sample", start: "21:00" },
+    { id: "demo-fiesta", name: "Fiesta y pista", state: "sample", start: "22:00" },
+  ],
+};
+let eventData = { name: "Entre Momentos", moments: [] };
+let guest = null;
+let moments = [];
+let submissions = new Map();
+let selectedMomentIndex = 0;
 let selectedPhoto = null;
-let photoUrl = "";
-let photoIsOnTime = false;
-let photoIsPreview = false;
-let clockInterval = null;
+let previewUrl = "";
+let uploadRequestId = "";
+let staffDashboard = null;
+let staffAuthenticated = false;
+let isDemo = false;
+let isSending = false;
+let dragStartX = null;
+let serverClockOffset = 0;
+let refreshingEvent = false;
 
-function read(key) {
-  try { return localStorage.getItem(key) ?? storageFallback.get(key) ?? null; }
-  catch { return storageFallback.get(key) ?? null; }
-}
-function write(key, value) {
-  storageFallback.set(key, value);
-  try { localStorage.setItem(key, value); } catch { /* Keep the mockup usable from a local HTML file. */ }
-}
-function readJSON(key, fallback) {
-  try {
-    const value = JSON.parse(read(key) || "null");
-    return Array.isArray(value) && value.length ? value : fallback;
-  } catch { return fallback; }
-}
-function safeKey(value) { return value.trim().toLocaleLowerCase("es-MX").replace(/\s+/g, "-"); }
-function quotaKey(activity = activities[activityIndex]) {
-  return `em-photo:${safeKey(currentGuestId || currentGuest)}:${activityIndex}:${safeKey(activity.name)}`;
-}
 function screen(name) {
-  $$(".screen").forEach((element) => { element.hidden = element.id !== `screen-${name}`; });
+  $$(".screen").forEach((item) => { item.hidden = item.id !== "screen-" + name; });
   document.body.dataset.screen = name;
 }
-function getActivity() { return activities[activityIndex] || defaultActivities[0]; }
-function updateEventCover() {
-  const eventName = $("#event-name").value.trim() || "Ana & Carlos";
-  const eventDate = $("#event-date").value;
-  $("#event-name-display").textContent = eventName;
-  if (eventDate) {
-    const date = new Date(eventDate + "T12:00:00");
-    $("#event-date-display").textContent = date.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }).toLocaleUpperCase("es-MX");
-    $("#schedule-date").textContent = date.toLocaleDateString("es-MX", { day: "numeric", month: "long" }).toLocaleUpperCase("es-MX");
+
+async function api(path, options = {}) {
+  const eventSlug = new URLSearchParams(window.location.search).get("event");
+  if (eventSlug && (/^\/api\/guests\/identify(?:\/select)?$/.test(path) || path === "/api/events/current")) {
+    const scoped = new URL(path, window.location.origin);
+    scoped.searchParams.set("event", eventSlug);
+    path = scoped.pathname + scoped.search;
   }
-  const coverImage = read("em-cover:" + safeKey(eventName));
-  if (coverImage) {
-    $("#event-cover").style.backgroundImage = "linear-gradient(180deg, #24332c00 38%, #1b2825c9 100%), url(\"" + coverImage + "\")";
-    $("#event-cover").classList.add("has-cover-image");
+  let response;
+  try { response = await fetch(path, { credentials: "include", ...options }); }
+  catch { throw new Error("No hay conexión con el servicio del evento."); }
+  const type = response.headers.get("content-type") || "";
+  const payload = type.includes("application/json") ? await response.json() : null;
+  if (!response.ok) throw new Error(payload?.message || (response.status === 404 ? "Este servicio aún no está conectado." : "No se pudo completar la solicitud."));
+  if (!payload) throw new Error("El servidor no confirmó la operación.");
+  return payload;
+}
+
+function setEvent(data) {
+  eventData = data || {};
+  if (eventData.serverTime) {
+    const serverTime = new Date(eventData.serverTime).getTime();
+    if (Number.isFinite(serverTime)) serverClockOffset = serverTime - Date.now();
+  }
+  moments = Array.isArray(eventData.moments) ? eventData.moments : [];
+  const date = eventData.date ? new Date(eventData.date + "T12:00:00") : null;
+  const dateLabel = date && !Number.isNaN(date.valueOf())
+    ? date.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })
+    : eventData.demo ? "VISTA DE DEMOSTRACIÓN" : "ÁLBUM DE BODA";
+  $("#event-name-display").textContent = eventData.name || "Entre Momentos";
+  $("#event-date-display").textContent = dateLabel.toLocaleUpperCase("es-MX");
+  $("#home-event-kicker").textContent = dateLabel.toLocaleUpperCase("es-MX");
+  $("#staff-event-kicker").textContent = (eventData.name || "EVENTO").toLocaleUpperCase("es-MX");
+  const cover = eventData.coverUrl || "";
+  if (cover) {
+    const imageLayer = "linear-gradient(180deg,#1b292322 15%,#1b2923d9 100%),url(\"" + cover + "\")";
+    $("#event-cover").style.backgroundImage = imageLayer;
+    $("#event-backdrop").style.backgroundImage = imageLayer;
   } else {
     $("#event-cover").style.removeProperty("background-image");
-    $("#event-cover").classList.remove("has-cover-image");
+    $("#event-backdrop").style.removeProperty("background-image");
+  }
+  $("#demo-badge").hidden = !eventData.demo;
+  if (date && !Number.isNaN(date.valueOf())) {
+    $("#schedule-date").textContent = date.toLocaleDateString("es-MX", { day: "numeric", month: "long" }).toLocaleUpperCase("es-MX");
   }
 }
-function renderPublicSchedule() {
+
+function showHome(profile, data, demo = false) {
+  guest = profile;
+  isDemo = demo;
+  setEvent(data || demoEvent);
+  submissions = new Map();
+  (profile?.submissions || []).forEach((item) => submissions.set(String(item.momentId), item));
+  $("#home-guest-name").textContent = profile?.name || profile?.displayName || "invitado";
+  const count = eventData.presence?.activeCount;
+  $("#connected-count").textContent = Number.isInteger(count) ? String(count) : "Invitados";
+  $("#presence-status").textContent = Number.isInteger(count) ? "personas activas" : "Sin datos en vivo";
+  const active = moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
+  const next = moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
+  selectedMomentIndex = active >= 0 ? active : next >= 0 ? next : 0;
+  renderCarousel();
+  renderSchedule();
+  resetUploadPanel();
+  screen("home");
+}
+
+function momentStatus(moment) {
+  const submission = submissions.get(String(moment.id));
+  if (submission) return submission.eligible === true ? "Foto enviada · participa" : "Foto enviada · fuera del reto";
+  if (moment.state === "active") return "Momento activo";
+  if (moment.state === "finished") return "Momento finalizado";
+  if (moment.state === "upcoming") return "Próximo momento";
+  return "Momento del evento";
+}
+
+function updateMomentPrompt() {
+  const moment = moments[selectedMomentIndex];
+  const prompt = $("#moment-prompt");
+  if (!moment) { prompt.textContent = "La agenda aún no está disponible."; return; }
+  if (isDemo) { prompt.textContent = "Vista de ejemplo · " + (moment.start || "") + " · no hay cuenta regresiva real."; return; }
+  const opensAt = moment.photoOpensAt || moment.captureOpensAt;
+  const closesAt = moment.photoClosesAt || moment.captureClosesAt;
+  const opens = opensAt ? new Date(opensAt).getTime() : NaN;
+  const closes = closesAt ? new Date(closesAt).getTime() : NaN;
+  const now = Date.now() + serverClockOffset;
+  if (Number.isFinite(opens) && now < opens) {
+    const seconds = Math.ceil((opens - now) / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    const remaining = minutes ? minutes + " min" + (remainder ? " " + remainder + " s" : "") : remainder + " s";
+    prompt.textContent = "Prepárate para la foto de " + moment.name + " en " + remaining;
+  } else if (Number.isFinite(closes) && now < closes) {
+    prompt.textContent = "Ya puedes subir la foto de " + moment.name;
+  } else if (Number.isFinite(closes) && now >= closes) {
+    prompt.textContent = "El reto terminó. Aún puedes compartir tu recuerdo de " + moment.name + ".";
+  } else if (moment.state === "active") {
+    prompt.textContent = "Ya puedes compartir tu foto de " + moment.name;
+  } else {
+    prompt.textContent = moment.name + (moment.start ? " · " + moment.start : "") + ". Puedes compartir tu foto en cualquier momento.";
+  }
+}
+
+function renderCarousel() {
+  const rail = $("#moment-carousel");
+  rail.replaceChildren();
+  const dots = $("#carousel-pagination");
+  dots.replaceChildren();
+  if (!moments.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-carousel";
+    empty.textContent = "La agenda del evento aún no está disponible.";
+    rail.append(empty);
+    $("#selected-moment-state").textContent = "AGENDA PENDIENTE";
+    $("#upload-hint").textContent = "Vuelve cuando el programa esté conectado.";
+    $("#gallery-button").hidden = true;
+    return;
+  }
+  $("#gallery-button").hidden = false;
+  moments.forEach((moment, index) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "moment-card";
+    card.classList.toggle("is-active-moment", moment.state === "active");
+    card.setAttribute("aria-label", moment.name + ". " + momentStatus(moment) + ". Seleccionar para subir foto.");
+    card.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
+    if (moment.coverUrl) card.style.backgroundImage = "linear-gradient(160deg,#0002,#29352fcc),url(\"" + moment.coverUrl + "\")";
+    const badge = document.createElement("span");
+    badge.className = "moment-card-status";
+    badge.textContent = isDemo ? "EJEMPLO" : momentStatus(moment);
+    const title = document.createElement("span");
+    title.className = "moment-card-name";
+    title.textContent = moment.name || "Momento";
+    const time = document.createElement("span");
+    time.className = "moment-card-meta";
+    time.textContent = moment.start || moment.startTime || "";
+    const submission = submissions.get(String(moment.id));
+    card.append(badge, title, time);
+    if (submission?.thumbnailUrl) {
+      const thumbnail = document.createElement("img");
+      thumbnail.className = "moment-thumbnail";
+      thumbnail.src = submission.thumbnailUrl;
+      thumbnail.alt = "Vista previa de tu foto enviada";
+      card.append(thumbnail);
+    }
+    card.addEventListener("click", () => selectMoment(index, true));
+    rail.append(card);
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "carousel-dot";
+    dot.setAttribute("aria-label", "Mostrar momento " + (index + 1) + ": " + moment.name);
+    dot.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
+    dot.addEventListener("click", () => selectMoment(index, false));
+    dots.append(dot);
+  });
+  updateCarousel();
+}
+
+function updateCarousel() {
+  const cards = $$(".moment-card", $("#moment-carousel"));
+  cards.forEach((card, index) => {
+    let offset = index - selectedMomentIndex;
+    if (offset > moments.length / 2) offset -= moments.length;
+    if (offset < -moments.length / 2) offset += moments.length;
+    const distance = Math.abs(offset);
+    card.style.transform = "translateX(calc(-50% + " + offset * 73 + "px)) scale(" + Math.max(.76, 1 - distance * .12) + ") rotateY(" + (-offset * 10) + "deg)";
+    card.style.zIndex = String(10 - distance);
+    card.style.opacity = distance > 1 ? "0" : distance ? ".72" : "1";
+    card.style.pointerEvents = distance > 1 ? "none" : "auto";
+    card.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
+  });
+  $$(".carousel-dot", $("#carousel-pagination")).forEach((dot, index) => dot.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false"));
+  const current = moments[selectedMomentIndex];
+  updateMomentPrompt();
+  if (!current) return;
+  const submission = submissions.get(String(current.id));
+  $("#selected-moment-state").textContent = (isDemo ? "EJEMPLO · " : "") + momentStatus(current).toLocaleUpperCase("es-MX");
+  $("#upload-hint").textContent = isDemo
+    ? "Prueba el flujo. La foto no se enviará ni se guardará."
+    : submission ? "Ya compartiste una foto para este momento."
+      : "Tu foto se enviará a «" + current.name + "». Solo una por invitado.";
+  $("#send-photo").disabled = Boolean(submission) || isDemo || isSending;
+}
+
+function selectMoment(index, openPanel) {
+  if (!moments.length) return;
+  selectedMomentIndex = (index + moments.length) % moments.length;
+  updateCarousel();
+  if (openPanel) openUploadPanel();
+}
+function moveCarousel(amount) { if (moments.length) selectMoment(selectedMomentIndex + amount, false); }
+
+function renderSchedule() {
   const list = $("#public-schedule");
   list.replaceChildren();
-  activities.slice(0, 5).forEach((activity) => {
+  moments.forEach((moment) => {
     const row = document.createElement("div");
     row.className = "public-activity";
-    row.innerHTML = '<time></time><span class="public-activity-mark"></span><strong></strong>';
-    $("time", row).textContent = activity.start;
-    $("strong", row).textContent = activity.name;
+    const time = document.createElement("time");
+    time.textContent = moment.start || moment.startTime || "—";
+    const mark = document.createElement("span");
+    mark.className = "public-activity-mark";
+    const title = document.createElement("strong");
+    title.textContent = moment.name;
+    row.append(time, mark, title);
     list.append(row);
   });
+  $("#schedule-note").textContent = isDemo ? "Vista de demostración; no muestra datos reales." : "Horarios actualizados por la coordinación del evento.";
 }
-function formatSeconds(value) {
-  const n = Math.max(0, value);
-  return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+
+function openUploadPanel() {
+  if (!moments.length) return toast("La agenda aún no está disponible.");
+  $("#upload-panel").classList.add("open");
 }
-function activityPhotoWindowSeconds(activity) {
-  const toMinutes = (time) => {
-    const [hours, minutes] = time.split(":").map(Number);
-    return hours * 60 + minutes;
-  };
-  return Math.max(60, (toMinutes(activity.end) - toMinutes(activity.start) - 10) * 60);
-}
-function refreshMoment() {
-  const activity = getActivity();
-  const opened = isPreviewOpen || openSeconds > 0;
-  const closed = !isPreviewOpen && openSeconds <= 0 && countdownSeconds <= 0;
-  $("#moment-title").textContent = activity.name;
-  $("#photo-activity-name").textContent = activity.name.toLocaleUpperCase("es-MX");
-  $("#moment-time").textContent = activity.start;
-  $("#camera-input").disabled = !opened && !closed;
-  $("#camera-button").classList.toggle("is-disabled", !opened && !closed);
-  $("#camera-button").classList.toggle("is-late", closed);
-  $("#moment-state").textContent = isPreviewOpen ? "VISTA PREVIA" : opened ? "MOMENTO ABIERTO" : closed ? "MOMENTO CERRADO" : "PRÓXIMO MOMENTO";
-  $("#moment-prompt").innerHTML = isPreviewOpen
-    ? `Vista previa de la cámara<br /><strong>Lista para probar</strong>`
-    : opened
-      ? `Ya puedes tomar la foto<br /><strong>${activity.name}</strong>`
-      : closed
-        ? `La toma de este momento<br /><strong>ya cerró</strong>`
-        : `Prepárate para tomar la foto<br /><strong>en <span id="countdown">${formatSeconds(countdownSeconds)}</span></strong>`;
-  $("#camera-instruction").textContent = opened ? "Tu foto cuenta para la dinámica." : closed ? "Puedes subirla al álbum; ya no cuenta para la dinámica." : "La carga se activa cinco minutos antes.";
-  $("#camera-button-label").textContent = opened ? "Subir mi foto" : closed ? "Subir al álbum" : "Aún no";
-  $("#preview-open").hidden = isPreviewOpen || opened || closed;
-  const alreadyShared = currentGuest && read(quotaKey());
-  if (alreadyShared) {
-    $("#camera-input").disabled = true;
-    $("#camera-button").classList.add("is-disabled");
-    $("#camera-button").classList.remove("is-late");
-    $("#camera-button-label").textContent = "Foto enviada";
-    $("#camera-instruction").textContent = "Ya compartiste tu foto de este momento.";
-    $("#moment-state").textContent = "MOMENTO COMPARTIDO";
-    $("#moment-prompt").innerHTML = `Gracias por ayudar<br /><strong>con este momento.</strong>`;
-    $("#preview-open").hidden = true;
-  }
-}
-function clearTemporaryPhoto() {
-  if (photoUrl) URL.revokeObjectURL(photoUrl);
-  photoUrl = "";
+function clearPhotoPreview() {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = "";
   selectedPhoto = null;
-  $("#camera-input").value = "";
+  uploadRequestId = "";
+  $("#gallery-input").value = "";
   $("#photo-preview").removeAttribute("src");
-  $("#photo-preview").hidden = true;
-  $("#photo-empty").hidden = false;
+  $("#photo-review").hidden = true;
+  $("#gallery-button").hidden = !moments.length;
+  $("#send-photo").disabled = true;
+  $("#photo-feedback").textContent = "";
 }
-function beginGuestFlow(guest) {
-  const guestName = typeof guest === "string" ? guest : guest.name;
-  currentGuest = guestName;
-  currentGuestId = typeof guest === "string" ? guestName : `${guest.name}-${guest.detail}`;
-  activityIndex = 0;
-  countdownSeconds = 300;
-  openSeconds = 0;
-  isPreviewOpen = false;
-  clearInterval(clockInterval);
-  screen("moment");
-  refreshMoment();
-  clockInterval = setInterval(() => {
-    if (isPreviewOpen) return;
-    if (countdownSeconds > 0) {
-      countdownSeconds -= 1;
-      if (countdownSeconds === 0) openSeconds = activityPhotoWindowSeconds(getActivity());
-    }
-    else if (openSeconds > 0) openSeconds -= 1;
-    refreshMoment();
-  }, 1000);
+function resetUploadPanel() {
+  clearPhotoPreview();
+  $("#upload-panel").classList.remove("open");
+  $("#upload-hint").textContent = moments.length ? "Selecciona un momento para empezar." : "La agenda aún no está disponible.";
 }
-function addGuestResult(guest) {
+function toast(message) {
+  const element = $("#toast");
+  element.textContent = message;
+  element.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { element.hidden = true; }, 4200);
+}
+function requestId() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2); }
+
+function guestChoice(profile, code) {
   const button = document.createElement("button");
-  button.className = "guest-result";
   button.type = "button";
-  button.innerHTML = `<span class="guest-initial"></span><span class="guest-identity"><strong></strong><small></small></span><span class="result-arrow">→</span>`;
-  $(".guest-initial", button).textContent = guest.name.slice(0, 1);
-  $(".guest-identity strong", button).textContent = guest.name;
-  $(".guest-identity small", button).textContent = guest.detail;
-  button.addEventListener("click", () => beginGuestFlow(guest));
+  button.className = "guest-result";
+  const initial = document.createElement("span");
+  initial.className = "guest-initial";
+  initial.textContent = (profile.name || "I").slice(0, 1).toLocaleUpperCase("es-MX");
+  const identity = document.createElement("span");
+  identity.className = "guest-identity";
+  const name = document.createElement("strong");
+  name.textContent = profile.name || "Invitado";
+  const reference = document.createElement("small");
+  reference.textContent = profile.reference || "Confirma que eres tú";
+  identity.append(name, reference);
+  const arrow = document.createElement("span");
+  arrow.className = "result-arrow";
+  arrow.textContent = "→";
+  button.append(initial, identity, arrow);
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try { await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id, invitationCode: code }) })); }
+    catch (error) { button.disabled = false; $("#search-message").textContent = error.message; }
+  });
   $("#guest-results").append(button);
 }
-function renderActivities() {
+
+async function enterGuest(response) {
+  const profile = response.guest || response.profile;
+  if (!profile?.id) throw new Error("El servicio no confirmó tu identidad.");
+  const payload = response.event ? response : await api("/api/events/current");
+  const eventPayload = payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload;
+  const signedIn = { ...(payload.guest || profile), submissions: payload.submissions || payload.guest?.submissions || profile.submissions || [] };
+  showHome(signedIn, eventPayload, false);
+}
+
+async function refreshEvent() {
+  if (isDemo || !guest || refreshingEvent) return;
+  refreshingEvent = true;
+  try {
+    const payload = await api("/api/events/current");
+    const currentEvent = payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload;
+    setEvent(currentEvent);
+    if (Array.isArray(payload.submissions)) {
+      submissions = new Map(payload.submissions.map((item) => [String(item.momentId), item]));
+    }
+    renderCarousel();
+    renderSchedule();
+  } catch { /* Keep the last confirmed schedule if the service is temporarily unavailable. */ }
+  finally { refreshingEvent = false; }
+}
+
+$("#guest-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const code = $("#guest-code").value.trim();
+  $("#search-message").textContent = "Buscando tu invitación…";
+  $("#guest-results").replaceChildren();
+  $("#guest-results").hidden = true;
+  try {
+    const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: $("#guest-search").value.trim(), invitationCode: code }) });
+    if (result.matches?.length > 1) {
+      $("#search-message").textContent = "Elige tu nombre y referencia.";
+      result.matches.forEach((profile) => guestChoice(profile, code));
+      $("#guest-results").hidden = false;
+    } else await enterGuest(result);
+  } catch (error) { $("#search-message").textContent = error.message; }
+});
+
+$("#demo-entry").addEventListener("click", () => showHome({ id: "demo-guest", name: "Invitado de muestra" }, demoEvent, true));
+$("#home-upload").addEventListener("click", openUploadPanel);
+$("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
+$("#cancel-upload").addEventListener("click", resetUploadPanel);
+$("#carousel-prev").addEventListener("click", () => moveCarousel(-1));
+$("#carousel-next").addEventListener("click", () => moveCarousel(1));
+$("#carousel-stage").addEventListener("pointerdown", (event) => { dragStartX = event.clientX; });
+$("#carousel-stage").addEventListener("pointerup", (event) => {
+  if (dragStartX === null) return;
+  const delta = event.clientX - dragStartX;
+  if (Math.abs(delta) > 40) moveCarousel(delta < 0 ? 1 : -1);
+  dragStartX = null;
+});
+$("#carousel-stage").addEventListener("pointercancel", () => { dragStartX = null; });
+$$('[data-back="home"]').forEach((button) => button.addEventListener("click", () => screen("home")));
+$("#home-button").addEventListener("click", () => screen(guest ? "home" : "welcome"));
+
+$("#gallery-input").addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  if (!file || !file.type.startsWith("image/")) { $("#photo-feedback").textContent = "Selecciona una imagen."; return; }
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  selectedPhoto = file;
+  previewUrl = URL.createObjectURL(file);
+  uploadRequestId = requestId();
+  $("#photo-preview").src = previewUrl;
+  $("#photo-review").hidden = false;
+  $("#gallery-button").hidden = true;
+  $("#photo-feedback").textContent = isDemo ? "Demostración: la foto no se enviará ni guardará." : "Confirma el momento antes de enviarla.";
+  updateCarousel();
+});
+$("#change-photo").addEventListener("click", () => {
+  $("#gallery-button").hidden = false;
+  $("#photo-feedback").textContent = "Selecciona otra imagen para reemplazar esta vista previa.";
+  $("#gallery-input").click();
+});
+$("#cancel-photo").addEventListener("click", clearPhotoPreview);
+$("#send-photo").addEventListener("click", async () => {
+  const moment = moments[selectedMomentIndex];
+  if (!selectedPhoto || !moment || isSending || isDemo) return;
+  isSending = true;
+  $("#send-photo").disabled = true;
+  $("#photo-feedback").textContent = "Enviando…";
+  try {
+    const form = new FormData();
+    form.append("photo", selectedPhoto, selectedPhoto.name);
+    form.append("momentId", String(moment.id));
+    const result = await api("/api/photos", { method: "POST", headers: { "Idempotency-Key": uploadRequestId }, body: form });
+    if (!result.submission?.id) throw new Error("El servicio no confirmó la foto.");
+    submissions.set(String(moment.id), { ...result.submission, momentId: moment.id });
+    const eligible = result.submission.eligible === true;
+    clearPhotoPreview();
+    renderCarousel();
+    $("#upload-panel").classList.remove("open");
+    toast("¡Gracias por compartir tu foto! Tu recuerdo ya forma parte de esta historia" + (eligible ? "" : " · Fuera del reto"));
+  } catch (error) {
+    $("#photo-feedback").textContent = error.message + " La imagen sigue solo en memoria; puedes reintentar.";
+    $("#send-photo").disabled = false;
+  } finally { isSending = false; }
+});
+
+$("#message-text").addEventListener("input", (event) => { $("#message-count").textContent = event.target.value.length + " / 240"; });
+$("#message-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (isDemo) { $("#message-feedback").textContent = "Demostración: la dedicatoria no se envió ni guardó."; return; }
+  const button = $("button[type=submit]", event.currentTarget);
+  button.disabled = true;
+  $("#message-feedback").textContent = "Enviando dedicatoria…";
+  try {
+    const result = await api("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: $("#message-text").value.trim() }) });
+    if (!result.messageId) throw new Error("El servicio no confirmó la dedicatoria.");
+    $("#message-text").value = "";
+    $("#message-count").textContent = "0 / 240";
+    toast("¡Gracias! Tu dedicatoria quedó guardada.");
+    screen("home");
+  } catch (error) { $("#message-feedback").textContent = error.message + " Puedes reintentar."; }
+  finally { button.disabled = false; }
+});
+
+$("#open-admin").addEventListener("click", () => { window.location.href = "./staff.html"; });
+$("#staff-login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("button[type=submit]", event.currentTarget);
+  button.disabled = true;
+  $("#staff-login-feedback").textContent = "Verificando acceso…";
+  try {
+    const login = await api("/api/staff/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: $("#staff-email").value.trim(), password: $("#staff-password").value }) });
+    if (login.authenticated !== true || login.role !== "staff") throw new Error("La cuenta no tiene acceso de staff.");
+    staffAuthenticated = true;
+    staffDashboard = await api("/api/staff/dashboard");
+    renderStaff();
+    screen("admin");
+  } catch (error) { staffAuthenticated = false; $("#staff-login-feedback").textContent = error.message + " El panel permanece cerrado."; }
+  finally { button.disabled = false; }
+});
+
+function renderStaff() {
+  if (!staffAuthenticated || !staffDashboard) return;
   const list = $("#activity-list");
   list.replaceChildren();
-  activities.forEach((activity, index) => {
+  const program = staffDashboard.moments || [];
+  $("#program-feedback").textContent = program.length ? "Agenda conectada." : "No hay programa disponible.";
+  program.forEach((moment, index) => {
     const row = document.createElement("article");
     row.className = "activity-row";
-    row.innerHTML = '<span class="activity-index"></span><div class="activity-fields"><input class="activity-name-input" aria-label="Nombre del momento" /><div class="time-fields"><label>Inicia<input class="activity-start" type="time" /></label><span>—</span><label>Termina<input class="activity-end" type="time" /></label></div></div><button class="remove-activity" type="button" aria-label="Quitar momento">×</button>';
-    $(".activity-index", row).textContent = String(index + 1).padStart(2, "0");
-    $(".activity-name-input", row).value = activity.name;
-    $(".activity-start", row).value = activity.start;
-    $(".activity-end", row).value = activity.end;
-    row.addEventListener("input", () => {
-      activities[index].name = $(".activity-name-input", row).value;
-      activities[index].start = $(".activity-start", row).value;
-      activities[index].end = $(".activity-end", row).value;
-    });
-    $(".remove-activity", row).addEventListener("click", () => {
-      if (activities.length < 2) return;
-      activities.splice(index, 1);
-      if (activityIndex >= activities.length) activityIndex = activities.length - 1;
-      renderActivities();
-    });
+    const number = document.createElement("span");
+    number.className = "activity-index";
+    number.textContent = String(index + 1).padStart(2, "0");
+    const fields = document.createElement("div");
+    fields.className = "activity-fields";
+    const title = document.createElement("strong");
+    title.textContent = moment.name || "Momento";
+    const detail = document.createElement("small");
+    detail.textContent = (moment.start || "—") + " · " + (moment.stateLabel || moment.state || "Estado pendiente");
+    fields.append(title, detail);
+    row.append(number, fields);
     list.append(row);
   });
+  renderStaffTables(staffDashboard.tables || []);
+  renderStaffContests(staffDashboard.contests || []);
+  const event = staffDashboard.event || {};
+  $("#staff-event-name").value = event.name || "";
+  $("#staff-event-date").value = event.date || "";
+  $("#staff-drive-url").value = event.driveFolderUrl || "";
 }
-function showNextActivity() {
-  activityIndex = (activityIndex + 1) % activities.length;
-  countdownSeconds = 300;
-  openSeconds = 0;
-  isPreviewOpen = false;
-  screen("moment");
-  refreshMoment();
+function renderStaffTables(tables) {
+  const root = $("#staff-tables");
+  root.replaceChildren();
+  if (!tables.length) { root.textContent = "No hay mesas conectadas."; return; }
+  tables.forEach((table) => {
+    const section = document.createElement("section");
+    section.className = "table-card";
+    const title = document.createElement("h3");
+    title.textContent = table.name || "Mesa";
+    section.append(title);
+    (table.guests || []).forEach((person) => {
+      const row = document.createElement("div");
+      row.className = "table-guest";
+      row.textContent = person.name + " · " + (person.participationState || "Sin participación");
+      section.append(row);
+    });
+    root.append(section);
+  });
+}
+function renderStaffContests(contests) {
+  const root = $("#staff-contests");
+  root.replaceChildren();
+  if (!contests.length) { root.textContent = "No hay retos conectados."; return; }
+  contests.forEach((contest) => {
+    const card = document.createElement("article");
+    card.className = "contest-card";
+    const title = document.createElement("h3");
+    title.textContent = contest.name || contest.momentName || "Reto";
+    const timing = document.createElement("p");
+    timing.textContent = (contest.opensAt || "—") + " a " + (contest.closesAt || "—") + " · " + (contest.state || "Estado pendiente");
+    card.append(title, timing);
+    if (contest.prize) {
+      const prize = document.createElement("small");
+      prize.textContent = "Premio: " + contest.prize;
+      card.append(prize);
+    }
+    (contest.participants || []).forEach((person) => {
+      const row = document.createElement("article");
+      row.className = "contest-entry";
+      if (person.thumbnailUrl) {
+        const photo = document.createElement("img");
+        photo.src = person.thumbnailUrl;
+        photo.alt = "Foto enviada por " + (person.name || "invitado");
+        row.append(photo);
+      }
+      const detail = document.createElement("div");
+      detail.className = "contest-entry-detail";
+      const name = document.createElement("strong");
+      name.textContent = (person.name || "Invitado") + (person.table ? " · " + person.table : "");
+      const meta = document.createElement("small");
+      const receivedAt = person.receivedAt ? new Date(person.receivedAt).toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "Hora sin confirmar";
+      meta.textContent = receivedAt + " · " + (person.eligible ? "Elegible" : "Recuerdo · no elegible") + (person.validationState ? " · " + person.validationState : "");
+      detail.append(name, meta);
+      row.append(detail);
+      card.append(row);
+      if (contest.requiresStaffWinner && person.eligible && contest.state !== "finished") {
+        const winner = document.createElement("button");
+        winner.type = "button";
+        winner.className = "secondary-button";
+        winner.textContent = "Confirmar como ganador";
+        winner.addEventListener("click", () => postStaffAction("/api/staff/contests/" + encodeURIComponent(contest.id) + "/winner", { participantId: person.id }));
+        card.append(winner);
+      }
+    });
+    if (contest.state === "open") {
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "secondary-button";
+      close.textContent = "Cerrar reto";
+      close.addEventListener("click", () => postStaffAction("/api/staff/contests/" + encodeURIComponent(contest.id) + "/close"));
+      card.append(close);
+    }
+    root.append(card);
+  });
+}
+async function postStaffAction(path, body) {
+  try {
+    await api(path, { method: "POST", ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
+    staffDashboard = await api("/api/staff/dashboard");
+    renderStaff();
+  } catch (error) { toast(error.message); }
 }
 
-$("#start-guest").addEventListener("click", () => { screen("guest"); $("#guest-search").focus(); });
-$("#show-program").addEventListener("click", () => { renderPublicSchedule(); screen("schedule"); });
-$("#open-message").addEventListener("click", () => { $("#message-author").value = ""; $("#message-text").value = ""; $("#message-count").textContent = "0 / 240"; screen("message"); $("#message-author").focus(); });
-$("#message-text").addEventListener("input", (event) => { $("#message-count").textContent = event.target.value.length + " / 240"; });
-$("#message-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const author = $("#message-author").value.trim();
-  const message = $("#message-text").value.trim();
-  if (!author || !message) return;
-  const key = "em-messages:" + safeKey($("#event-name").value || "Ana & Carlos");
-  let saved = [];
-  try { saved = JSON.parse(read(key) || "[]"); } catch { saved = []; }
-  saved.push({ author, message, createdAt: new Date().toISOString() });
-  write(key, JSON.stringify(saved));
-  $("#saved-message-preview").textContent = "“" + message + "”";
-  $("#saved-message-author").textContent = "— " + author;
-  $("#message-drive-status").textContent = "Guardado en esta demostración. La conexión con Drive aún no está configurada.";
-  screen("message-done");
-});
-$("#message-home").addEventListener("click", () => screen("welcome"));
-$("#guest-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const query = $("#guest-search").value.trim().toLocaleLowerCase("es-MX");
-  const results = $("#guest-results");
-  results.replaceChildren();
-  const found = demoGuests.filter((guest) => guest.name.toLocaleLowerCase("es-MX").includes(query));
-  found.forEach(addGuestResult);
-  results.hidden = !found.length;
-  $("#search-message").textContent = found.length ? "Elige tu registro para continuar." : "No encontramos ese nombre en la lista de demostración.";
-});
-$("#camera-input").addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  selectedPhoto = file;
-  if (photoUrl) URL.revokeObjectURL(photoUrl);
-  photoUrl = URL.createObjectURL(file);
-  photoIsPreview = isPreviewOpen;
-  photoIsOnTime = !photoIsPreview && openSeconds > 0;
-  $("#photo-preview").src = photoUrl;
-  $("#photo-preview").hidden = false;
-  $("#photo-empty").hidden = true;
-  $("#confirm-photo").disabled = false;
-  $("#photo-message").textContent = photoIsPreview
-    ? "Prueba de cámara. Esta foto no se enviará ni contará."
-    : photoIsOnTime
-      ? "Dentro de horario. Esta foto cuenta para la dinámica."
-      : "Fuera de horario. Irá al álbum, pero no contará para la dinámica.";
-  screen("photo");
-});
-$("#confirm-photo").addEventListener("click", () => {
-  if (!selectedPhoto || !currentGuest) return;
-  photoIsOnTime = !photoIsPreview && openSeconds > 0;
-  if (!photoIsPreview) write(quotaKey(), photoIsOnTime ? "sent-on-time-demo" : "sent-late-demo");
-  $("#done-title").innerHTML = photoIsPreview ? "Vista previa<br /><em>completada.</em>" : "Tu foto<br /><em>está lista.</em>";
-  $("#done-subtitle").textContent = photoIsPreview ? "La imagen solo se usó para probar este flujo." : photoIsOnTime ? "Esta foto participa en la dinámica." : "Esta foto irá al álbum, pero queda fuera de la dinámica.";
-  $("#upload-status").dataset.state = photoIsPreview ? "preview" : photoIsOnTime ? "on-time" : "late";
-  $("#upload-status span:last-child").textContent = photoIsPreview
-    ? "Vista previa. No se envió a Drive ni quedó guardada en esta web."
-    : photoIsOnTime
-      ? "Pendiente de envío a Drive. La foto no se guarda en esta web."
-      : "Fuera de horario. Pendiente de envío a Drive; no cuenta para la dinámica.";
-  clearTemporaryPhoto();
-  screen("done");
-});
-$("#retake-photo").addEventListener("click", () => { clearTemporaryPhoto(); screen("moment"); refreshMoment(); });
-$("#photo-back").addEventListener("click", () => { clearTemporaryPhoto(); screen("moment"); refreshMoment(); });
-$("#preview-open").addEventListener("click", () => { isPreviewOpen = true; refreshMoment(); });
-$("#next-moment").addEventListener("click", showNextActivity);
-$("#home-button").addEventListener("click", () => { clearInterval(clockInterval); screen("welcome"); });
-$$('.back-button[data-back="welcome"]').forEach((button) => button.addEventListener("click", () => screen("welcome")));
-$('.back-button[data-back="guest"]').addEventListener("click", () => screen("guest"));
-$("#open-admin").addEventListener("click", () => { renderActivities(); screen("admin"); });
-$("#close-admin").addEventListener("click", () => { screen(currentGuest ? "moment" : "welcome"); refreshMoment(); });
 $(".admin-tabs").addEventListener("click", (event) => {
   const tab = event.target.closest(".admin-tab");
-  if (!tab) return;
+  if (!tab || !staffAuthenticated) return;
   $$(".admin-tab").forEach((item) => item.classList.toggle("active", item === tab));
-  $$(".admin-view").forEach((view) => { view.hidden = view.id !== `admin-${tab.dataset.tab}`; });
+  $$(".admin-view").forEach((view) => { view.hidden = view.id !== "admin-" + tab.dataset.tab; });
 });
-$("#add-activity").addEventListener("click", () => {
-  activities.push({ name: "Nuevo momento", start: "20:30", end: "21:00" });
-  renderActivities();
-});
-$("#save-program").addEventListener("click", () => {
-  activities = $$(".activity-row").map((row) => ({ name: $(".activity-name-input", row).value.trim(), start: $(".activity-start", row).value, end: $(".activity-end", row).value })).filter((item) => item.name && item.start && item.end);
-  if (!activities.length) {
-    $("#program-feedback").textContent = "Agrega al menos un momento con horario.";
-    return;
-  }
-  write("em-activities", JSON.stringify(activities));
-  write("em-event-name", $("#event-name").value.trim() || "Ana & Carlos");
-  write("em-event-date", $("#event-date").value);
-  updateEventCover();
-  activityIndex = Math.min(activityIndex, activities.length - 1);
-  $("#program-feedback").textContent = "Programa guardado en este navegador.";
-  renderActivities();
-  refreshMoment();
-});
-$("#event-name").addEventListener("change", () => {
-  $("#drive-url").value = read(`em-drive:${safeKey($("#event-name").value)}`) || "";
-});
-$("#drive-form").addEventListener("submit", (event) => {
+$("#staff-event-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const url = $("#drive-url").value.trim();
-  if (url && !/^https:\/\/drive\.google\.com\//i.test(url)) {
-    $("#drive-feedback").textContent = "Usa el enlace de una carpeta de Google Drive.";
-    return;
-  }
-  if (url) write(`em-drive:${safeKey($("#event-name").value)}`, url);
-  $("#drive-feedback").textContent = url ? "Enlace guardado para este evento en este navegador." : "Pega el enlace de la carpeta que compartió el fotógrafo.";
+  if (!staffAuthenticated) return;
+  const form = new FormData();
+  form.append("name", $("#staff-event-name").value.trim());
+  form.append("date", $("#staff-event-date").value);
+  form.append("driveFolderUrl", $("#staff-drive-url").value.trim());
+  const cover = $("#staff-cover-image").files?.[0];
+  if (cover) form.append("cover", cover, cover.name);
+  const button = $("button[type=submit]", event.currentTarget);
+  button.disabled = true;
+  $("#staff-event-feedback").textContent = "Guardando evento…";
+  try {
+    const result = await api("/api/staff/event", { method: "PUT", body: form });
+    if (!result.event) throw new Error("El servidor no confirmó los cambios.");
+    staffDashboard.event = result.event;
+    setEvent(result.event);
+    $("#staff-event-feedback").textContent = "Evento actualizado.";
+  } catch (error) { $("#staff-event-feedback").textContent = error.message + " No se guardaron cambios."; }
+  finally { button.disabled = false; }
 });
-$("#event-name").value = read("em-event-name") || $("#event-name").value;
-$("#event-date").value = read("em-event-date") || $("#event-date").value;
-$("#event-name").addEventListener("input", () => {
-  $(".admin-title-row .kicker").textContent = `${$("#event-name").value.toLocaleUpperCase("es-MX")} · DEMO`;
+$("#close-admin").addEventListener("click", async () => {
+  try { await api("/api/staff/session", { method: "DELETE" }); } catch { /* The local panel is closed even if logout cannot reach the server. */ }
+  staffAuthenticated = false;
+  staffDashboard = null;
+  screen(guest ? "home" : "welcome");
 });
-$("#event-date").addEventListener("change", (event) => {
-  if (event.target.value) $(".admin-top .kicker").textContent = `EVENTO · ${event.target.value}`;
-});
+$("#home-button").addEventListener("click", () => screen(guest ? "home" : "welcome"));
 
-$("#event-name").addEventListener("input", updateEventCover);
-$("#event-date").addEventListener("change", updateEventCover);
-updateEventCover();
-$("#cover-image").addEventListener("change", (event) => {
-  const file = event.target.files && event.target.files[0];
-  if (!file || !file.type.startsWith("image/")) return;
-  const source = URL.createObjectURL(file);
-  const image = new Image();
-  image.onload = () => {
-    const maxEdge = 1400;
-    const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(image.width * scale);
-    canvas.height = Math.round(image.height * scale);
-    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-    const eventName = $("#event-name").value.trim() || "Ana & Carlos";
-    write("em-cover:" + safeKey(eventName), dataUrl);
-    $("#event-cover").style.backgroundImage = "linear-gradient(180deg, #24332c00 38%, #1b2825c9 100%), url(\"" + dataUrl + "\")";
-    $("#event-cover").classList.add("has-cover-image");
-    URL.revokeObjectURL(source);
-  };
-  image.onerror = () => URL.revokeObjectURL(source);
-  image.src = source;
-});
-
-if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister())).catch(() => {});
+  if ("caches" in window) caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("entre-momentos-" )).map((key) => caches.delete(key)))).catch(() => {});
 }
-if ("caches" in window) {
-  caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("entre-momentos-")).map((key) => caches.delete(key)))).catch(() => {});
-}
+api("/api/events/current").then((payload) => setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload)).catch(() => {});
+window.setInterval(() => {
+  if (document.body.dataset.screen === "home") updateMomentPrompt();
+}, 1000);
+window.setInterval(() => { if (guest && !isDemo) refreshEvent(); }, 30000);
+screen("welcome");
