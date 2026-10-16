@@ -87,8 +87,10 @@ function showHome(profile, data, demo = false) {
   (profile?.submissions || []).forEach((item) => submissions.set(String(item.momentId), item));
   $("#home-guest-name").textContent = profile?.name || profile?.displayName || "invitado";
   const count = eventData.presence?.activeCount;
-  $("#connected-count").textContent = Number.isInteger(count) ? String(count) : "Invitados";
-  $("#presence-status").textContent = Number.isInteger(count) ? "personas activas" : "Sin datos en vivo";
+  const hasLiveCount = Number.isInteger(count) && count >= 0;
+  $("#connected-count").textContent = hasLiveCount ? String(count) : "—";
+  $("#presence-status").textContent = hasLiveCount ? (count === 1 ? "invitado activo" : "invitados activos") : "sin datos en vivo";
+  $("#guest-presence").classList.toggle("has-live-count", hasLiveCount);
   const active = moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
   const next = moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
   selectedMomentIndex = active >= 0 ? active : next >= 0 ? next : 0;

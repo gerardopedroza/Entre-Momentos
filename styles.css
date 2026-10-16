@@ -394,6 +394,38 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   border-bottom-width: 1px;
   box-shadow: 0 1px 0 #efd2c6,0 2px 5px #68463e10;
 }
+.home-action.presence-action {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: #536c67;
+  cursor: default;
+  pointer-events: none;
+}
+.presence-icon {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  background: linear-gradient(145deg,#e4f7ec,#e8f3fb);
+  color: #43866f;
+  box-shadow: 0 2px 0 #d0e5d8,inset 0 1px #fff;
+}
+.presence-icon svg { width: 19px; height: 19px; }
+.presence-copy { display: grid; min-width: 0; gap: 2px; text-align: left; }
+#connected-count { color: #286b59; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+#presence-status { max-width: 78px; color: #64747a; font-size: 9px; font-weight: 500; line-height: 1.1; }
+.presence-action:not(.has-live-count) .presence-icon { background: linear-gradient(145deg,#fff1e8,#f7edf8); color: #b17b70; box-shadow: 0 2px 0 #edd9d4,inset 0 1px #fff; }
+.presence-action:not(.has-live-count) #connected-count { color: #927b83; }
 #home-upload { border-bottom-color: #e68d78; background: linear-gradient(145deg,#fffaf6,#ffe4d9); color: #a95e50; }
 #home-dedication { border-bottom-color: #ab8aca; background: linear-gradient(145deg,#fffaff,#eee5fb); color: #745b91; }
 #home-upload svg { color: #e27f70; }

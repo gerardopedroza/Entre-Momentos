@@ -51,7 +51,7 @@
               <nav class="home-actions" aria-label="Acciones principales">
                 <button id="home-upload" type="button" class="home-action"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5 17 5-5 3 3 2-2 4 4"/></svg><span>Subir</span></button>
                 <button id="home-dedication" type="button" class="home-action"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22z"/><path d="M4 5.5v14A2.5 2.5 0 0 1 6.5 17H20"/></svg><span>Dedicatoria</span></button>
-                <div class="home-action presence-action" aria-live="polite"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1z"/><path d="M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1h-4"/></svg><span id="connected-count">Invitados</span><small id="presence-status">Sin datos en vivo</small></div>
+                <div class="home-action presence-action" id="guest-presence" role="status" aria-live="polite" aria-label="Estado de invitados conectados"><span class="presence-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1z"/><path d="M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1h-4"/></svg></span><span class="presence-copy"><strong id="connected-count">—</strong><small id="presence-status">Sin datos en vivo</small></span></div>
               </nav>
               <div class="carousel-title-row"><h2>Momentos</h2></div>
             </div>
