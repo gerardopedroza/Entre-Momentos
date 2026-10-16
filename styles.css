@@ -99,7 +99,7 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .moment-card.is-next { z-index: 1; opacity: .76; transform: translateX(16%) scale(.84); filter: saturate(.72); }
 .moment-card.is-hidden { z-index: 0; opacity: 0; transform: translateX(-50%) scale(.7); pointer-events: none; }
 .moment-card-name, .moment-card-meta, .moment-card-status { position: relative; z-index: 1; }
-.moment-card-name { margin: 0 0 4px; font: 500 clamp(19px,6vw,27px)/1.08 var(--serif); }
+.moment-card-name { margin: 0 0 4px; font: 500 clamp(17px,4.8vw,22px)/1.04 var(--serif); }
 .moment-card-meta { margin: 0; font-size: 12px; }
 .moment-card-status { align-self: flex-start; margin-bottom: auto; padding: 6px 8px; border-radius: 20px; background: #fffefaeb; color: var(--olive-dark); font-size: 10px; font-weight: 600; }
 .moment-card.is-active-moment .moment-card-status { background: #405b49; color: white; }
@@ -116,7 +116,7 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .upload-panel.open { display: flex; border-color: #b8c5b8; background: #fffefa; }
 .home-screen.is-uploading .home-heading, .home-screen.is-uploading .home-actions { display: none; }
 .home-screen.is-uploading .carousel-section { flex: 0 0 calc(var(--carousel-card-height) + 110px); min-height: 0; }
-.home-screen.is-uploading .upload-panel { position: relative; z-index: 1; inset: auto; flex: 1 1 0; min-height: 0; max-height: none; justify-content: space-between; }
+.home-screen.is-uploading .upload-panel { position: relative; z-index: 1; inset: auto; flex: 1 1 0; min-height: 0; max-height: none; justify-content: space-evenly; }
 .home-screen.is-uploading .moment-prompt { flex-shrink: 0; }
 .home-screen.is-reviewing .upload-hint { display: none; }
 .home-screen.is-uploading .photo-review { align-content: center; flex: 1; }
