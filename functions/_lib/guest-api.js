@@ -96,12 +96,12 @@ async function identifyGuest(request, env, select = false) {
     const matches = await env.DB.prepare(`SELECT g.id,g.name,g.name_key,g.table_id,t.name AS table_name
       FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
       WHERE g.event_id=? AND g.active=1 AND ${conditions}
-      ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 12`)
+      ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 6`)
       .bind(event.id, ...terms, name).all();
     const found = matches.results || [];
     if (!found.length) return fail("No encontré ese nombre en la lista del evento. Revisa cómo está escrito.", 404, "guest_not_found");
     if (found.length > 1 || found[0].name_key !== name) {
-      return json({ matches: found.map((match) => ({ id: match.id, name: match.name, reference: match.table_name ? "Mesa " + match.table_name : "Toca para confirmar" })) });
+      return json({ matches: found.slice(0, 5).map((match) => ({ id: match.id, name: match.name, reference: match.table_name ? "Mesa " + match.table_name : "Toca para confirmar" })), hasMore: found.length > 5 });
     }
     guest = found[0];
   }

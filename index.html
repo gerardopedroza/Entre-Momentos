@@ -32,13 +32,18 @@
             <label class="field-label" for="guest-search">Tu nombre o apellido</label><input id="guest-search" type="search" placeholder="Ej. Ana o García" autocomplete="name" minlength="2" required />
             <button class="primary-button" type="submit">Buscar mi nombre <span aria-hidden="true">→</span></button>
             <p class="form-message" id="search-message" role="status"></p>
-            <div class="guest-results" id="guest-results" aria-live="polite" hidden></div>
             <button class="demo-entry" id="demo-entry" type="button">Probar búsqueda con Ana (dos homónimas)</button>
           </form>
         </section>
 
+        <section class="screen homonyms-screen" id="screen-homonyms" aria-labelledby="homonym-title" hidden>
+          <button class="back-button" id="homonym-back" type="button">← <span>Cambiar búsqueda</span></button>
+          <div class="step-heading"><p class="kicker">CONFIRMA TU NOMBRE</p><h1 id="homonym-title">¿Cuál eres tú?</h1><p id="homonym-subtitle">Elige tu nombre y mesa para entrar.</p></div>
+          <div class="homonym-results" id="homonym-results" aria-live="polite"></div><p class="form-message" id="homonym-feedback" role="status"></p>
+        </section>
+
         <section class="screen home-screen" id="screen-home" aria-labelledby="home-title" hidden>
-          <div class="home-heading"><div><p class="kicker" id="home-event-kicker">EL ÁLBUM DE HOY</p><h1 id="home-title">Hola, <span id="home-guest-name">invitado</span></h1></div><span class="demo-badge" id="demo-badge" hidden>DEMO</span></div>
+          <div class="home-heading"><div><h1 id="home-title"><span id="home-guest-name">Invitado</span></h1><p class="home-thanks">Gracias por hacer este día tan especial.</p></div><span class="demo-badge" id="demo-badge" hidden>DEMO</span></div>
           <nav class="home-actions" aria-label="Acciones principales">
             <button id="home-upload" type="button" class="home-action"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5 17 5-5 3 3 2-2 4 4"/></svg><span>Subir</span></button>
             <button id="home-dedication" type="button" class="home-action"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22z"/><path d="M4 5.5v14A2.5 2.5 0 0 1 6.5 17H20"/></svg><span>Dedicatoria</span></button>

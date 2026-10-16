@@ -62,17 +62,22 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .identity-form .primary-button { margin-top: 2px; }
 .form-message { min-height: 18px; margin: 0; color: var(--olive-dark); font-size: 12px; line-height: 1.35; }
 .demo-entry { justify-self: center; min-height: 30px; padding: 0 8px; border: 0; background: transparent; color: #777f74; cursor: pointer; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
-.guest-results { display: grid; gap: 6px; max-height: 90px; overflow: auto; }
 .guest-result { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 10px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); text-align: left; cursor: pointer; }
 .guest-initial { display: grid; flex: 0 0 32px; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--sage); color: var(--olive-dark); font: 15px var(--serif); }
 .guest-identity { display: grid; flex: 1; gap: 2px; }
 .guest-identity strong { font-size: 14px; font-weight: 500; }
 .guest-identity small { color: var(--muted); font-size: 11px; }
 .result-arrow { color: var(--copper); }
-.home-screen { gap: 11px; padding: 15px 18px 16px; }
-.home-heading { display: flex; align-items: center; justify-content: space-between; min-height: 42px; }
-.home-heading h1 { margin: 4px 0 0; font: 400 clamp(25px,7vw,31px)/1.1 var(--serif); }
+.homonyms-screen { gap: 8px; padding: 18px 18px 20px; }
+.homonyms-screen .back-button { margin-bottom: 6px; }
+.homonyms-screen .step-heading { margin-bottom: 8px; }
+.homonym-results { display: grid; align-content: start; gap: 8px; min-height: 0; overflow: hidden; }
+.homonym-results .guest-result { min-height: 54px; }
+.home-screen { position: relative; gap: 11px; padding: 15px 18px 16px; }
+.home-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; min-height: 72px; }
+.home-heading h1 { margin: 0; font: 400 clamp(27px,7vw,34px)/1.08 var(--serif); }
 .home-heading h1 span { color: var(--olive-dark); }
+.home-thanks { margin: 5px 0 0; color: var(--muted); font-size: 14px; line-height: 1.25; }
 .demo-badge { padding: 6px 8px; border: 1px solid #dbc8a7; border-radius: 20px; color: #927a56; font-size: 9px; font-weight: 600; letter-spacing: 1px; }
 .home-actions { display: grid; flex: 0 0 66px; grid-template-columns: repeat(4,1fr); border-block: 1px solid var(--line); }
 .home-action { display: grid; align-content: center; justify-items: center; gap: 3px; border: 0; background: transparent; color: var(--olive-dark); cursor: pointer; font-size: 13px; font-weight: 500; }
@@ -103,8 +108,8 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .carousel-pagination { display: flex; flex: 0 0 15px; justify-content: center; gap: 6px; padding-top: 7px; }
 .carousel-dot { width: 6px; height: 6px; padding: 0; border: 0; border-radius: 50%; background: #c9cdc2; }
 .carousel-dot[aria-current="true"] { width: 17px; border-radius: 6px; background: var(--olive); }
-.upload-panel { display: flex; flex: 0 0 auto; flex-direction: column; gap: 7px; padding: 12px 13px; border: 1px solid #e5e2d8; border-radius: 7px; background: #fffefaed; box-shadow: 0 3px 15px #29352f0a; transition: border-color .2s, background .2s; }
-.upload-panel.open { border-color: #b8c5b8; background: #fffefa; }
+.upload-panel { position: absolute; z-index: 4; right: 12px; bottom: 12px; left: 12px; display: none; max-height: calc(100% - 24px); flex-direction: column; gap: 7px; overflow: hidden; padding: 12px 13px; border: 1px solid #e5e2d8; border-radius: 7px; background: #fffefaed; box-shadow: 0 3px 15px #29352f0a; transition: border-color .2s, background .2s; }
+.upload-panel.open { display: flex; border-color: #b8c5b8; background: #fffefa; }
 .upload-panel-heading { display: flex; align-items: center; justify-content: space-between; }
 .upload-panel-heading h2 { margin: 2px 0 0; font: 400 21px/1.1 var(--serif); }
 .close-panel { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #f2f0ea; color: #737c72; cursor: pointer; font-size: 24px; }
@@ -187,6 +192,8 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
   .identity-form { gap: 5px; }
   .identity-form > input { min-height: 40px; }
   .home-screen { gap: 7px; padding-block: 10px; }
+  .home-heading { min-height: 65px; }
+  .home-thanks { font-size: 13px; }
   .home-actions { flex-basis: 58px; }
   .carousel-heading { flex-basis: 38px; }
   .upload-panel { gap: 5px; padding: 9px 11px; }

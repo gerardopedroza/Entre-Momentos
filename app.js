@@ -64,7 +64,6 @@ function setEvent(data) {
     : eventData.demo ? "VISTA DE DEMOSTRACIÓN" : "ÁLBUM DE BODA";
   $("#event-name-display").textContent = eventData.name || "Entre Momentos";
   $("#event-date-display").textContent = dateLabel.toLocaleUpperCase("es-MX");
-  $("#home-event-kicker").textContent = dateLabel.toLocaleUpperCase("es-MX");
   $("#staff-event-kicker").textContent = (eventData.name || "EVENTO").toLocaleUpperCase("es-MX");
   const cover = eventData.coverUrl || "";
   if (cover) {
@@ -300,9 +299,9 @@ function guestChoice(profile) {
       }
       await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id }) }));
     }
-    catch (error) { button.disabled = false; $("#search-message").textContent = error.message; }
+    catch (error) { button.disabled = false; $("#homonym-feedback").textContent = error.message; }
   });
-  $("#guest-results").append(button);
+  $("#homonym-results").append(button);
 }
 
 async function enterGuest(response) {
@@ -334,28 +333,34 @@ $("#guest-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = $("#guest-search").value.trim();
   $("#search-message").textContent = "Buscando tu nombre…";
-  $("#guest-results").replaceChildren();
-  $("#guest-results").hidden = true;
+  $("#homonym-results").replaceChildren();
   if (demoSearchEnabled) {
     const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
     if (!normalized.includes("ana")) {
       $("#search-message").textContent = "En esta prueba, escribe Ana para ver a las dos invitadas homónimas.";
       return;
     }
-    $("#search-message").textContent = "Encontré dos personas con ese nombre. Elige una mesa para continuar.";
+    $("#homonym-title").textContent = "¿Cuál Ana eres tú?";
+    $("#homonym-subtitle").textContent = "Encontré dos Ana López. Elige tu mesa para entrar.";
     [
       { id: "demo-ana-4", name: "Ana López", reference: "Mesa 4" },
       { id: "demo-ana-8", name: "Ana López", reference: "Mesa 8" },
     ].forEach((profile) => guestChoice(profile));
-    $("#guest-results").hidden = false;
+    screen("homonyms");
     return;
   }
   try {
     const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
-    if (Array.isArray(result.matches)) {
-      $("#search-message").textContent = result.matches.length > 1 ? "Encontré varias personas. Elige la tuya." : "Confirma que eres tú.";
+    if (Array.isArray(result.matches) && result.matches.length > 1) {
+      $("#homonym-title").textContent = "¿Cuál eres tú?";
+      $("#homonym-subtitle").textContent = result.hasMore
+        ? "Hay más coincidencias. Agrega tu apellido para encontrar la tuya."
+        : "Hay varias personas con ese nombre. Elige tu nombre y mesa.";
       result.matches.forEach((profile) => guestChoice(profile));
-      $("#guest-results").hidden = false;
+      $("#homonym-feedback").textContent = "";
+      screen("homonyms");
+    } else if (Array.isArray(result.matches) && result.matches.length === 1) {
+      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: result.matches[0].id }) }));
     } else await enterGuest(result);
   } catch (error) { $("#search-message").textContent = error.message; }
 });
@@ -363,14 +368,15 @@ $("#guest-form").addEventListener("submit", async (event) => {
 $("#demo-entry").addEventListener("click", () => {
   demoSearchEnabled = true;
   $("#guest-search").value = "Ana";
-  $("#guest-results").replaceChildren();
-  $("#guest-results").hidden = true;
-  $("#search-message").textContent = "Prueba con Ana y elige entre las dos personas.";
+  $("#homonym-results").replaceChildren();
+  $("#homonym-feedback").textContent = "";
+  $("#search-message").textContent = "Presiona «Buscar mi nombre» para ver las dos Ana López.";
   $("#guest-search").focus();
 });
 $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
 $("#home-schedule").addEventListener("click", () => screen("schedule"));
+$("#homonym-back").addEventListener("click", () => { screen("welcome"); $("#guest-search").focus(); });
 $("#cancel-upload").addEventListener("click", resetUploadPanel);
 $("#carousel-prev").addEventListener("click", () => moveCarousel(-1));
 $("#carousel-next").addEventListener("click", () => moveCarousel(1));
