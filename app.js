@@ -169,7 +169,12 @@ function renderCarousel() {
     time.className = "moment-card-meta";
     time.textContent = moment.start || moment.startTime || "";
     const submission = submissions.get(String(moment.id));
-    card.append(badge, title, time);
+    const photoAction = document.createElement("span");
+    photoAction.className = "moment-card-action" + (submission ? " is-submitted" : "");
+    photoAction.innerHTML = submission
+      ? '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg><span>Foto enviada</span>'
+      : '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1.5-2h7L17 5"/></svg><span>Toca para subir tu foto</span>';
+    card.append(badge, photoAction, title, time);
     if (submission?.thumbnailUrl) {
       const thumbnail = document.createElement("img");
       thumbnail.className = "moment-thumbnail";
@@ -244,6 +249,7 @@ function renderSchedule() {
 
 function openUploadPanel() {
   if (!moments.length) return toast("La agenda aún no está disponible.");
+  $("#screen-home").classList.add("is-uploading");
   $("#upload-panel").classList.add("open");
 }
 function clearPhotoPreview() {
@@ -254,6 +260,7 @@ function clearPhotoPreview() {
   $("#gallery-input").value = "";
   $("#photo-preview").removeAttribute("src");
   $("#photo-review").hidden = true;
+  $("#screen-home").classList.remove("is-reviewing");
   $("#gallery-button").hidden = !moments.length;
   $("#send-photo").disabled = true;
   $("#photo-feedback").textContent = "";
@@ -261,6 +268,7 @@ function clearPhotoPreview() {
 function resetUploadPanel() {
   clearPhotoPreview();
   $("#upload-panel").classList.remove("open");
+  $("#screen-home").classList.remove("is-uploading");
   $("#upload-hint").textContent = moments.length ? "Selecciona un momento para empezar." : "La agenda aún no está disponible.";
 }
 function toast(message) {
@@ -396,6 +404,7 @@ $("#gallery-input").addEventListener("change", (event) => {
   if (!file || !file.type.startsWith("image/")) { $("#photo-feedback").textContent = "Selecciona una imagen."; return; }
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   selectedPhoto = file;
+  $("#screen-home").classList.add("is-uploading", "is-reviewing");
   previewUrl = URL.createObjectURL(file);
   uploadRequestId = requestId();
   $("#photo-preview").src = previewUrl;
@@ -424,9 +433,8 @@ $("#send-photo").addEventListener("click", async () => {
     if (!result.submission?.id) throw new Error("El servicio no confirmó la foto.");
     submissions.set(String(moment.id), { ...result.submission, momentId: moment.id });
     const eligible = result.submission.eligible === true;
-    clearPhotoPreview();
     renderCarousel();
-    $("#upload-panel").classList.remove("open");
+    resetUploadPanel();
     toast("¡Gracias por compartir tu foto! Tu recuerdo ya forma parte de esta historia" + (eligible ? "" : " · Fuera del reto"));
   } catch (error) {
     $("#photo-feedback").textContent = error.message + " La imagen sigue solo en memoria; puedes reintentar.";
