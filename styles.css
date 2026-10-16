@@ -222,3 +222,81 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Celebratory palette: polished wedding neutrals with fresh, joyful color accents. */
+:root {
+  --paper: #fffaf6;
+  --card: #ffffff;
+  --ink: #293445;
+  --muted: #727887;
+  --line: #f0dfd6;
+  --olive: #4c9a7e;
+  --olive-dark: #286b59;
+  --sage: #e4f4eb;
+  --copper: #e98a73;
+  --party-sun: #f4c965;
+  --party-lilac: #eee6fa;
+}
+body { background: radial-gradient(ellipse at 12% 12%,#fff0e7 0,transparent 38%),radial-gradient(ellipse at 88% 82%,#e7f5ed 0,transparent 36%),#f7f4f1; }
+.app-frame { background: var(--paper); box-shadow: 0 20px 70px #4c3b331c; }
+.event-backdrop { background: radial-gradient(ellipse at 18% 14%,#ffe3d5 0,transparent 50%),radial-gradient(ellipse at 82% 25%,#e2f2e9 0,transparent 48%),transparent; }
+.app-header { border-color: #f2e5dc; background: #fffdfaeb; backdrop-filter: blur(14px); }
+.wordmark { font-size: 11px; letter-spacing: 1.6px; }
+.wordmark-symbol { color: #31866c; }
+.wordmark-symbol span { color: #e88578; }
+.kicker { color: #8b7481; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: #e98a7380; }
+.primary-button { border-radius: 13px; background: linear-gradient(115deg,#286b59,#398c70); box-shadow: 0 7px 18px #286b5926; }
+.primary-button:hover { background: linear-gradient(115deg,#225d4e,#317c63); box-shadow: 0 10px 20px #286b5933; }
+.secondary-button { border-color: #e6d8e8; border-radius: 12px; background: #fbf7ff; color: #68537b; }
+.text-button { color: #777c88; }
+.event-cover { border-radius: 20px; background: linear-gradient(145deg,#f4c78b 0%,#e7a7a0 35%,#729d85 72%,#356d5b 100%); box-shadow: 0 14px 30px #a9765830; }
+.event-cover::before { background: radial-gradient(ellipse at 15% 22%,#fff3c966 0 7%,transparent 26%),radial-gradient(ellipse at 88% 15%,#f6d8e6a3 0 8%,transparent 25%),radial-gradient(ellipse at 77% 92%,#b6e3c16b 0 10%,transparent 32%),repeating-linear-gradient(112deg,transparent 0 35px,#fff9 36px 38px,transparent 39px 75px); filter: blur(2px); }
+.event-cover::after { border-color: #ffffff78; }
+.cover-label { border-color: #ffffffa6; border-radius: 30px; background: #fff8e73d; backdrop-filter: blur(8px); }
+.cover-caption h1 { font-family: var(--serif); font-weight: 500; }
+.guest-rule { color: #5e6874; }
+.guest-rule svg { color: var(--olive-dark); }
+.identity-form > input, .admin-input { border-color: #eadbd3; border-radius: 12px; box-shadow: inset 0 1px 2px #44352908; }
+.identity-form > input:focus, textarea:focus { border-color: #60a88b; }
+.field-label { color: #526375; }
+.demo-entry { color: #936854; text-decoration-color: #e8b59b; }
+.guest-result { border-color: #eee2df; border-radius: 14px; background: #fffefd; box-shadow: 0 5px 16px #4938340a; transition: border-color .18s,transform .18s,box-shadow .18s; }
+.guest-result:hover { transform: translateY(-2px); border-color: #e8b8a3; box-shadow: 0 9px 20px #49383412; }
+.guest-initial { background: linear-gradient(145deg,#fce8dd,#f7efd0); color: #935b48; }
+.result-arrow { color: #e28270; }
+.home-screen { gap: 12px; }
+.home-heading h1 span { color: #286b59; }
+.home-thanks { color: #717b83; }
+.demo-badge { border-color: #efd294; background: #fff5d9; color: #9a7133; }
+.home-actions { border-color: #f0dfd6; border-radius: 17px; background: #fffefd; box-shadow: 0 7px 18px #57433a0b; }
+.home-action { color: #346f60; }
+.home-action:nth-child(1) svg { color: #e27f70; }
+.home-action:nth-child(2) svg { color: #9676b5; }
+.home-action:nth-child(3) svg { color: #d59d3c; }
+.presence-action { color: #607b73; }
+.moment-prompt { border-color: #e58b70; border-radius: 0 11px 11px 0; background: linear-gradient(100deg,#fff0e7,#fff8ed); }
+.carousel-controls button { border-color: #f0dfd6; background: #fffefd; color: #32745f; box-shadow: 0 4px 12px #45392f0c; }
+.moment-card { border-color: #ffffffb8; border-radius: 20px; box-shadow: 0 16px 36px #273b3530; }
+.moment-card::before { background: linear-gradient(180deg,#26362a05 8%,#172a25b8 100%); }
+.moment-card-status { border: 1px solid #ffffff88; background: #fffcf2ed; color: #326b58; }
+.moment-card.is-active-moment .moment-card-status { background: #328365; color: white; }
+.moment-card-action { border-color: #ffffffbd; background: #fffdf2ed; color: #326b58; box-shadow: 0 4px 14px #18292332; }
+.moment-card-action.is-submitted { border-color: #bfe7cc; background: #effff2f2; color: #207047; }
+.carousel-dot { background: #e8d8d4; }
+.carousel-dot[aria-current="true"] { background: #3d9474; }
+.upload-panel { border-color: #efdfd7; border-radius: 18px; background: #fffefaF2; box-shadow: 0 14px 35px #44342a12; backdrop-filter: blur(12px); }
+.upload-panel.open { border-color: #c9e5d5; background: #fffefd; }
+.upload-panel-heading h2, .step-heading h1, .step-heading h2, .carousel-heading h2 { color: #334454; }
+.close-panel { background: #fff0e8; color: #b96f60; }
+.gallery-button { border-color: #c5e4d2; border-radius: 14px; background: linear-gradient(110deg,#f0fbf4,#fff5ed); color: #286b59; }
+.photo-review > img { border-radius: 12px; box-shadow: 0 5px 14px #273b351c; }
+.moment-thumbnail { border-radius: 10px; }
+.message-form textarea { border-color: #eadbd3; border-radius: 14px; }
+.public-activity { border-color: #eee2dc; border-radius: 13px; background: #fffefd; }
+.public-activity-mark { border-color: #62a889; background: #e3f4eb; }
+.toast { border-radius: 14px; background: #2f6658; box-shadow: 0 8px 24px #1e41382e; }
+.admin-page .admin-card, .staff-page .staff-card { border-color: #f0dfd6; border-radius: 18px; box-shadow: 0 12px 32px #49383412; }
+.admin-page .admin-button, .staff-page .staff-button { border-radius: 12px; background: linear-gradient(115deg,#286b59,#398c70); box-shadow: 0 6px 16px #286b5926; }
+.admin-page .admin-button.secondary { background: #fff0e8; color: #875849; }
+.admin-page .admin-form input, .admin-page .url-row input, .staff-page .staff-form input { border-color: #eadbd3; border-radius: 11px; }
