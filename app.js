@@ -6,10 +6,10 @@ const demoEvent = {
   date: "2026-10-15",
   demo: true,
   moments: [
-    { id: "demo-entrada", name: "Entrada de los novios", state: "sample", start: "17:00" },
-    { id: "demo-brindis", name: "El brindis", state: "sample", start: "19:30" },
-    { id: "demo-baile", name: "Primer baile", state: "sample", start: "21:00" },
-    { id: "demo-fiesta", name: "Fiesta y pista", state: "sample", start: "22:00" },
+    { id: "demo-entrada", name: "Entrada de los novios", state: "sample", start: "17:00", coverUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=720&q=82" },
+    { id: "demo-brindis", name: "El brindis", state: "sample", start: "19:30", coverUrl: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=720&q=82" },
+    { id: "demo-baile", name: "Primer baile", state: "sample", start: "21:00", coverUrl: "https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=720&q=82" },
+    { id: "demo-fiesta", name: "Fiesta y pista", state: "sample", start: "22:00", coverUrl: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=720&q=82" },
   ],
 };
 let eventData = { name: "Entre Momentos", moments: [] };
@@ -96,6 +96,20 @@ function showHome(profile, data, demo = false) {
   renderSchedule();
   resetUploadPanel();
   screen("home");
+  showCarouselSwipeHint();
+}
+
+function showCarouselSwipeHint() {
+  const carousel = $("#moment-carousel");
+  if (!carousel || !moments.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let alreadyShown = false;
+  try { alreadyShown = sessionStorage.getItem("em-carousel-swipe-seen") === "1"; } catch {}
+  if (alreadyShown) return;
+  try { sessionStorage.setItem("em-carousel-swipe-seen", "1"); } catch {}
+  carousel.classList.remove("swipe-tutorial");
+  void carousel.offsetWidth;
+  carousel.classList.add("swipe-tutorial");
+  window.setTimeout(() => carousel.classList.remove("swipe-tutorial"), 1900);
 }
 
 function momentStatus(moment) {
@@ -157,7 +171,10 @@ function renderCarousel() {
     card.classList.toggle("is-active-moment", moment.state === "active");
     card.setAttribute("aria-label", moment.name + ". " + momentStatus(moment) + ". Seleccionar para subir foto.");
     card.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
-    if (moment.coverUrl) card.style.backgroundImage = "linear-gradient(160deg,#0002,#29352fcc),url(\"" + moment.coverUrl + "\")";
+    if (moment.coverUrl) {
+      card.style.backgroundImage = "linear-gradient(160deg,#0002,#29352fcc),url(\"" + moment.coverUrl + "\")";
+      card.classList.add("has-photo");
+    }
     const badge = document.createElement("span");
     badge.className = "moment-card-status";
     badge.textContent = isDemo ? "EJEMPLO" : momentStatus(moment);
@@ -203,7 +220,7 @@ function updateCarousel() {
     if (offset < -moments.length / 2) offset += moments.length;
     const distance = Math.abs(offset);
     const side = Math.sign(offset);
-    card.style.transform = "translateX(-50%) translateX(" + offset * cardOffset + "px) translateY(" + (distance ? -7 : 0) + "px) translateZ(" + (distance ? -28 : 20) + "px) scale(" + Math.max(.8, 1 - distance * .12) + ") rotateY(" + (-side * 4) + "deg) rotateZ(" + (side * 1.2) + "deg)";
+    card.style.transform = "translate(-50%,-50%) translateX(" + offset * cardOffset + "px) translateY(" + (distance ? -7 : 0) + "px) translateZ(" + (distance ? -28 : 20) + "px) scale(" + Math.max(.8, 1 - distance * .12) + ") rotateY(" + (-side * 4) + "deg) rotateZ(" + (side * 1.2) + "deg)";
     card.style.zIndex = String(10 - distance);
     card.style.opacity = distance > 1 ? "0" : distance ? ".94" : "1";
     card.style.pointerEvents = distance > 1 ? "none" : "auto";
@@ -384,8 +401,6 @@ $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
 $("#homonym-back").addEventListener("click", () => { screen("welcome"); $("#guest-search").focus(); });
 $("#cancel-upload").addEventListener("click", resetUploadPanel);
-$("#carousel-prev").addEventListener("click", () => moveCarousel(-1));
-$("#carousel-next").addEventListener("click", () => moveCarousel(1));
 $("#carousel-stage").addEventListener("pointerdown", (event) => { dragStartX = event.clientX; });
 $("#carousel-stage").addEventListener("pointerup", (event) => {
   if (dragStartX === null) return;
