@@ -405,16 +405,23 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 .home-action.presence-action {
   display: flex;
   min-width: 0;
-  min-height: 48px;
+  min-height: 52px;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 4px 2px;
-  border: 0;
-  background: transparent;
+  padding: 4px 8px;
+  border: 1px solid #fff;
+  border-bottom: 3px solid #cbded3;
+  border-radius: 15px;
+  background: linear-gradient(145deg,#fbfffd,#eaf6ef);
   color: #536c67;
+  box-shadow: 0 3px 0 #d9e8df,0 7px 13px #466b5c12,inset 0 1px #ffffff;
+  transform: none;
+  transition: none;
+  animation: none;
   cursor: default;
   pointer-events: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .presence-icon {
   display: grid;
