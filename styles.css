@@ -74,7 +74,7 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .home-heading h1 { margin: 4px 0 0; font: 400 clamp(25px,7vw,31px)/1.1 var(--serif); }
 .home-heading h1 span { color: var(--olive-dark); }
 .demo-badge { padding: 6px 8px; border: 1px solid #dbc8a7; border-radius: 20px; color: #927a56; font-size: 9px; font-weight: 600; letter-spacing: 1px; }
-.home-actions { display: grid; flex: 0 0 66px; grid-template-columns: repeat(3,1fr); border-block: 1px solid var(--line); }
+.home-actions { display: grid; flex: 0 0 66px; grid-template-columns: repeat(4,1fr); border-block: 1px solid var(--line); }
 .home-action { display: grid; align-content: center; justify-items: center; gap: 3px; border: 0; background: transparent; color: var(--olive-dark); cursor: pointer; font-size: 13px; font-weight: 500; }
 .home-action svg { width: 22px; height: 22px; }
 .presence-action { color: #778178; cursor: default; }

@@ -23,6 +23,7 @@ let uploadRequestId = "";
 let staffDashboard = null;
 let staffAuthenticated = false;
 let isDemo = false;
+let demoSearchEnabled = false;
 let isSending = false;
 let dragStartX = null;
 let serverClockOffset = 0;
@@ -292,7 +293,13 @@ function guestChoice(profile) {
   button.append(initial, identity, arrow);
   button.addEventListener("click", async () => {
     button.disabled = true;
-    try { await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id }) })); }
+    try {
+      if (demoSearchEnabled) {
+        showHome({ id: profile.id, name: profile.name, table: profile.reference?.replace(/^Mesa /, "") }, demoEvent, true);
+        return;
+      }
+      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id }) }));
+    }
     catch (error) { button.disabled = false; $("#search-message").textContent = error.message; }
   });
   $("#guest-results").append(button);
@@ -329,6 +336,20 @@ $("#guest-form").addEventListener("submit", async (event) => {
   $("#search-message").textContent = "Buscando tu nombre…";
   $("#guest-results").replaceChildren();
   $("#guest-results").hidden = true;
+  if (demoSearchEnabled) {
+    const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
+    if (!normalized.includes("ana")) {
+      $("#search-message").textContent = "En esta prueba, escribe Ana para ver a las dos invitadas homónimas.";
+      return;
+    }
+    $("#search-message").textContent = "Encontré dos personas con ese nombre. Elige una mesa para continuar.";
+    [
+      { id: "demo-ana-4", name: "Ana López", reference: "Mesa 4" },
+      { id: "demo-ana-8", name: "Ana López", reference: "Mesa 8" },
+    ].forEach((profile) => guestChoice(profile));
+    $("#guest-results").hidden = false;
+    return;
+  }
   try {
     const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
     if (Array.isArray(result.matches)) {
@@ -339,9 +360,17 @@ $("#guest-form").addEventListener("submit", async (event) => {
   } catch (error) { $("#search-message").textContent = error.message; }
 });
 
-$("#demo-entry").addEventListener("click", () => showHome({ id: "demo-guest", name: "Invitado de muestra" }, demoEvent, true));
+$("#demo-entry").addEventListener("click", () => {
+  demoSearchEnabled = true;
+  $("#guest-search").value = "Ana";
+  $("#guest-results").replaceChildren();
+  $("#guest-results").hidden = true;
+  $("#search-message").textContent = "Prueba con Ana y elige entre las dos personas.";
+  $("#guest-search").focus();
+});
 $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
+$("#home-schedule").addEventListener("click", () => screen("schedule"));
 $("#cancel-upload").addEventListener("click", resetUploadPanel);
 $("#carousel-prev").addEventListener("click", () => moveCarousel(-1));
 $("#carousel-next").addEventListener("click", () => moveCarousel(1));
@@ -417,7 +446,6 @@ $("#message-form").addEventListener("submit", async (event) => {
   finally { button.disabled = false; }
 });
 
-$("#open-admin").addEventListener("click", () => { window.location.href = "./staff.html"; });
 $("#staff-login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = $("button[type=submit]", event.currentTarget);
