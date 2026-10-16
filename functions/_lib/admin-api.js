@@ -157,9 +157,13 @@ export async function handleAdminApi(ctx, path) {
     if (path === "/api/admin/guests" && method === "GET") {
       const eventId = new URL(request.url).searchParams.get("eventId");
       if (!eventId) return fail("Falta elegir un evento.");
-      const rows = await db.prepare(`SELECT g.id,g.event_id,g.name,g.nickname,t.name AS table_name,g.active,
+      let rows;
+      try { rows = await db.prepare(`SELECT g.id,g.event_id,g.name,g.nickname,t.name AS table_name,g.active,
         (SELECT COUNT(*) FROM photo_submissions p WHERE p.guest_id=g.id) AS photos_sent
-        FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all();
+        FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
+      catch (error) { if (!/no such column: g\.nickname/i.test(error.message)) throw error; rows = await db.prepare(`SELECT g.id,g.event_id,g.name,NULL AS nickname,t.name AS table_name,g.active,
+        (SELECT COUNT(*) FROM photo_submissions p WHERE p.guest_id=g.id) AS photos_sent
+        FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
       return json({ guests: rows.results || [] });
     }
     if (path === "/api/admin/guests" && method === "POST") return await createGuest(request, env);
@@ -311,8 +315,14 @@ async function createGuest(request, env) {
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode((env.SESSION_PEPPER || "") + ":unused:" + crypto.randomUUID()));
   const hashHex = [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   try {
-    await db.prepare("INSERT INTO event_guests (id,event_id,name,name_key,invitation_code_hash,table_id,nickname,active,created_at) VALUES (?,?,?,?,?,?,?,1,?)")
-      .bind(id, event.id, name, name.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim(), hashHex, tableId, nickname, nowIso()).run();
+    try {
+      await db.prepare("INSERT INTO event_guests (id,event_id,name,name_key,invitation_code_hash,table_id,nickname,active,created_at) VALUES (?,?,?,?,?,?,?,1,?)")
+        .bind(id, event.id, name, name.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim(), hashHex, tableId, nickname, nowIso()).run();
+    } catch (error) {
+      if (!/no such column: nickname/i.test(error.message)) throw error;
+      await db.prepare("INSERT INTO event_guests (id,event_id,name,name_key,invitation_code_hash,table_id,active,created_at) VALUES (?,?,?,?,?,?,1,?)")
+        .bind(id, event.id, name, name.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim(), hashHex, tableId, nowIso()).run();
+    }
   } catch (error) { if (/UNIQUE/i.test(error.message)) return fail("Ese código ya está asignado a otra invitación.", 409, "invitation_code_used"); throw error; }
   await log(db, "guest.created", "guest", id, event.id);
   return json({ guest: { id, eventId: event.id, name, nickname, tableName: tableName || null } }, 201);
@@ -412,7 +422,9 @@ async function loadEventDetails(db, eventId) {
   const event = await eventOr404(db, eventId);
   const venue = await db.prepare("SELECT id,name,slug,timezone,active FROM venues WHERE id=?").bind(event.venue_id).first();
   const activities = await db.prepare("SELECT * FROM event_activities WHERE event_id=? ORDER BY position,starts_at").bind(eventId).all();
-  const guests = await db.prepare(`SELECT g.id,g.name,g.nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all();
+  let guests;
+  try { guests = await db.prepare(`SELECT g.id,g.name,g.nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
+  catch (error) { if (!/no such column: g\.nickname/i.test(error.message)) throw error; guests = await db.prepare(`SELECT g.id,g.name,NULL AS nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
   const contests = await db.prepare("SELECT * FROM contests WHERE event_id=? ORDER BY opens_at").bind(eventId).all();
   const prizes = await db.prepare("SELECT * FROM prizes WHERE event_id=? ORDER BY name").bind(eventId).all();
   return { event, venue, activities: activities.results || [], guests: guests.results || [], contests: contests.results || [], prizes: prizes.results || [] };

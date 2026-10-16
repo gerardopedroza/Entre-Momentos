@@ -28,10 +28,17 @@ export async function adminSession(request, env) {
 export async function guestSession(request, env) {
   const token = cookie(request, "em_guest");
   if (!token || !env.DB) return null;
-  return env.DB.prepare(`SELECT s.event_id, g.id AS guest_id, g.name, g.nickname, g.table_id
+  const hash = await sha256(token);
+  try { return await env.DB.prepare(`SELECT s.event_id, g.id AS guest_id, g.name, g.nickname, g.table_id
     FROM guest_sessions s JOIN event_guests g ON g.id = s.guest_id
-    WHERE s.id_hash = ? AND s.expires_at > ? AND g.active = 1`)
-    .bind(await sha256(token), nowIso()).first();
+    WHERE s.id_hash = ? AND s.expires_at > ? AND g.active = 1`).bind(hash, nowIso()).first(); }
+  catch (error) {
+    if (!/no such column: g\.nickname/i.test(error.message)) throw error;
+    const session = await env.DB.prepare(`SELECT s.event_id, g.id AS guest_id, g.name, g.table_id
+      FROM guest_sessions s JOIN event_guests g ON g.id = s.guest_id
+      WHERE s.id_hash = ? AND s.expires_at > ? AND g.active = 1`).bind(hash, nowIso()).first();
+    return session ? { ...session, nickname: null } : null;
+  }
 }
 
 export function clearAdminResponse() { return json({ authenticated: false }, 200, { "Set-Cookie": clearCookie("em_admin") }); }

@@ -87,17 +87,24 @@ async function identifyGuest(request, env, select = false) {
   if (!select && name.length < 2) return fail("Escribe tu nombre o apellido para buscarte.");
   let guest;
   if (select) {
-    guest = await env.DB.prepare("SELECT id,name,nickname,table_id FROM event_guests WHERE id=? AND event_id=? AND active=1")
-      .bind(String(data.guestId), event.id).first();
+    try { guest = await env.DB.prepare("SELECT id,name,nickname,table_id FROM event_guests WHERE id=? AND event_id=? AND active=1").bind(String(data.guestId), event.id).first(); }
+    catch (error) { if (!/no such column: nickname/i.test(error.message)) throw error; guest = await env.DB.prepare("SELECT id,name,NULL AS nickname,table_id FROM event_guests WHERE id=? AND event_id=? AND active=1").bind(String(data.guestId), event.id).first(); }
   } else {
     const terms = [...new Set(name.split(/\s+/).filter((term) => term.length > 1))];
     if (!terms.length) return fail("Escribe al menos dos letras de tu nombre o apellido.");
     const conditions = terms.map(() => "instr(g.name_key,?)>0").join(" OR ");
-    const matches = await env.DB.prepare(`SELECT g.id,g.name,g.nickname,g.name_key,g.table_id,t.name AS table_name
+    let matches;
+    try { matches = await env.DB.prepare(`SELECT g.id,g.name,g.nickname,g.name_key,g.table_id,t.name AS table_name
       FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
       WHERE g.event_id=? AND g.active=1 AND ${conditions}
-      ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 6`)
-      .bind(event.id, ...terms, name).all();
+      ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 6`).bind(event.id, ...terms, name).all(); }
+    catch (error) {
+      if (!/no such column: g\.nickname/i.test(error.message)) throw error;
+      matches = await env.DB.prepare(`SELECT g.id,g.name,NULL AS nickname,g.name_key,g.table_id,t.name AS table_name
+        FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
+        WHERE g.event_id=? AND g.active=1 AND ${conditions}
+        ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 6`).bind(event.id, ...terms, name).all();
+    }
     const found = matches.results || [];
     if (!found.length) return fail("No encontré ese nombre en la lista del evento. Revisa cómo está escrito.", 404, "guest_not_found");
     if (found.length > 1 || found[0].name_key !== name) {
