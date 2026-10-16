@@ -43,8 +43,8 @@ h1, h2, h3, p { margin-top: 0; }
 .primary-button span { font-size: 20px; font-weight: 300; }
 .secondary-button, .text-button { min-height: 43px; padding: 0 14px; border: 1px solid #d8dbd1; border-radius: 4px; background: transparent; color: var(--olive-dark); cursor: pointer; font-size: 14px; }
 .text-button { border-color: transparent; color: var(--muted); }
-.identify-screen { gap: 12px; padding: 12px 15px 14px; }
-.event-cover { position: relative; display: flex; flex: 0 0 35%; min-height: 148px; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 15px; border-radius: 8px; isolation: isolate; background: linear-gradient(180deg,#1a28291a 25%,#1b2825cc 100%), radial-gradient(ellipse at 50% 43%,#eee3d6 0 12%,transparent 13%), radial-gradient(ellipse at 48% 58%,#a4ad9d 0 24%,transparent 50%), linear-gradient(135deg,#bca68e,#e2d6c7 36%,#747b69 70%,#34443b); color: white; }
+.identify-screen { justify-content: space-between; gap: 12px; padding: 12px 15px 14px; }
+.event-cover { position: relative; display: flex; flex: 0 0 40%; min-height: 148px; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 15px; border-radius: 8px; isolation: isolate; background: linear-gradient(180deg,#1a28291a 25%,#1b2825cc 100%), radial-gradient(ellipse at 50% 43%,#eee3d6 0 12%,transparent 13%), radial-gradient(ellipse at 48% 58%,#a4ad9d 0 24%,transparent 50%), linear-gradient(135deg,#bca68e,#e2d6c7 36%,#747b69 70%,#34443b); color: white; }
 .event-cover::before { position: absolute; z-index: -1; inset: -5%; background: repeating-linear-gradient(112deg,transparent 0 29px,#26352a15 30px 34px,transparent 35px 64px),radial-gradient(ellipse at 8% 22%,#5f715c99 0 6%,transparent 21%),radial-gradient(ellipse at 92% 13%,#596d5699 0 7%,transparent 23%); content: ""; filter: blur(1px); }
 .event-cover::after { position: absolute; z-index: -1; inset: 0; border: 1px solid #ffffff42; border-radius: inherit; content: ""; }
 .cover-label { align-self: flex-start; padding: 7px 9px; border: 1px solid #ffffff75; border-radius: 30px; background: #26352d35; font-size: 9px; font-weight: 600; letter-spacing: 1px; }
@@ -61,6 +61,7 @@ h1, h2, h3, p { margin-top: 0; }
 input::placeholder, textarea::placeholder { color: #a4a69b; }
 .identity-form .primary-button { margin-top: 2px; }
 .form-message { min-height: 18px; margin: 0; color: var(--olive-dark); font-size: 12px; line-height: 1.35; }
+#search-message:empty { display: none; }
 .demo-entry { justify-self: center; min-height: 30px; padding: 0 8px; border: 0; background: transparent; color: #777f74; cursor: pointer; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
 .guest-result { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 10px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); text-align: left; cursor: pointer; }
 .guest-initial { display: grid; flex: 0 0 32px; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--sage); color: var(--olive-dark); font: 15px var(--serif); }
@@ -197,11 +198,13 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 @media (max-height: 700px) {
   .app-header { flex-basis: 52px; }
   .identify-screen { gap: 8px; padding-top: 8px; padding-bottom: 8px; }
-  .event-cover { flex-basis: 30%; min-height: 125px; }
-  .guest-rules { gap: 4px; padding-block: 3px; }
+  .event-cover { flex-basis: 36%; min-height: 135px; }
+  .guest-rules { gap: 7px; padding-block: 7px; }
   .guest-rule { font-size: 11px; }
   .identity-form { gap: 5px; }
-  .identity-form > input { min-height: 40px; }
+  .identity-form > input { min-height: 46px; }
+  .identity-form .primary-button { min-height: 54px; }
+  .demo-entry { min-height: 38px; }
   .home-screen { gap: 7px; padding-block: 10px; }
   .home-heading { min-height: 65px; }
   .home-thanks { font-size: 13px; }

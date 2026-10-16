@@ -19,6 +19,12 @@ Los enlaces de eventos en preparación se pueden copiar antes del evento, pero s
 - Las dedicatorias se asocian con el nombre de quien las escribió y se sincronizan a una hoja de cálculo de ese evento.
 - El enlace STAFF muestra resultados de dinámicas y permite registrar la entrega de premios.
 
+## Regla de diseño para todas las pantallas
+
+- La experiencia prioriza el teléfono y cabe en una sola pantalla, sin desplazamiento.
+- Se aprovecha el alto disponible: los elementos se distribuyen para evitar grandes espacios vacíos.
+- Si hace falta espacio para la acción principal, se compactan u ocultan temporalmente elementos secundarios antes de reducir el carrusel o los controles principales.
+
 ## Configuración necesaria para operar en Cloudflare
 
 El repositorio incluye páginas estáticas, Cloudflare Pages Functions y la migración de esquema en `migrations/0001_platform.sql`. Para habilitar operaciones reales, el proyecto de Pages debe tener un binding D1 llamado `DB` y ejecutar esa migración. Configura también estas variables secretas en Pages:
