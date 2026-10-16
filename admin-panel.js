@@ -334,7 +334,7 @@ $("#login-form").addEventListener("submit", async (event) => {
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
-$("#logout").addEventListener("click", async () => { try { await api("/api/admin/session", { method: "DELETE" }); } catch {} showLoggedOut("Sesión cerrada. Ingresa de nuevo para continuar."); $("#username").value = ""; $("#password").value = ""; window.scrollTo({ top: 0, behavior: "smooth" }); });
+$("#logout").addEventListener("click", async () => { try { await api("/api/admin/session", { method: "DELETE" }); } catch {} window.location.replace("/"); });
 $$('[data-view]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.view)));
 $$('[data-go]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.go)));
 $$('[data-event-tab]').forEach((button) => button.addEventListener("click", () => setEventTab(button.dataset.eventTab)));
