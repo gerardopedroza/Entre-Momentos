@@ -92,7 +92,7 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .carousel-controls button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #deded4; border-radius: 50%; background: #fffefa; color: var(--olive-dark); cursor: pointer; font-size: 23px; line-height: 1; }
 .carousel-stage { position: relative; display: grid; flex: 1; min-height: 130px; place-items: center; overflow: hidden; touch-action: pan-y; }
 .moment-carousel { position: relative; width: 100%; height: 100%; min-height: 130px; perspective: 900px; }
-.moment-card { position: absolute; top: 4%; left: 50%; display: flex; width: 67%; height: 90%; flex-direction: column; justify-content: end; overflow: hidden; padding: 16px; border: 0; border-radius: 8px; background: linear-gradient(160deg,#e3d7c9,#aeb9ab 52%,#617568); color: white; text-align: left; box-shadow: 0 10px 24px #29352f24; cursor: pointer; transition: transform .28s, opacity .28s, filter .28s; }
+.moment-card { position: absolute; top: 50%; left: 50%; display: flex; width: min(88%, 42dvh); height: auto; aspect-ratio: 1.55; flex-direction: column; justify-content: end; overflow: hidden; padding: clamp(12px,4vw,18px); border: 0; border-radius: 8px; background: linear-gradient(160deg,#e3d7c9,#aeb9ab 52%,#617568); color: white; text-align: left; box-shadow: 0 10px 24px #29352f24; cursor: pointer; transition: transform .28s, opacity .28s, filter .28s; }
 .moment-card::before { position: absolute; inset: 0; background: linear-gradient(180deg,transparent 25%,#1d2a26cf); content: ""; }
 .moment-card.is-active { z-index: 2; opacity: 1; transform: translateX(-50%) scale(1); }
 .moment-card.is-prev { z-index: 1; opacity: .76; transform: translateX(-116%) scale(.84); filter: saturate(.72); }
@@ -114,12 +114,12 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .carousel-dot[aria-current="true"] { width: 17px; border-radius: 6px; background: var(--olive); }
 .upload-panel { position: absolute; z-index: 4; right: 12px; bottom: 12px; left: 12px; display: none; max-height: calc(100% - 24px); flex-direction: column; gap: 7px; overflow: hidden; padding: 12px 13px; border: 1px solid #e5e2d8; border-radius: 7px; background: #fffefaed; box-shadow: 0 3px 15px #29352f0a; transition: border-color .2s, background .2s; }
 .upload-panel.open { display: flex; border-color: #b8c5b8; background: #fffefa; }
-.home-screen.is-uploading .carousel-section { flex: 0 0 40%; min-height: 0; }
-.home-screen.is-uploading .upload-panel { position: relative; z-index: 1; inset: auto; flex: 1 1 0; min-height: 0; max-height: none; }
-.home-screen.is-uploading .carousel-stage, .home-screen.is-uploading .moment-carousel { min-height: 72px; }
-.home-screen.is-reviewing .carousel-section { flex-basis: 31%; }
-.home-screen.is-reviewing .photo-review { grid-template-columns: 64px 1fr; }
-.home-screen.is-reviewing .photo-review > img { width: 64px; height: 64px; }
+.home-screen.is-uploading .home-heading, .home-screen.is-uploading .home-actions { display: none; }
+.home-screen.is-uploading .carousel-section { flex: 1 1 0; min-height: 0; }
+.home-screen.is-uploading .upload-panel { position: relative; z-index: 1; inset: auto; flex: 1 1 0; min-height: 0; max-height: none; justify-content: space-between; }
+.home-screen.is-uploading .moment-prompt { flex-shrink: 0; }
+.home-screen.is-reviewing .upload-hint { display: none; }
+.home-screen.is-uploading .photo-review { align-content: center; flex: 1; }
 .upload-panel-heading { display: flex; align-items: center; justify-content: space-between; }
 .upload-panel-heading h2 { margin: 2px 0 0; font: 400 21px/1.1 var(--serif); }
 .close-panel { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #f2f0ea; color: #737c72; cursor: pointer; font-size: 24px; }
@@ -209,12 +209,7 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
   .carousel-heading { flex-basis: 38px; }
   .upload-panel { gap: 5px; padding: 9px 11px; }
   .gallery-button { min-height: 42px; }
-  .home-screen.is-uploading .carousel-section { flex-basis: 39%; }
-  .home-screen.is-reviewing .carousel-section { flex-basis: 29%; }
-  .home-screen.is-uploading .carousel-stage, .home-screen.is-uploading .moment-carousel { min-height: 58px; }
   .home-screen.is-uploading .gallery-button { min-height: 50px; }
-  .home-screen.is-reviewing .photo-review { grid-template-columns: 54px 1fr; }
-  .home-screen.is-reviewing .photo-review > img { width: 54px; height: 54px; }
   .message-form textarea { min-height: 105px; }
 }
 @media (min-width: 600px) {

@@ -198,12 +198,13 @@ function renderCarousel() {
 
 function updateCarousel() {
   const cards = $$(".moment-card", $("#moment-carousel"));
+  const cardOffset = Math.min(260, window.innerWidth * 0.6);
   cards.forEach((card, index) => {
     let offset = index - selectedMomentIndex;
     if (offset > moments.length / 2) offset -= moments.length;
     if (offset < -moments.length / 2) offset += moments.length;
     const distance = Math.abs(offset);
-    card.style.transform = "translateX(calc(-50% + " + offset * 73 + "px)) scale(" + Math.max(.76, 1 - distance * .12) + ") rotateY(" + (-offset * 10) + "deg)";
+    card.style.transform = "translate(-50%, -50%) translateX(" + offset * cardOffset + "px) scale(" + Math.max(.76, 1 - distance * .12) + ") rotateY(" + (-offset * 10) + "deg)";
     card.style.zIndex = String(10 - distance);
     card.style.opacity = distance > 1 ? "0" : distance ? ".72" : "1";
     card.style.pointerEvents = distance > 1 ? "none" : "auto";
