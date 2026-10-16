@@ -69,9 +69,9 @@ function setEvent(data) {
   const cover = eventData.coverUrl || "";
   if (cover) {
     const imageLayer = "linear-gradient(180deg,transparent 0%,transparent 47%,rgba(255,250,246,.72) 76%,#fffaf6 100%),url(\"" + cover + "\")";
-    $("#screen-welcome").style.backgroundImage = imageLayer;
+    $("#event-backdrop").style.backgroundImage = imageLayer;
   } else {
-    $("#screen-welcome").style.removeProperty("background-image");
+    $("#event-backdrop").style.removeProperty("background-image");
   }
   $("#demo-badge").hidden = !eventData.demo;
   if (date && !Number.isNaN(date.valueOf())) {
@@ -383,7 +383,6 @@ $("#demo-entry").addEventListener("click", () => {
 });
 $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
-$("#home-schedule").addEventListener("click", () => screen("schedule"));
 $("#homonym-back").addEventListener("click", () => { screen("welcome"); $("#guest-search").focus(); });
 $("#cancel-upload").addEventListener("click", resetUploadPanel);
 $("#carousel-prev").addEventListener("click", () => moveCarousel(-1));
