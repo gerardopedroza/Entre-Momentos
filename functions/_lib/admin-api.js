@@ -52,13 +52,13 @@ export async function handleAdminApi(ctx, path) {
     if (path === "/api/admin/venues" && method === "POST") {
       const data = await readJson(request);
       const name = String(data.name || "").trim();
-      const slug = slugify(data.slug || name);
+      const slug = slugify(name);
       if (name.length < 2 || !slug) return fail("Escribe un nombre válido para el lugar.");
       const id = newId();
       const stamp = nowIso();
       try {
         await db.prepare("INSERT INTO venues (id,name,slug,timezone,drive_root_folder_id,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)")
-          .bind(id, name, slug, data.timezone || "America/Mexico_City", driveIdFromUrl(data.driveRootUrl) || null, data.active === false ? 0 : 1, stamp, stamp).run();
+          .bind(id, name, slug, data.timezone || "America/Mexico_City", null, data.active === false ? 0 : 1, stamp, stamp).run();
       } catch (error) { if (/UNIQUE/i.test(error.message)) return fail("Ya existe un lugar con esa URL corta.", 409, "venue_slug_taken"); throw error; }
       await log(db, "venue.created", "venue", id);
       return json({ venue: await db.prepare("SELECT * FROM venues WHERE id=?").bind(id).first() }, 201);
@@ -70,12 +70,10 @@ export async function handleAdminApi(ctx, path) {
       if (method === "PUT" && !action) {
         const data = await readJson(request);
         const name = String(data.name || venue.name).trim();
-        const slug = slugify(data.slug || name);
-        if (name.length < 2 || !slug) return fail("Escribe un nombre y una URL corta válidos.");
-        const driveRootFolderId = Object.hasOwn(data, "driveRootUrl") ? (driveIdFromUrl(data.driveRootUrl) || null) : venue.drive_root_folder_id;
+        if (name.length < 2) return fail("Escribe un nombre válido para el lugar.");
         try {
-          await db.prepare("UPDATE venues SET name=?,slug=?,timezone=?,drive_root_folder_id=?,active=?,updated_at=? WHERE id=?")
-            .bind(name, slug, data.timezone || venue.timezone, driveRootFolderId, data.active === false ? 0 : 1, nowIso(), id).run();
+          await db.prepare("UPDATE venues SET name=?,timezone=?,drive_root_folder_id=NULL,active=?,updated_at=? WHERE id=?")
+            .bind(name, data.timezone || venue.timezone, data.active === false ? 0 : 1, nowIso(), id).run();
         } catch (error) { if (/UNIQUE/i.test(error.message)) return fail("Ese enlace corto ya está en uso.", 409, "venue_slug_taken"); throw error; }
         await log(db, "venue.updated", "venue", id);
         return json({ venue: await db.prepare("SELECT * FROM venues WHERE id=?").bind(id).first() });

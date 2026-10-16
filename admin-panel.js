@@ -41,7 +41,7 @@ async function loadDashboard() {
   showLoggedIn();
 }
 function renderVenues() {
-  $("#venues-list").innerHTML = state.venues.length ? state.venues.map((venue) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(venue.name)}</h3><div class="admin-meta">/${esc(venue.slug)} · ${Number(venue.event_count || 0)} evento(s) · ${esc(venue.timezone)}</div></div><span class="admin-badge ${venue.active ? "active" : ""}">${venue.active ? "Activo" : "Inactivo"}</span></div><div class="admin-actions"><button class="admin-button secondary" type="button" data-edit-venue="${esc(venue.id)}">Editar lugar</button><button class="admin-button secondary" type="button" data-delete-venue="${esc(venue.id)}">Eliminar lugar</button></div></article>`).join("") : '<div class="empty-state">Aún no hay lugares. Registra el primero para crear un evento.</div>';
+  $("#venues-list").innerHTML = state.venues.length ? state.venues.map((venue) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(venue.name)}</h3><div class="admin-meta">${Number(venue.event_count || 0)} evento(s) · ${esc(venue.timezone)}</div></div><span class="admin-badge ${venue.active ? "active" : ""}">${venue.active ? "Activo" : "Inactivo"}</span></div><div class="admin-actions"><button class="admin-button secondary" type="button" data-edit-venue="${esc(venue.id)}">Editar lugar</button><button class="admin-button secondary" type="button" data-delete-venue="${esc(venue.id)}">Eliminar lugar</button></div></article>`).join("") : '<div class="empty-state">Aún no hay lugares. Registra el primero para crear un evento.</div>';
   $$('[data-edit-venue]', $("#venues-list")).forEach((button) => button.addEventListener("click", () => editVenue(button.dataset.editVenue)));
   $$('[data-delete-venue]', $("#venues-list")).forEach((button) => button.addEventListener("click", () => deleteVenue(button.dataset.deleteVenue)));
 }
@@ -54,9 +54,7 @@ function editVenue(id) {
   const form = $("#venue-edit-form");
   form.elements.id.value = venue.id;
   form.elements.name.value = venue.name;
-  form.elements.slug.value = venue.slug;
   form.elements.timezone.value = venue.timezone;
-  form.elements.driveRootUrl.value = venue.drive_root_folder_id ? `https://drive.google.com/drive/folders/${venue.drive_root_folder_id}` : "";
   $("#venue-editor").hidden = false;
   $("#venue-editor").scrollIntoView({ behavior: "smooth", block: "start" });
 }
