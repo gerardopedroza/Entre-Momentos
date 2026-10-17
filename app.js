@@ -27,6 +27,7 @@ let isDemo = false;
 let demoSearchEnabled = !new URLSearchParams(window.location.search).has("event") && !new URLSearchParams(window.location.search).has("venue");
 let isSending = false;
 let dragStartX = null;
+let suppressCarouselClick = false;
 let serverClockOffset = 0;
 let refreshingEvent = false;
 let presenceInterval = null;
@@ -117,10 +118,10 @@ function showCarouselTapHint() {
   const stage = $("#carousel-stage");
   if (!stage || !moments.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   let alreadyShown = false;
-  try { alreadyShown = localStorage.getItem("em-carousel-tap-seen") === "1"; } catch {}
+  try { alreadyShown = localStorage.getItem("em-carousel-tap-seen-v2") === "1"; } catch {}
   if (alreadyShown || carouselTapHintShown) return;
   carouselTapHintShown = true;
-  try { localStorage.setItem("em-carousel-tap-seen", "1"); } catch {}
+  try { localStorage.setItem("em-carousel-tap-seen-v2", "1"); } catch {}
   stage.classList.remove("tap-tutorial");
   void stage.offsetWidth;
   stage.classList.add("tap-tutorial");
@@ -399,10 +400,20 @@ $("#carousel-stage").addEventListener("pointerdown", (event) => { dragStartX = e
 $("#carousel-stage").addEventListener("pointerup", (event) => {
   if (dragStartX === null) return;
   const delta = event.clientX - dragStartX;
-  if (Math.abs(delta) > 40) moveCarousel(delta < 0 ? 1 : -1);
+  if (Math.abs(delta) > 40) {
+    suppressCarouselClick = true;
+    moveCarousel(delta < 0 ? 1 : -1);
+    window.setTimeout(() => { suppressCarouselClick = false; }, 0);
+  }
   dragStartX = null;
 });
 $("#carousel-stage").addEventListener("pointercancel", () => { dragStartX = null; });
+$("#carousel-stage").addEventListener("click", (event) => {
+  if (!suppressCarouselClick) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  suppressCarouselClick = false;
+}, true);
 $$('[data-back="home"]').forEach((button) => button.addEventListener("click", () => screen("home")));
 $("#home-button").addEventListener("click", () => screen(guest ? "home" : "welcome"));
 
