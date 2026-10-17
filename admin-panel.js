@@ -19,7 +19,8 @@ function showLoggedIn() { loginCard.hidden = true; shell.hidden = false; }
 function navigate(view) {
   $$(".admin-view").forEach((section) => { section.hidden = section.id !== `view-${view}`; });
   $$(".admin-nav [data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
-  if (view === "events") { $("#event-setup-card").hidden = true; $("#event-editor").hidden = true; }
+  if (view === "venues") { $("#venue-create-card").hidden = true; $("#venue-editor").hidden = true; }
+  if (view === "events") { $("#event-setup-card").hidden = true; $("#event-editor").hidden = true; $("#events-list-card").hidden = false; }
   $("#admin-content").scrollTo({ top: 0, behavior: "smooth" });
 }
 function optionHtml(venues, selected = "") { return '<option value="">Selecciona un lugar</option>' + venues.filter((v) => v.active).map((v) => `<option value="${esc(v.id)}" ${v.id === selected ? "selected" : ""}>${esc(v.name)}</option>`).join(""); }
@@ -298,6 +299,7 @@ function renderEvents() {
 function openEventCreation() {
   navigate("events");
   $("#event-editor").hidden = true;
+  $("#events-list-card").hidden = true;
   $("#event-setup-card").hidden = false;
   $("#event-setup-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -510,7 +512,9 @@ $$('[data-view]').forEach((button) => button.addEventListener("click", () => nav
 $$('[data-go]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.go)));
 $("#create-event-button").addEventListener("click", openEventCreation);
 $$('[data-create-event]').forEach((button) => button.addEventListener("click", openEventCreation));
-$("#cancel-create-event").addEventListener("click", () => { $("#event-setup-card").hidden = true; $("#admin-content").scrollTo({ top: 0, behavior: "smooth" }); });
+$("#create-venue-button").addEventListener("click", () => { $("#venue-editor").hidden = true; $("#venue-create-card").hidden = false; $("#venue-create-card").scrollIntoView({ behavior: "smooth", block: "start" }); });
+$("#cancel-create-venue").addEventListener("click", () => { $("#venue-create-card").hidden = true; $("#admin-content").scrollTo({ top: 0, behavior: "smooth" }); });
+$("#cancel-create-event").addEventListener("click", () => { $("#event-setup-card").hidden = true; $("#events-list-card").hidden = false; $("#admin-content").scrollTo({ top: 0, behavior: "smooth" }); });
 $$('[data-event-tab]').forEach((button) => button.addEventListener("click", () => setEventTab(button.dataset.eventTab)));
 $("#admin-content").addEventListener("scroll", (event) => { $("#admin-scroll-top").hidden = event.currentTarget.scrollTop < 240; }, { passive: true });
 $("#admin-scroll-top").addEventListener("click", () => $("#admin-content").scrollTo({ top: 0, behavior: "smooth" }));
@@ -518,7 +522,7 @@ $("#admin-scroll-top").addEventListener("click", () => $("#admin-content").scrol
 $("#venue-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
   const data = Object.fromEntries(new FormData(form)); delete data.placeCity;
-  try { await send("/api/admin/venues", "POST", data); form.reset(); message("Lugar guardado."); await loadDashboard(); }
+  try { await send("/api/admin/venues", "POST", data); form.reset(); $("#venue-create-card").hidden = true; message("Lugar guardado."); await loadDashboard(); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
@@ -591,7 +595,7 @@ $("#event-form").addEventListener("submit", async (event) => {
     for (const guest of guests) await send("/api/admin/guests", "POST", { eventId: created.id, ...guest });
     if (requestedState === "active") await send(`/api/admin/events/${encodeURIComponent(created.id)}`, "PUT", { ...data, state: "active" });
     status.textContent = `Evento listo. ${activities.length} momento(s) y ${guests.length} invitado(s) guardados.`;
-    try { localStorage.removeItem(EVENT_DRAFT_KEY); } catch {} setupAgendaRows = null; setupGuestRows = null; form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); $("#setup-event-challenge").hidden = true; $("#setup-event-close-time").hidden = true; $("#setup-event-prize-field").hidden = true; setCoverPreview("#event-cover-preview", "#event-cover-empty", ""); form.elements.contestsEnabled.checked = true; $("#event-setup-card").hidden = true; await loadDashboard(); await selectEvent(created.id);
+    try { localStorage.removeItem(EVENT_DRAFT_KEY); } catch {} setupAgendaRows = null; setupGuestRows = null; form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); $("#setup-event-challenge").hidden = true; $("#setup-event-close-time").hidden = true; $("#setup-event-prize-field").hidden = true; setCoverPreview("#event-cover-preview", "#event-cover-empty", ""); form.elements.contestsEnabled.checked = true; $("#event-setup-card").hidden = true; $("#events-list-card").hidden = false; await loadDashboard(); await selectEvent(created.id);
   } catch (error) {
     if (created?.id) { try { await api(`/api/admin/events/${encodeURIComponent(created.id)}`, { method: "DELETE" }); } catch {} status.textContent = "No se completó la configuración y se intentó retirar el evento incompleto."; }
     message(error.message); status.textContent = `${status.textContent} ${error.message}`;
