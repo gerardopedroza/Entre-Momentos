@@ -36,7 +36,7 @@ export async function handleAdminApi(ctx, path) {
         v.name AS venue_name,v.slug AS venue_slug,v.timezone AS venue_timezone,
         (SELECT COUNT(*) FROM event_activities a WHERE a.event_id=e.id AND a.active=1) AS activity_count,
         (SELECT COUNT(*) FROM event_guests g WHERE g.event_id=e.id AND g.active=1) AS guest_count,
-        (SELECT COUNT(*) FROM photo_submissions p WHERE p.event_id=e.id AND p.storage_state='stored') AS photo_count,
+        (SELECT COUNT(*) FROM photo_submissions p WHERE p.event_id=e.id AND p.storage_state='stored' AND p.drive_file_id LIKE 'r2:%') AS photo_count,
         (SELECT COUNT(*) FROM integration_jobs j WHERE j.event_id=e.id AND j.state IN ('pending','retry','dead')) AS pending_jobs
         FROM events e JOIN venues v ON v.id=e.venue_id ORDER BY e.event_date DESC,e.name`).all();
       const origin = new URL(request.url).origin;
