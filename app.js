@@ -29,10 +29,14 @@ let isSending = false;
 let dragStartX = null;
 let serverClockOffset = 0;
 let refreshingEvent = false;
+let presenceInterval = null;
+let presenceBusy = false;
+let carouselTapHintShown = false;
 
 function screen(name) {
   $$(".screen").forEach((item) => { item.hidden = item.id !== "screen-" + name; });
   document.body.dataset.screen = name;
+  setPresenceTracking(name === "home");
 }
 
 async function api(path, options = {}) {
@@ -97,7 +101,7 @@ function showHome(profile, data, demo = false) {
   const count = eventData.presence?.activeCount;
   const hasLiveCount = Number.isInteger(count) && count >= 0;
   $("#connected-count").textContent = hasLiveCount ? String(count) : "—";
-  $("#presence-status").textContent = hasLiveCount ? (count === 1 ? "invitado activo" : "invitados activos") : "sin datos en vivo";
+  $("#presence-status").textContent = hasLiveCount ? (count === 1 ? "invitado mirando" : count === 0 ? "nadie mirando" : "invitados mirando") : "invitados mirando";
   $("#guest-presence").classList.toggle("has-live-count", hasLiveCount);
   const active = moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
   const next = moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
@@ -106,20 +110,47 @@ function showHome(profile, data, demo = false) {
   renderSchedule();
   resetUploadPanel();
   screen("home");
-  showCarouselSwipeHint();
+  showCarouselTapHint();
 }
 
-function showCarouselSwipeHint() {
-  const carousel = $("#moment-carousel");
-  if (!carousel || !moments.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+function showCarouselTapHint() {
+  const stage = $("#carousel-stage");
+  if (!stage || !moments.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   let alreadyShown = false;
-  try { alreadyShown = sessionStorage.getItem("em-carousel-swipe-seen") === "1"; } catch {}
-  if (alreadyShown) return;
-  try { sessionStorage.setItem("em-carousel-swipe-seen", "1"); } catch {}
-  carousel.classList.remove("swipe-tutorial");
-  void carousel.offsetWidth;
-  carousel.classList.add("swipe-tutorial");
-  window.setTimeout(() => carousel.classList.remove("swipe-tutorial"), 1900);
+  try { alreadyShown = localStorage.getItem("em-carousel-tap-seen") === "1"; } catch {}
+  if (alreadyShown || carouselTapHintShown) return;
+  carouselTapHintShown = true;
+  try { localStorage.setItem("em-carousel-tap-seen", "1"); } catch {}
+  stage.classList.remove("tap-tutorial");
+  void stage.offsetWidth;
+  stage.classList.add("tap-tutorial");
+  window.setTimeout(() => stage.classList.remove("tap-tutorial"), 1300);
+}
+
+function setPresenceCount(count) {
+  if (!Number.isInteger(count) || count < 0) return;
+  eventData.presence = { ...(eventData.presence || {}), activeCount: count };
+  $("#connected-count").textContent = String(count);
+  $("#presence-status").textContent = count === 1 ? "invitado mirando" : count === 0 ? "nadie mirando" : "invitados mirando";
+  $("#guest-presence").classList.add("has-live-count");
+}
+
+async function sendPresence(active = true, keepalive = false) {
+  if (!guest?.id || isDemo || !eventData.id || presenceBusy) return;
+  presenceBusy = true;
+  try {
+    const payload = await api("/api/guest/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active, eventId: eventData.id }), ...(keepalive ? { keepalive: true } : {}) });
+    setPresenceCount(payload.activeCount);
+  } catch { /* A failed heartbeat expires naturally and does not block the guest flow. */ }
+  finally { presenceBusy = false; }
+}
+
+function setPresenceTracking(enabled) {
+  if (presenceInterval) { window.clearInterval(presenceInterval); presenceInterval = null; }
+  if (!enabled || document.visibilityState === "hidden") { if (guest && !isDemo) void sendPresence(false); return; }
+  if (!guest || isDemo) return;
+  void sendPresence(true);
+  presenceInterval = window.setInterval(() => { if (document.visibilityState === "visible") void sendPresence(true); }, 20000);
 }
 
 function momentStatus(moment) {
@@ -129,33 +160,6 @@ function momentStatus(moment) {
   if (moment.state === "finished") return "Momento finalizado";
   if (moment.state === "upcoming") return "Próximo momento";
   return "Momento del evento";
-}
-
-function updateMomentPrompt() {
-  const moment = moments[selectedMomentIndex];
-  const prompt = $("#moment-prompt");
-  if (!moment) { prompt.textContent = "La agenda aún no está disponible."; return; }
-  if (isDemo) { prompt.textContent = "Vista de ejemplo · " + (moment.start || "") + " · no hay cuenta regresiva real."; return; }
-  const opensAt = moment.photoOpensAt || moment.captureOpensAt;
-  const closesAt = moment.photoClosesAt || moment.captureClosesAt;
-  const opens = opensAt ? new Date(opensAt).getTime() : NaN;
-  const closes = closesAt ? new Date(closesAt).getTime() : NaN;
-  const now = Date.now() + serverClockOffset;
-  if (Number.isFinite(opens) && now < opens) {
-    const seconds = Math.ceil((opens - now) / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainder = seconds % 60;
-    const remaining = minutes ? minutes + " min" + (remainder ? " " + remainder + " s" : "") : remainder + " s";
-    prompt.textContent = "Prepárate para la foto de " + moment.name + " en " + remaining;
-  } else if (Number.isFinite(closes) && now < closes) {
-    prompt.textContent = "Ya puedes subir la foto de " + moment.name;
-  } else if (Number.isFinite(closes) && now >= closes) {
-    prompt.textContent = "El reto terminó. Aún puedes compartir tu recuerdo de " + moment.name + ".";
-  } else if (moment.state === "active") {
-    prompt.textContent = "Ya puedes compartir tu foto de " + moment.name;
-  } else {
-    prompt.textContent = moment.name + (moment.start ? " · " + moment.start : "") + ". Puedes compartir tu foto en cualquier momento.";
-  }
 }
 
 function renderCarousel() {
@@ -175,41 +179,31 @@ function renderCarousel() {
   }
   $("#gallery-button").hidden = false;
   moments.forEach((moment, index) => {
+    const slide = document.createElement("article");
+    slide.className = "moment-slide";
+    slide.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
+    const heading = document.createElement("div");
+    heading.className = "moment-slide-heading";
+    const title = document.createElement("h2");
+    title.className = "moment-card-name";
+    title.textContent = moment.name || "Momento";
+    const time = document.createElement("p");
+    time.className = "moment-card-meta";
+    time.textContent = moment.start || moment.startTime || "";
+    heading.append(title, time);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "moment-card";
     card.classList.toggle("is-active-moment", moment.state === "active");
-    card.setAttribute("aria-label", moment.name + ". " + momentStatus(moment) + ". Seleccionar para subir foto.");
+    card.setAttribute("aria-label", (moment.name || "Momento") + (time.textContent ? ", " + time.textContent : "") + ". Tocar para elegir una foto.");
     card.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
     if (moment.coverUrl) {
-      card.style.backgroundImage = "linear-gradient(160deg,#0002,#29352fcc),url(\"" + moment.coverUrl + "\")";
+      card.style.backgroundImage = "url(\"" + moment.coverUrl + "\")";
       card.classList.add("has-photo");
     }
-    const badge = document.createElement("span");
-    badge.className = "moment-card-status";
-    badge.textContent = isDemo ? "EJEMPLO" : momentStatus(moment);
-    const title = document.createElement("span");
-    title.className = "moment-card-name";
-    title.textContent = moment.name || "Momento";
-    const time = document.createElement("span");
-    time.className = "moment-card-meta";
-    time.textContent = moment.start || moment.startTime || "";
-    const submission = submissions.get(String(moment.id));
-    const photoAction = document.createElement("span");
-    photoAction.className = "moment-card-action" + (submission ? " is-submitted" : "");
-    photoAction.innerHTML = submission
-      ? '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg><span>Foto enviada</span>'
-      : '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1.5-2h7L17 5"/></svg><span>Toca para subir</span>';
-    card.append(badge, photoAction, title, time);
-    if (submission?.thumbnailUrl) {
-      const thumbnail = document.createElement("img");
-      thumbnail.className = "moment-thumbnail";
-      thumbnail.src = submission.thumbnailUrl;
-      thumbnail.alt = "Vista previa de tu foto enviada";
-      card.append(thumbnail);
-    }
     card.addEventListener("click", () => selectMoment(index, true));
-    rail.append(card);
+    slide.append(heading, card);
+    rail.append(slide);
     const dot = document.createElement("button");
     dot.type = "button";
     dot.className = "carousel-dot";
@@ -222,23 +216,20 @@ function renderCarousel() {
 }
 
 function updateCarousel() {
-  const cards = $$(".moment-card", $("#moment-carousel"));
+  const slides = $$(".moment-slide", $("#moment-carousel"));
   const cardOffset = Math.min(145, window.innerWidth * 0.33);
-  cards.forEach((card, index) => {
-    let offset = index - selectedMomentIndex;
-    if (offset > moments.length / 2) offset -= moments.length;
-    if (offset < -moments.length / 2) offset += moments.length;
+  slides.forEach((slide, index) => {
+    const offset = index - selectedMomentIndex;
     const distance = Math.abs(offset);
     const side = Math.sign(offset);
-    card.style.transform = "translate(-50%,-50%) translateX(" + offset * cardOffset + "px) translateY(" + (distance ? -7 : 0) + "px) translateZ(" + (distance ? -28 : 20) + "px) scale(" + Math.max(.8, 1 - distance * .12) + ") rotateY(" + (-side * 4) + "deg) rotateZ(" + (side * 1.2) + "deg)";
-    card.style.zIndex = String(10 - distance);
-    card.style.opacity = distance > 1 ? "0" : distance ? ".94" : "1";
-    card.style.pointerEvents = distance > 1 ? "none" : "auto";
-    card.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
+    slide.style.transform = "translate(-50%,-50%) translateX(" + offset * cardOffset + "px) translateY(" + (distance ? 4 : 0) + "px) scale(" + Math.max(.78, 1 - distance * .13) + ") rotateY(" + (-side * 3) + "deg)";
+    slide.style.zIndex = String(10 - distance);
+    slide.style.opacity = distance > 1 ? "0" : distance ? ".65" : "1";
+    slide.style.pointerEvents = distance > 1 ? "none" : "auto";
+    slide.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
   });
   $$(".carousel-dot", $("#carousel-pagination")).forEach((dot, index) => dot.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false"));
   const current = moments[selectedMomentIndex];
-  updateMomentPrompt();
   if (!current) return;
   const submission = submissions.get(String(current.id));
   $("#selected-moment-state").textContent = (isDemo ? "EJEMPLO · " : "") + momentStatus(current).toLocaleUpperCase("es-MX");
@@ -251,7 +242,7 @@ function updateCarousel() {
 
 function selectMoment(index, openPanel) {
   if (!moments.length) return;
-  selectedMomentIndex = (index + moments.length) % moments.length;
+  selectedMomentIndex = Math.max(0, Math.min(moments.length - 1, index));
   updateCarousel();
   if (openPanel) openUploadPanel();
 }
@@ -650,8 +641,7 @@ if ("serviceWorker" in navigator) {
   if ("caches" in window) caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("entre-momentos-" )).map((key) => caches.delete(key)))).catch(() => {});
 }
 api("/api/events/current").then((payload) => setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload)).catch(() => {});
-window.setInterval(() => {
-  if (document.body.dataset.screen === "home") updateMomentPrompt();
-}, 1000);
 window.setInterval(() => { if (guest && !isDemo) refreshEvent(); }, 30000);
+document.addEventListener("visibilitychange", () => setPresenceTracking(document.body.dataset.screen === "home"));
+window.addEventListener("pagehide", () => { if (document.body.dataset.screen === "home") void sendPresence(false, true); });
 screen("welcome");

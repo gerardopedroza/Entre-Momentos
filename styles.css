@@ -491,3 +491,73 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 #setup-event-feedback { min-height: 18px; margin: 0; }
 .admin-time-entry { display: grid; grid-template-columns: minmax(0,1fr) 96px; gap: 8px; }
 .admin-time-entry input { min-width: 0; }
+
+/* Clean guest carousel: finite cards, titles above photos, and a one-time tap cue. */
+.home-screen { --carousel-card-height: min(34dvh,300px); }
+.carousel-section { min-height: 0; }
+.carousel-heading { gap: 0; }
+.carousel-stage { min-height: min(255px,calc(var(--carousel-card-height) + 48px)); }
+.moment-carousel { min-height: inherit; }
+.moment-slide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr);
+  gap: 8px;
+  width: min(68vw,320px);
+  height: min(calc(var(--carousel-card-height) + 48px),100%);
+  transform-origin: center center;
+  transition: transform .42s cubic-bezier(.2,.75,.25,1),opacity .32s;
+  perspective: 900px;
+}
+.moment-slide-heading { display: grid; gap: 1px; min-height: 42px; align-content: end; padding-inline: 2px; text-align: center; }
+.moment-card-name { display: -webkit-box; margin: 0; overflow: hidden; color: #283c35; font: 500 clamp(17px,4.8vw,23px)/1.05 var(--serif); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.moment-card-meta { margin: 0; color: #697a73; font-size: 12px; font-variant-numeric: tabular-nums; }
+.moment-card {
+  position: relative;
+  top: auto;
+  left: auto;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: 0;
+  border: 1px solid #ffffffd9;
+  border-radius: 18px;
+  background: linear-gradient(145deg,#e9d7ce,#a6b9ad 53%,#526f61);
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 12px 28px #26382e29;
+  transform: none;
+}
+.moment-card::before,
+.moment-card-status,
+.moment-card-action,
+.moment-thumbnail { display: none !important; }
+.moment-card.has-photo { background-color: #e9e5df; }
+.carousel-tap-hand { position: absolute; z-index: 20; top: 55%; left: 58%; display: none; width: 46px; height: 54px; filter: drop-shadow(0 3px 3px #17261f47); pointer-events: none; }
+.carousel-stage.tap-tutorial .carousel-tap-hand { display: block; animation: hand-tap 1.2s ease-in-out both; }
+.carousel-stage.tap-tutorial .moment-slide[aria-current="true"] .moment-card { animation: photo-press 1.2s ease-in-out both; }
+@keyframes hand-tap {
+  0%,100% { opacity: 0; transform: translate(15px,-7px) scale(.94); }
+  12%,72% { opacity: 1; }
+  34%,48% { opacity: 1; transform: translate(0,7px) scale(.87); }
+}
+@keyframes photo-press {
+  0%,100% { transform: scale(1); }
+  34%,48% { transform: scale(.965); }
+}
+.carousel-pagination { flex-basis: 17px; padding-top: 8px; }
+@media (max-height: 700px) {
+  .home-screen { --carousel-card-height: min(32dvh,245px); }
+}
+@media (max-width: 360px) {
+  .moment-slide { width: min(72vw,280px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .moment-slide,.moment-card { transition: none; }
+  .carousel-stage.tap-tutorial .carousel-tap-hand,
+  .carousel-stage.tap-tutorial .moment-slide[aria-current="true"] .moment-card { animation: none; }
+}

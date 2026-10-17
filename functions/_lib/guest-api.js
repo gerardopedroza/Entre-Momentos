@@ -3,6 +3,49 @@ import { fail, getEventDateLocal, isEligible, json, newId, normalizeName, nowIso
 import { downloadDriveImage, driveIdFromUrl, ensureActivityDriveFolder, uploadGuestPhoto } from "./google-drive.js";
 import { enqueueJob } from "./jobs.js";
 
+let presenceTablePromise = null;
+const PRESENCE_TTL_MS = 45000;
+
+async function ensurePresenceTable(db) {
+  if (!presenceTablePromise) {
+    presenceTablePromise = db.prepare(`CREATE TABLE IF NOT EXISTS guest_presence (
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      guest_id TEXT NOT NULL REFERENCES event_guests(id) ON DELETE CASCADE,
+      last_seen_at TEXT NOT NULL,
+      PRIMARY KEY (event_id, guest_id)
+    )`).run().catch((error) => { presenceTablePromise = null; throw error; });
+  }
+  await presenceTablePromise;
+}
+
+async function activeGuestCount(db, eventId) {
+  await ensurePresenceTable(db);
+  const cutoff = new Date(Date.now() - PRESENCE_TTL_MS).toISOString();
+  const result = await db.prepare("SELECT COUNT(*) AS active_count FROM guest_presence WHERE event_id=? AND last_seen_at>=?")
+    .bind(eventId, cutoff).first();
+  return Number(result?.active_count || 0);
+}
+
+async function updateGuestPresence(request, env) {
+  const session = await guestSession(request, env);
+  if (!session) return fail("Identifícate para registrar tu conexión.", 401, "guest_required");
+  const data = await readJson(request, 2048);
+  if (String(data.eventId || "") !== session.event_id) return fail("La conexión no corresponde a este evento.", 403, "event_session_mismatch");
+  const event = await env.DB.prepare("SELECT id FROM events WHERE id=? AND state='active'").bind(session.event_id).first();
+  if (!event) return fail("Este evento ya no está activo.", 404, "event_unavailable");
+  await ensurePresenceTable(env.DB);
+  const stamp = nowIso();
+  if (data.active === false) {
+    await env.DB.prepare("DELETE FROM guest_presence WHERE event_id=? AND guest_id=?").bind(session.event_id, session.guest_id).run();
+  } else {
+    await env.DB.prepare(`INSERT INTO guest_presence (event_id,guest_id,last_seen_at) VALUES (?,?,?)
+      ON CONFLICT(event_id,guest_id) DO UPDATE SET last_seen_at=excluded.last_seen_at`)
+      .bind(session.event_id, session.guest_id, stamp).run();
+  }
+  await env.DB.prepare("DELETE FROM guest_presence WHERE event_id=? AND last_seen_at<?").bind(session.event_id, new Date(Date.now() - PRESENCE_TTL_MS).toISOString()).run();
+  return json({ activeCount: await activeGuestCount(env.DB, session.event_id) });
+}
+
 function publicUrl(event, venue) { return "/l/" + encodeURIComponent(venue.slug) + "?venue=" + encodeURIComponent(venue.slug); }
 
 async function resolvePublicEvent(request, env, eventSession = null) {
@@ -132,6 +175,7 @@ export async function handleGuestApi(ctx, path) {
     if (!event) return json({ event: null, serverTime: nowIso() });
     const venue = await db.prepare("SELECT * FROM venues WHERE id=?").bind(event.venue_id).first();
     const shaped = await shapeEvent(db, event, venue);
+    shaped.presence = { activeCount: await activeGuestCount(db, event.id) };
     if (!session || session.event_id !== event.id) return json({ event: { ...shaped, serverTime: nowIso() }, serverTime: nowIso() });
     const payload = await eventForGuest(db, session.guest_id, event.id);
     return json({ ...payload, guest: { id: session.guest_id, name: session.name, nickname: session.nickname || null, tableId: session.table_id }, serverTime: nowIso(), event: { ...payload.event, serverTime: nowIso() } });
@@ -139,6 +183,7 @@ export async function handleGuestApi(ctx, path) {
   if (path === "/api/guests/identify" && method === "POST") return identifyGuest(request, env, false);
   if (path === "/api/guests/identify/select" && method === "POST") return identifyGuest(request, env, true);
   if (path === "/api/guests/session" && method === "DELETE") return await revokeGuest(request, env);
+  if (path === "/api/guest/presence" && method === "POST") return await updateGuestPresence(request, env);
 
   if (path === "/api/photos" && method === "POST") return await submitPhoto(request, env);
   if (path === "/api/messages" && method === "POST") return await submitDedication(request, env);
