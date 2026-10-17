@@ -151,6 +151,28 @@ export async function handleAdminApi(ctx, path) {
     }
 
     if (path === "/api/admin/activities" && method === "POST") return await saveActivity(request, env, null);
+    if (path === "/api/admin/activities/bulk-deactivate" && method === "POST") {
+      const data = await readJson(request);
+      const event = await eventOr404(db, String(data.eventId || ""));
+      const activityIds = Array.isArray(data.activityIds) ? [...new Set(data.activityIds.map((id) => String(id || "")).filter(Boolean))] : [];
+      if (!activityIds.length) return fail("Selecciona al menos una actividad.");
+      if (activityIds.length > 200) return fail("Puedes quitar hasta 200 actividades a la vez.", 422, "too_many_activities");
+      const placeholders = activityIds.map(() => "?").join(",");
+      const rows = await db.prepare(`SELECT id FROM event_activities WHERE event_id=? AND active=1 AND id IN (${placeholders})`).bind(event.id, ...activityIds).all();
+      const activeIds = (rows.results || []).map((row) => row.id);
+      if (activeIds.length !== activityIds.length) return fail("Una o más actividades ya no están activas o no pertenecen a este evento. Actualiza la lista e inténtalo de nuevo.", 409, "activity_selection_stale");
+      const activePlaceholders = activeIds.map(() => "?").join(",");
+      const stamp = nowIso();
+      const statements = [
+        db.prepare(`UPDATE event_activities SET active=0,updated_at=? WHERE event_id=? AND active=1 AND id IN (${activePlaceholders})`).bind(stamp, event.id, ...activeIds),
+        db.prepare(`UPDATE contests SET state='inactive',updated_at=? WHERE event_id=? AND kind='first_photo' AND state IN ('draft','active') AND id IN (SELECT ca.contest_id FROM contest_activities ca WHERE ca.activity_id IN (${activePlaceholders}) AND (SELECT COUNT(*) FROM contest_activities all_ca WHERE all_ca.contest_id=ca.contest_id)=1)`).bind(stamp, event.id, ...activeIds),
+      ];
+      for (const activityId of activeIds) statements.push(db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?,'admin','administrator','activity.deactivated','activity',?,'{}',?)").bind(newId(), event.id, activityId, stamp));
+      await db.batch(statements);
+      const remaining = await db.prepare(`SELECT COUNT(*) AS count FROM event_activities WHERE event_id=? AND active=1 AND id IN (${activePlaceholders})`).bind(event.id, ...activeIds).first();
+      if (Number(remaining?.count || 0) !== 0) return fail("Cloudflare no confirmó que todas las actividades se quitaran. Actualiza la lista antes de continuar.", 500, "activity_deactivation_incomplete");
+      return json({ ok: true, deactivatedCount: activeIds.length, activityIds: activeIds });
+    }
     if (path.startsWith("/api/admin/activities/")) {
       const [id] = routeId(path, "/api/admin/activities/");
       const activity = await db.prepare("SELECT * FROM event_activities WHERE id=?").bind(id).first();
@@ -158,6 +180,7 @@ export async function handleAdminApi(ctx, path) {
       if (method === "PUT") return await saveActivity(request, env, activity);
       if (method === "DELETE") {
         await db.prepare("UPDATE event_activities SET active=0,updated_at=? WHERE id=?").bind(nowIso(), id).run();
+        await db.prepare(`UPDATE contests SET state='inactive',updated_at=? WHERE event_id=? AND kind='first_photo' AND state IN ('draft','active') AND id IN (SELECT ca.contest_id FROM contest_activities ca WHERE ca.activity_id=? AND (SELECT COUNT(*) FROM contest_activities all_ca WHERE all_ca.contest_id=ca.contest_id)=1)`).bind(nowIso(), activity.event_id, id).run();
         await log(db, "activity.deactivated", "activity", id, activity.event_id);
         return json({ ok: true });
       }
@@ -495,7 +518,7 @@ export async function calculateAutomaticWinner(db, contest) {
 async function loadEventDetails(db, eventId) {
   const event = await eventOr404(db, eventId);
   const venue = await db.prepare("SELECT id,name,slug,timezone,active FROM venues WHERE id=?").bind(event.venue_id).first();
-  const activities = await db.prepare("SELECT * FROM event_activities WHERE event_id=? ORDER BY position,starts_at").bind(eventId).all();
+  const activities = await db.prepare("SELECT * FROM event_activities WHERE event_id=? AND active=1 ORDER BY position,starts_at").bind(eventId).all();
   let guests;
   try { guests = await db.prepare(`SELECT g.id,g.name,g.nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
   catch (error) { if (!isMissingColumn(error, "nickname")) throw error; guests = await db.prepare(`SELECT g.id,g.name,NULL AS nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }

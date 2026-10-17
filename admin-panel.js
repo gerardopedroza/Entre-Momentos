@@ -308,7 +308,7 @@ function renderStaff() {
   bindStaffCopy($("#staff-list"));
 }
 
-async function selectEvent(id) {
+async function selectEvent(id, tab = "details") {
   try {
     const result = await api(`/api/admin/events/${encodeURIComponent(id)}/details`);
     state.selected = id;
@@ -317,7 +317,7 @@ async function selectEvent(id) {
     fillEventForm(result);
     renderEventDetails();
     $("#event-editor").hidden = false;
-    setEventTab("details");
+    setEventTab(tab);
     navigate("events");
     $("#event-editor").hidden = false;
     $("#event-editor").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -349,7 +349,7 @@ function updateContestCriteriaFields() {
 function renderEventDetails() {
   const { activities, guests, contests } = state.details;
   $("#activities-list").innerHTML = activities.length ? `<div class="admin-actions activity-bulk-actions"><label class="activity-select-all"><input type="checkbox" data-select-all-activities> Seleccionar varias</label><button class="admin-button secondary" type="button" data-delete-selected-activities disabled>Quitar seleccionadas</button></div>${activities.map((activity) => `<article class="admin-row-card"><div class="admin-row-top"><label class="activity-select"><input type="checkbox" data-select-activity="${esc(activity.id)}" aria-label="Seleccionar ${esc(activity.name)}"></label><div class="activity-row-content"><h3>${esc(activity.position)}. ${esc(activity.name)}</h3>${activity.description ? `<p class="admin-meta">${esc(activity.description)}</p>` : ""}<div class="admin-meta">${timeLabel(activity.starts_at)} – ${new Date(activity.ends_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></div><div class="admin-actions"><button class="admin-button secondary" type="button" data-edit-activity="${esc(activity.id)}">Modificar</button><button class="admin-button secondary" type="button" data-delete-activity="${esc(activity.id)}">Quitar</button></div></div><div class="admin-meta">Fotos: ${timeLabel(activity.photo_opens_at)} a ${new Date(activity.photo_closes_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></article>`).join("")}` : '<div class="empty-state">Agrega los momentos de la boda para construir el minuto a minuto.</div>';
-  $$('[data-delete-activity]', $("#activities-list")).forEach((button) => button.addEventListener("click", () => deactivate(`/api/admin/activities/${encodeURIComponent(button.dataset.deleteActivity)}`, "Actividad quitada.")));
+  $$('[data-delete-activity]', $("#activities-list")).forEach((button) => button.addEventListener("click", () => deactivate(`/api/admin/activities/${encodeURIComponent(button.dataset.deleteActivity)}`, "Actividad quitada.", "activities")));
   const list = $("#activities-list");
   const selectAll = list.querySelector("[data-select-all-activities]");
   const removeSelected = list.querySelector("[data-delete-selected-activities]");
@@ -365,7 +365,13 @@ function renderEventDetails() {
     const ids = $$('[data-select-activity]:checked', list).map((check) => check.dataset.selectActivity);
     if (!ids.length || !confirm(`¿Quitar ${ids.length} actividad(es) seleccionada(s) del minuto a minuto?`)) return;
     removeSelected.disabled = true;
-    try { for (const id of ids) await api(`/api/admin/activities/${encodeURIComponent(id)}`, { method: "DELETE" }); message(`${ids.length} actividad(es) quitada(s).`); await selectEvent(state.selected); await loadDashboard(); }
+    try {
+      const result = await api("/api/admin/activities/bulk-deactivate", { method: "POST", body: JSON.stringify({ eventId: state.selected, activityIds: ids }) });
+      if (Number(result.deactivatedCount) !== ids.length) throw new Error("El servidor no confirmó todas las actividades. Actualiza la lista para revisar el resultado.");
+      await selectEvent(state.selected, "activities");
+      await loadDashboard();
+      message(`${result.deactivatedCount} actividad(es) quitada(s) del minuto a minuto.`);
+    }
     catch (error) { message(error.message); removeSelected.disabled = false; }
   });
   $("#guests-list").innerHTML = guests.length ? guests.map((guest) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(guest.name)}</h3>${guest.nickname ? `<div class="admin-meta">Apodo: ${esc(guest.nickname)}</div>` : ""}<div class="admin-meta">${guest.table_name ? `Mesa ${esc(guest.table_name)} · ` : ""}${guest.active ? `${Number(guest.photos_sent || 0)} foto(s) enviadas` : "Invitación desactivada"}</div></div>${guest.active ? `<button class="admin-button secondary" type="button" data-delete-guest="${esc(guest.id)}">Desactivar</button>` : '<span class="admin-badge">Inactivo</span>'}</div></article>`).join("") : '<div class="empty-state">Agrega a las personas invitadas o carga la lista desde un archivo CSV o Excel.</div>';
@@ -375,9 +381,9 @@ function renderEventDetails() {
   if (currentActivity) $("#contest-form [name=activityId]").value = currentActivity;
   $("#contests-list").innerHTML = contests.length ? contests.map((contest) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(contest.name)}</h3><div class="admin-meta">${contest.kind === "first_photo" ? ((contest.activity_ids || "").split(",").filter(Boolean).length === 1 ? "Primera foto de la actividad" : "Primera foto del evento") : contest.kind === "most_photos" ? "Mayor cantidad de fotos del evento" : contest.kind === "photo_with_couple" ? "Foto con los novios" : contest.kind === "bouquet" ? "Ramo" : "Selección del equipo"} · ${esc(eventStateLabel(contest.state))}</div></div><div class="admin-actions"><span class="admin-badge ${contest.prize_name ? "active" : ""}">${contest.prize_name ? `Premio: ${esc(contest.prize_name)}` : "Felicitación digital"}</span>${contest.state !== "finished" ? `<button class="admin-button secondary" type="button" data-edit-contest="${esc(contest.id)}">Modificar</button>` : ""}</div></div>${contest.validation_instructions ? `<p class="admin-meta" style="margin-bottom:0">${esc(contest.validation_instructions)}</p>` : ""}</article>`).join("") : '<div class="empty-state">Aún no hay retos o reconocimientos configurados.</div>';
 }
-async function deactivate(path, successText) {
+async function deactivate(path, successText, eventTab = "details") {
   if (!confirm("¿Quieres desactivar este elemento?")) return;
-  try { await api(path, { method: "DELETE" }); message(successText); await selectEvent(state.selected); await loadDashboard(); }
+  try { await api(path, { method: "DELETE" }); await selectEvent(state.selected, eventTab); await loadDashboard(); message(successText); }
   catch (error) { message(error.message); }
 }
 
@@ -623,7 +629,7 @@ $("#activity-form").elements.reference.addEventListener("change", (event) => pre
 $("#activity-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
   const data = Object.fromEntries(new FormData(form)); const reference = form.elements.reference.files?.[0]; const activityId = data.activityId; delete data.reference; delete data.activityId; data.startsAt = manualEventDateTime(state.details.event.event_date, data.startClock, data.startPeriod); data.endsAt = manualEventDateTime(state.details.event.event_date, data.endClock, data.endPeriod); delete data.startClock; delete data.startPeriod; delete data.endClock; delete data.endPeriod; data.eventId = state.selected; data.position = activityId ? state.details.activities.find((item) => item.id === activityId)?.position : state.details.activities.length + 1;
-  try { const result = activityId ? await send(`/api/admin/activities/${encodeURIComponent(activityId)}`, "PUT", data) : await send("/api/admin/activities", "POST", data); if (reference) await uploadEventAsset(state.selected, reference, "activity_reference", result.activity.id); form.reset(); form.elements.activityId.value = ""; setCoverPreview("#activity-reference-preview", "#activity-reference-empty", ""); $("#save-activity-button").textContent = "Agregar actividad"; $("#cancel-activity-edit").hidden = true; message(activityId ? "Cambios de la actividad guardados." : "Actividad agregada al minuto a minuto."); await selectEvent(state.selected); await loadDashboard(); }
+  try { const result = activityId ? await send(`/api/admin/activities/${encodeURIComponent(activityId)}`, "PUT", data) : await send("/api/admin/activities", "POST", data); if (reference) await uploadEventAsset(state.selected, reference, "activity_reference", result.activity.id); form.reset(); form.elements.activityId.value = ""; setCoverPreview("#activity-reference-preview", "#activity-reference-empty", ""); $("#save-activity-button").textContent = "Agregar actividad"; $("#cancel-activity-edit").hidden = true; message(activityId ? "Cambios de la actividad guardados." : "Actividad agregada al minuto a minuto."); await selectEvent(state.selected, "activities"); await loadDashboard(); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
