@@ -131,7 +131,7 @@ function showCarouselTapHint() {
   const stage = $("#carousel-stage");
   if (!stage || !moments.length) return;
   let alreadyShown = false;
-  try { alreadyShown = localStorage.getItem("em-carousel-gesture-seen-v4") === "1"; } catch {}
+  try { alreadyShown = localStorage.getItem("em-carousel-gesture-seen-v5") === "1"; } catch {}
   if (alreadyShown || carouselTapHintShown) return;
   carouselTapHintShown = true;
   carouselTutorialTimers.forEach(window.clearTimeout);
@@ -148,12 +148,12 @@ function showCarouselTapHint() {
     carouselTutorialTimers.push(window.setTimeout(() => {
       stage.classList.remove("swipe-tutorial");
       stage.classList.add("tap-tutorial");
-    }, hasSwipeTarget ? 3900 : 100));
+    }, hasSwipeTarget ? 4800 : 100));
     carouselTutorialTimers.push(window.setTimeout(() => {
       stage.classList.remove("tap-tutorial");
-      try { localStorage.setItem("em-carousel-gesture-seen-v4", "1"); } catch {}
+      try { localStorage.setItem("em-carousel-gesture-seen-v5", "1"); } catch {}
       carouselTutorialTimers = [];
-    }, hasSwipeTarget ? 7600 : 3900));
+    }, hasSwipeTarget ? 8300 : 3900));
   };
   requestAnimationFrame(() => requestAnimationFrame(playTutorial));
 }
@@ -274,11 +274,9 @@ function updateCarousel() {
     slide.style.zIndex = String(10 - distance);
     slide.style.opacity = distance > 1 ? "0" : distance ? ".74" : "1";
     slide.style.pointerEvents = distance > 1 ? "none" : "auto";
-    const neighborIndex = selectedMomentIndex < moments.length - 1 ? selectedMomentIndex + 1 : selectedMomentIndex - 1;
-    slide.classList.toggle("tutorial-neighbor", index === neighborIndex);
-    slide.style.setProperty("--tutorial-swipe-x", (neighborIndex > selectedMomentIndex ? -1 : 1) * Math.max(cardOffset + 78, window.innerWidth * 0.62) + "px");
-    slide.style.setProperty("--tutorial-tilt", neighborIndex > selectedMomentIndex ? "-8deg" : "8deg");
-    slide.style.setProperty("--tutorial-center-x", -offset * cardOffset + "px");
+    const swipeDistance = Math.min(72, Math.max(46, window.innerWidth * 0.15));
+    slide.style.setProperty("--tutorial-swipe-left", -swipeDistance + "px");
+    slide.style.setProperty("--tutorial-swipe-right", swipeDistance + "px");
     slide.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
   });
   $$(".carousel-dot", $("#carousel-pagination")).forEach((dot, index) => dot.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false"));
