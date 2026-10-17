@@ -23,14 +23,10 @@
             <p class="cover-date" id="event-date-display">EVENTO DE DEMOSTRACIÓN</p>
             <div class="cover-caption"><h1 id="welcome-title"><span id="event-name-display">Entre Momentos</span></h1><p class="cover-slogan"><span>Una <strong>BODA</strong></span><span><strong>MIL</strong> Historias</span><span>Un <strong>RECUERDO PARA SIEMPRE</strong></span></p></div>
           </article>
-          <div class="guest-rules" aria-label="Reglas para compartir fotos">
-            <div class="guest-rule"><span class="guest-rule-icon photo-rule-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1.5-2h7L17 5"/></svg></span><span>Una foto por momento.</span></div>
-            <div class="guest-rule"><span class="guest-rule-icon time-rule-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Cada reto tiene su propio horario.</span></div>
-            <div class="guest-rule"><span class="guest-rule-icon note-rule-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><span>Foto enviada no se puede modificar.</span></div>
-          </div>
           <form id="guest-form" class="identity-form">
+            <div class="guest-guidelines" aria-label="Reglas para compartir fotos"><p>Una foto por momento.</p><p>Fuera de horario no suma al reto.</p><p>Foto enviada no se puede modificar.</p></div>
             <label class="field-label" for="guest-search">Escribe tu nombre y/o apellido</label><input id="guest-search" type="search" placeholder="Ana / García / Ana García" autocomplete="name" minlength="2" required />
-            <button class="primary-button" type="submit">Buscar mi nombre <span aria-hidden="true">→</span></button>
+            <button class="primary-button" type="submit">Continuar <span aria-hidden="true">→</span></button>
             <p class="form-message" id="search-message" role="status"></p>
             <button class="demo-entry" id="access-entry" type="button">Administración</button>
           </form>
