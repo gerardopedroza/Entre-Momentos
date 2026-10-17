@@ -489,3 +489,5 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 .setup-activity-card .rule-toggle { margin: 0; }
 .event-setup-form > .admin-button[type=submit] { justify-self: start; }
 #setup-event-feedback { min-height: 18px; margin: 0; }
+.admin-time-entry { display: grid; grid-template-columns: minmax(0,1fr) 96px; gap: 8px; }
+.admin-time-entry input { min-width: 0; }
