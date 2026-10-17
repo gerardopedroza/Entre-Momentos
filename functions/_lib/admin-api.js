@@ -1,7 +1,7 @@
 import { createAdminSession, requireAdmin, revokeAdmin } from "./auth.js";
 import { enqueueJob, processDueJobs } from "./jobs.js";
 import { fail, getEventDateLocal, json, localDateTimeToIso, newId, nowIso, readJson, slugify } from "./core.js";
-import { deleteDriveImage, driveIdFromUrl, ensureEventDriveStructure, uploadEventImage } from "./google-drive.js";
+import { deleteDriveImage, driveIdFromUrl, ensureEventDriveStructure } from "./google-drive.js";
 
 const KINDS = new Set(["first_photo", "most_photos", "photo_with_couple", "bouquet", "manual"]);
 
@@ -223,16 +223,10 @@ async function uploadEventAsset(request, env, event) {
   if (!["event_cover", "activity_reference"].includes(kind)) return fail("Selecciona el tipo de imagen.");
   const id = newId();
   const extension = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" })[file.type];
-  let key; let provider;
-  if (env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY && event.drive_folder_id) {
-    const activity = activityId ? await db.prepare("SELECT name FROM event_activities WHERE id=? AND event_id=?").bind(activityId, event.id).first() : null;
-    const label = kind === "event_cover" ? "Fondo del evento" : "Referencia - " + (activity?.name || "Actividad");
-    const uploaded = await uploadEventImage(env, event.drive_folder_id, event.id, id, file, `${label}.${extension}`);
-    key = "drive:" + uploaded.id; provider = "drive";
-  } else if (env.EVENT_MEDIA) {
-    key = `events/${event.id}/${id}.${extension}`;
-    await env.EVENT_MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } }); provider = "r2";
-  } else return fail("Conecta Google Drive del fotógrafo para guardar imágenes en la carpeta del evento, o configura el almacenamiento R2.", 503, "event_media_unavailable");
+  let key; const provider = "r2";
+  if (!env.EVENT_MEDIA) return fail("El almacenamiento R2 de imágenes de portada y actividades aún no está conectado.", 503, "event_media_unavailable");
+  key = `events/${event.id}/${id}.${extension}`;
+  await env.EVENT_MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } });
   try {
     await db.prepare("INSERT INTO media_assets (id,event_id,kind,r2_key,content_type,byte_size,created_at) VALUES (?,?,?,?,?,?,?)")
       .bind(id, event.id, kind, key, file.type, file.size, nowIso()).run();
