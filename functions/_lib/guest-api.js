@@ -27,6 +27,7 @@ async function shapeEvent(db, event, venue, now = Date.now()) {
   const moments = (activities.results || []).map((activity) => ({
     id: activity.id,
     name: activity.name,
+    description: activity.description || "",
     position: activity.position,
     start: new Intl.DateTimeFormat("es-MX", { timeZone: event.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(activity.starts_at)),
     startsAt: activity.starts_at,

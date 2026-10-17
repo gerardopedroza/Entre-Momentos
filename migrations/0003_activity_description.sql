@@ -1,0 +1,1 @@
+ALTER TABLE event_activities ADD COLUMN description TEXT;

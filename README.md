@@ -28,13 +28,13 @@ Los enlaces de eventos en preparación se pueden copiar antes del evento, pero s
 
 ## Configuración necesaria para operar en Cloudflare
 
-El repositorio incluye páginas estáticas, Cloudflare Pages Functions y la migración de esquema en `migrations/0001_platform.sql`. Para habilitar operaciones reales, el proyecto de Pages debe tener un binding D1 llamado `DB` y ejecutar las migraciones en orden (`0001_platform.sql` y `0002_guest_nickname.sql`). La segunda agrega el apodo opcional de cada invitado. Configura también estas variables secretas en Pages:
+El repositorio incluye páginas estáticas, Cloudflare Pages Functions y migraciones de esquema en `migrations/`. Para habilitar operaciones reales, el proyecto de Pages debe tener un binding D1 llamado `DB` y ejecutar en orden `0001_platform.sql`, `0002_guest_nickname.sql` y `0003_activity_description.sql`. Estas agregan las tablas principales, el apodo opcional del invitado y la descripción opcional de cada actividad. Configura también estas variables secretas en Pages:
 
 - `ADMIN_USERNAME` y `ADMIN_PASSWORD_HASH`: acceso a administración.
 - `SESSION_PEPPER`: valor secreto aleatorio para proteger sesiones y códigos de invitación.
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` y `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`: cuenta de servicio que crea carpetas y hojas, y carga fotos.
 
-Cada carpeta de Drive debe compartirse explícitamente con el correo de la cuenta de servicio, con permiso de edición. No hace falta hacerla pública. La integración aún no puede operar hasta que esas credenciales y el binding de Cloudflare estén configurados. El enlace de carpeta por sí solo no concede acceso.
+Configura también un binding R2 llamado `EVENT_MEDIA` para almacenar la fotografía de fondo y las referencias visuales de las actividades. Cada carpeta de Drive debe compartirse explícitamente con el correo de la cuenta de servicio, con permiso de edición. No hace falta hacerla pública. La integración aún no puede operar hasta que esas credenciales y el binding de Cloudflare estén configurados. El enlace de carpeta por sí solo no concede acceso.
 
 ## Publicar
 

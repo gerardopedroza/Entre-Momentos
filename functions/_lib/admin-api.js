@@ -110,8 +110,13 @@ export async function handleAdminApi(ctx, path) {
       const [id, ...actionParts] = routeId(path, "/api/admin/events/");
       const action = actionParts.join("/");
       const event = await eventOr404(db, id);
+      if (method === "POST" && action === "assets") return await uploadEventAsset(request, env, event);
       if (method === "PUT" && !action) return await updateEvent(request, env, event);
       if (method === "DELETE") {
+        if (env.EVENT_MEDIA) {
+          const media = await db.prepare("SELECT r2_key FROM media_assets WHERE event_id=?").bind(id).all();
+          for (const asset of media.results || []) await env.EVENT_MEDIA.delete(asset.r2_key);
+        }
         const stamp = nowIso();
         await db.batch([
           db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?,'admin','administrator','event.deleted','event',?,?,?)")
@@ -177,9 +182,10 @@ export async function handleAdminApi(ctx, path) {
     if (path === "/api/admin/contests" && method === "GET") {
       const eventId = new URL(request.url).searchParams.get("eventId");
       if (!eventId) return fail("Falta elegir un evento.");
-      return json({ contests: (await db.prepare("SELECT c.*,p.name AS prize_name,p.instructions AS prize_instructions FROM contests c LEFT JOIN prizes p ON p.id=c.prize_id WHERE c.event_id=? ORDER BY c.opens_at").bind(eventId).all()).results || [] });
+      return json({ contests: (await db.prepare("SELECT c.*,p.name AS prize_name,p.instructions AS prize_instructions,(SELECT group_concat(activity_id, ',') FROM contest_activities ca WHERE ca.contest_id=c.id) AS activity_ids FROM contests c LEFT JOIN prizes p ON p.id=c.prize_id WHERE c.event_id=? ORDER BY c.opens_at").bind(eventId).all()).results || [] });
     }
     if (path === "/api/admin/contests" && method === "POST") return await createContest(request, env);
+    if (path.startsWith("/api/admin/contests/") && method === "PUT") return await updateContest(request, env, routeId(path, "/api/admin/contests/")[0]);
     if (path.startsWith("/api/admin/contests/") && method === "POST") return await adminContestAction(request, env, routeId(path, "/api/admin/contests/"));
 
     if (path === "/api/admin/prizes" && method === "GET") {
@@ -200,6 +206,30 @@ export async function handleAdminApi(ctx, path) {
   } catch (error) { return apiError(error); }
 }
 
+async function uploadEventAsset(request, env, event) {
+  const db = env.DB;
+  if (!env.EVENT_MEDIA) return fail("El almacenamiento de imágenes de Cloudflare no está configurado.", 503, "event_media_unavailable");
+  let form;
+  try { form = await request.formData(); } catch { return fail("No se pudo leer la imagen seleccionada."); }
+  const file = form.get("file");
+  const kind = String(form.get("kind") || "");
+  if (!(file instanceof File) || !["image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size) return fail("Elige una imagen JPG, PNG o WebP.");
+  if (file.size > 10 * 1024 * 1024) return fail("La imagen debe pesar menos de 10 MB.", 413, "image_too_large");
+  const activityId = String(form.get("activityId") || "");
+  if (kind === "activity_reference" && !await db.prepare("SELECT id FROM event_activities WHERE id=? AND event_id=?").bind(activityId, event.id).first()) return fail("La actividad no pertenece a este evento.", 422, "activity_event_mismatch");
+  if (!["event_cover", "activity_reference"].includes(kind)) return fail("Selecciona el tipo de imagen.");
+  const id = newId();
+  const extension = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" })[file.type];
+  const key = `events/${event.id}/${id}.${extension}`;
+  await env.EVENT_MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } });
+  try {
+    await db.prepare("INSERT INTO media_assets (id,event_id,kind,r2_key,content_type,byte_size,created_at) VALUES (?,?,?,?,?,?,?)")
+      .bind(id, event.id, kind, key, file.type, file.size, nowIso()).run();
+    if (kind === "event_cover") await db.prepare("UPDATE events SET cover_asset_id=?,updated_at=? WHERE id=?").bind(id, nowIso(), event.id).run();
+    else await db.prepare("UPDATE event_activities SET reference_asset_id=?,updated_at=? WHERE id=? AND event_id=?").bind(id, nowIso(), activityId, event.id).run();
+  } catch (error) { await env.EVENT_MEDIA.delete(key); throw error; }
+  return json({ asset: { id, kind, url: "/api/media/" + id } }, 201);
+}
 async function createEvent(request, env) {
   const db = env.DB;
   const data = await readJson(request);
@@ -272,6 +302,7 @@ async function saveActivity(request, env, existing) {
   const data = await readJson(request);
   const event = await eventOr404(db, data.eventId || existing?.event_id);
   const name = String(data.name || existing?.name || "").trim();
+  const description = String(data.description || existing?.description || "").trim().slice(0, 1000);
   const position = Number.isInteger(Number(data.position)) ? Number(data.position) : Number(existing?.position || 1);
   if (name.length < 2) return fail("Escribe el nombre de la actividad.");
   const startsAt = data.startsAt?.includes("Z") || /[+-]\d\d:\d\d$/.test(data.startsAt || "") ? new Date(data.startsAt).toISOString() : localDateTimeToIso(data.startsAt, event.timezone);
@@ -284,11 +315,13 @@ async function saveActivity(request, env, existing) {
   const id = existing?.id || newId();
   const time = nowIso();
   if (existing) {
-    await db.prepare(`UPDATE event_activities SET name=?,position=?,starts_at=?,ends_at=?,photo_opens_at=?,photo_closes_at=?,active=?,updated_at=? WHERE id=? AND event_id=?`)
-      .bind(name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, data.active === false ? 0 : 1, time, id, event.id).run();
+    try { await db.prepare(`UPDATE event_activities SET name=?,description=?,position=?,starts_at=?,ends_at=?,photo_opens_at=?,photo_closes_at=?,active=?,updated_at=? WHERE id=? AND event_id=?`)
+      .bind(name, description, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, data.active === false ? 0 : 1, time, id, event.id).run(); }
+    catch (error) { if (!/no such column: description/i.test(error.message)) throw error; await db.prepare(`UPDATE event_activities SET name=?,position=?,starts_at=?,ends_at=?,photo_opens_at=?,photo_closes_at=?,active=?,updated_at=? WHERE id=? AND event_id=?`).bind(name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, data.active === false ? 0 : 1, time, id, event.id).run(); }
   } else {
-    await db.prepare(`INSERT INTO event_activities (id,event_id,name,position,starts_at,ends_at,photo_opens_at,photo_closes_at,active,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run();
+    try { await db.prepare(`INSERT INTO event_activities (id,event_id,name,description,position,starts_at,ends_at,photo_opens_at,photo_closes_at,active,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, description, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run(); }
+    catch (error) { if (!/no such column: description/i.test(error.message)) throw error; await db.prepare(`INSERT INTO event_activities (id,event_id,name,position,starts_at,ends_at,photo_opens_at,photo_closes_at,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run(); }
   }
   if (event.drive_folder_id) await enqueueJob(db, event.id, "init_drive");
   await log(db, existing ? "activity.updated" : "activity.created", "activity", id, event.id);
@@ -364,6 +397,32 @@ async function createContest(request, env) {
   for (const activityId of activityIds) await db.prepare("INSERT INTO contest_activities (contest_id,activity_id) VALUES (?,?)").bind(id, activityId).run();
   await log(db, "contest.created", "contest", id, event.id, { kind: data.kind });
   return json({ contest: await db.prepare("SELECT * FROM contests WHERE id=?").bind(id).first() }, 201);
+}
+
+async function updateContest(request, env, id) {
+  const db = env.DB;
+  const existing = await db.prepare("SELECT * FROM contests WHERE id=?").bind(id).first();
+  if (!existing) return fail("No se encontró el reto.", 404, "contest_not_found");
+  if (existing.state === "finished") return fail("Un reto finalizado no se puede modificar.", 409, "contest_finished");
+  const data = await readJson(request);
+  const name = String(data.name || "").trim();
+  if (!name || !KINDS.has(data.kind)) return fail("Revisa el nombre y el tipo de reto.");
+  const opensAt = new Date(data.opensAt).toISOString();
+  const closesAt = new Date(data.closesAt).toISOString();
+  if (Date.parse(opensAt) >= Date.parse(closesAt)) return fail("Revisa las horas del reto.");
+  const activityIds = Array.isArray(data.activityIds) ? data.activityIds : [];
+  for (const activityId of activityIds) {
+    if (!await db.prepare("SELECT id FROM event_activities WHERE id=? AND event_id=? AND active=1").bind(activityId, existing.event_id).first()) return fail("La actividad no pertenece a este evento.", 422, "activity_event_mismatch");
+  }
+  if (data.prizeId && !await db.prepare("SELECT id FROM prizes WHERE id=? AND event_id=? AND enabled=1").bind(data.prizeId, existing.event_id).first()) return fail("El premio no pertenece a este evento.", 422, "prize_event_mismatch");
+  const stamp = nowIso();
+  await db.prepare("UPDATE contests SET name=?,kind=?,rule_json=?,opens_at=?,closes_at=?,prize_id=?,validation_instructions=?,updated_at=? WHERE id=?")
+    .bind(name, data.kind, JSON.stringify(data.rules || {}), opensAt, closesAt, data.prizeId || null, String(data.validationInstructions || "").trim(), stamp, id).run();
+  await db.prepare("DELETE FROM contest_activities WHERE contest_id=?").bind(id).run();
+  for (const activityId of activityIds) await db.prepare("INSERT INTO contest_activities (contest_id,activity_id) VALUES (?,?)").bind(id, activityId).run();
+  if (existing.prize_id && existing.prize_id !== data.prizeId) await db.prepare("UPDATE prizes SET enabled=0 WHERE id=?").bind(existing.prize_id).run();
+  await log(db, "contest.updated", "contest", id, existing.event_id);
+  return json({ contest: await db.prepare("SELECT * FROM contests WHERE id=?").bind(id).first() });
 }
 
 async function adminContestAction(request, env, [id, action]) {

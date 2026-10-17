@@ -472,3 +472,20 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 
 .home-nickname { margin: 2px 0 0; color: #858b91; font-size: 12px; line-height: 1.2; }
 .guest-identity .guest-nickname { color: #858b91; font-size: 11px; }
+
+/* Integral event setup: grouped fields, repeatable moments, and clear challenge controls. */
+.event-setup-card { overflow: hidden; }
+.event-setup-form { gap: 16px; }
+.setup-section { display: grid; gap: 12px; padding: 17px; border: 1px solid #efe1d9; border-radius: 14px; background: linear-gradient(145deg,#fffefd,#fffaf6); }
+.setup-section > .admin-eyebrow { margin: 0; }
+.setup-section-heading,.setup-activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.setup-section-heading h3,.setup-activity-heading h4 { margin: 3px 0 0; color: #334e45; font-family: var(--serif); font-weight: 500; }
+.setup-activities { display: grid; gap: 12px; }
+.setup-activity-card { display: grid; gap: 10px; padding: 14px; border: 1px solid #ebdfd8; border-radius: 12px; background: #fff; }
+.setup-activity-card [data-remove-setup-activity] { padding: 7px 10px; font-size: 12px; }
+.setup-activity-card textarea { min-height: 64px; }
+.setup-challenge { display: grid; gap: 10px; padding: 13px; border: 1px solid #dfebdf; border-radius: 11px; background: #f6fbf5; }
+.setup-challenge[hidden] { display: none; }
+.setup-activity-card .rule-toggle { margin: 0; }
+.event-setup-form > .admin-button[type=submit] { justify-self: start; }
+#setup-event-feedback { min-height: 18px; margin: 0; }
