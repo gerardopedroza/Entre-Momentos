@@ -1,4 +1,5 @@
 const access = new URLSearchParams(location.search).get("access") || "";
+const venue = new URLSearchParams(location.search).get("venue") || "";
 const root = document.querySelector("#staff-content");
 const feedback = document.querySelector("#staff-feedback");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -9,11 +10,12 @@ async function api(path, options = {}) {
   return result;
 }
 async function load() {
-  if (!access) throw new Error("Pide al administrador el enlace STAFF específico de este evento.");
-  const { events = [] } = await api(`/api/staff/events?access=${encodeURIComponent(access)}`);
-  if (!events.length) throw new Error("Este enlace no tiene un evento activo asignado.");
+  if (!access) throw new Error("Pide al administrador el enlace STAFF de este lugar.");
+  const scope = venue ? `&venue=${encodeURIComponent(venue)}` : "";
+  const { events = [], message: noEventMessage = "" } = await api(`/api/staff/events?access=${encodeURIComponent(access)}${scope}`);
+  if (!events.length) throw new Error(noEventMessage || "Este enlace no tiene un evento activo asignado.");
   const event = events[0];
-  const data = await api(`/api/staff/current?eventId=${encodeURIComponent(event.id)}&access=${encodeURIComponent(access)}`);
+  const data = await api(`/api/staff/current?eventId=${encodeURIComponent(event.id)}&access=${encodeURIComponent(access)}${scope}`);
   render(data);
 }
 function render(data) {
@@ -25,9 +27,9 @@ function render(data) {
     ${contest.delivery?.delivered_at ? `<p>Premio entregado por ${esc(contest.delivery.staff_name || "STAFF")}.</p>` : contest.winner && contest.prize ? `<form class="staff-form" data-delivery="${esc(contest.id)}"><input name="staffName" placeholder="Tu nombre" required maxlength="80"><button class="staff-button">Registrar entrega</button></form>` : ""}</article>`).join("") || "<p>No hay dinámicas configuradas para este evento.</p>"}`;
   root.querySelectorAll("[data-delivery]").forEach(form => form.addEventListener("submit", async event => {
     event.preventDefault(); const button = form.querySelector("button"); button.disabled = true;
-    try { await api(`/api/staff/deliveries?access=${encodeURIComponent(access)}`, { method: "POST", body: JSON.stringify({ eventId: data.event.id, contestId: form.dataset.delivery, staffName: new FormData(form).get("staffName") }) }); feedback.textContent = "Entrega registrada."; await load(); }
+    try { await api(`/api/staff/deliveries?access=${encodeURIComponent(access)}${venue ? `&venue=${encodeURIComponent(venue)}` : ""}`, { method: "POST", body: JSON.stringify({ eventId: data.event.id, contestId: form.dataset.delivery, staffName: new FormData(form).get("staffName") }) }); feedback.textContent = "Entrega registrada."; await load(); }
     catch (error) { feedback.textContent = error.message; button.disabled = false; }
   }));
 }
-if (access) load().catch(error => { root.innerHTML = `<h1>Acceso STAFF</h1><p class="staff-error">${esc(error.message)}</p><p>Solicita al administrador que te comparta el enlace directo de este evento.</p>`; });
-else root.innerHTML = `<h1>Acceso STAFF</h1><p>Solicita al administrador el enlace directo del evento que vas a coordinar.</p>`;
+if (access) load().catch(error => { root.innerHTML = `<h1>Acceso STAFF</h1><p class="staff-error">${esc(error.message)}</p><p>Solicita al administrador el enlace STAFF de este lugar.</p>`; });
+else root.innerHTML = `<h1>Acceso STAFF</h1><p>Solicita al administrador el enlace STAFF correspondiente a tu lugar.</p>`;

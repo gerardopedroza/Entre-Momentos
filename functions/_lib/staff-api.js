@@ -1,19 +1,41 @@
-import { fail, getEventDateLocal, json, newId, nowIso, readJson } from "./core.js";
+import { fail, getEventDateLocal, json, newId, nowIso, readJson, safeEqual, venueStaffToken } from "./core.js";
 import { calculateAutomaticWinner } from "./admin-api.js";
+
+async function venueForStaff(db, env, venueSlug, access) {
+  if (!venueSlug || !access) return null;
+  const venue = await db.prepare("SELECT id,slug,timezone,active FROM venues WHERE slug=? COLLATE NOCASE AND active=1").bind(venueSlug).first();
+  if (!venue || !safeEqual(access, await venueStaffToken(env, venue.id))) return null;
+  return venue;
+}
+
+async function activeVenueEvent(db, venue, eventId = "") {
+  if (!venue) return null;
+  const today = getEventDateLocal(new Date(), venue.timezone);
+  return eventId
+    ? db.prepare("SELECT id,venue_id,name,slug,event_date FROM events WHERE id=? AND venue_id=? AND state='active' AND event_date=?").bind(eventId, venue.id, today).first()
+    : db.prepare("SELECT id,venue_id,name,slug,event_date FROM events WHERE venue_id=? AND state='active' AND event_date=? LIMIT 1").bind(venue.id, today).first();
+}
 
 export async function handleStaffApi(ctx, path) {
   const { request, env } = ctx;
   const db = env.DB;
   const url = new URL(request.url);
   const access = url.searchParams.get("access") || "";
+  const venueSlug = url.searchParams.get("venue") || "";
   async function authorizedEvent(eventId = url.searchParams.get("eventId")) {
     if (!access || !eventId) return null;
-    return db.prepare("SELECT id,venue_id FROM events WHERE id=? AND public_staff_slug=? AND state='active'").bind(eventId, access).first();
+    const event = await db.prepare("SELECT id,venue_id FROM events WHERE id=? AND public_staff_slug=? AND state='active'").bind(eventId, access).first();
+    if (event) return event;
+    const venue = await venueForStaff(db, env, venueSlug, access);
+    return activeVenueEvent(db, venue, eventId);
   }
   if (path === "/api/staff/events" && request.method === "GET") {
     const tokenEvent = await db.prepare("SELECT id,venue_id,name,slug,event_date FROM events WHERE public_staff_slug=? AND state='active'").bind(access).first();
-    if (!tokenEvent) return fail("El enlace de STAFF no es válido o ya fue renovado.", 401, "staff_link_invalid");
-    return json({ events: [tokenEvent] });
+    if (tokenEvent) return json({ events: [tokenEvent] });
+    const venue = await venueForStaff(db, env, venueSlug, access);
+    if (!venue) return fail("El enlace de STAFF no es válido.", 401, "staff_link_invalid");
+    const event = await activeVenueEvent(db, venue);
+    return json({ events: event ? [event] : [], message: event ? "" : "No hay un evento activo hoy en este lugar." });
   }
   if (path === "/api/staff/current" && request.method === "GET") {
     const eventId = url.searchParams.get("eventId");
@@ -57,7 +79,7 @@ export async function handleStaffApi(ctx, path) {
     }
     return json({ event: { id: event.id, name: event.name, venueName: event.venue_name, eventDate: event.event_date }, contests: board, serverTime: nowIso() });
   }
-  if (path === "/api/staff/deliveries" && request.method === "POST") return registerDelivery(request, env, access);
+  if (path === "/api/staff/deliveries" && request.method === "POST") return registerDelivery(request, env, access, venueSlug);
   return null;
 }
 
@@ -66,13 +88,17 @@ async function guestDetails(db, guestId, eventId) {
     LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.id=? AND g.event_id=? AND g.active=1`).bind(guestId, eventId).first();
 }
 
-async function registerDelivery(request, env, access) {
+async function registerDelivery(request, env, access, venueSlug) {
   const data = await readJson(request, 4096);
   const staffName = String(data.staffName || "").trim().slice(0, 80);
   if (!staffName) return fail("Escribe tu nombre para registrar la entrega.");
   const contest = await env.DB.prepare(`SELECT c.id,c.event_id,c.prize_id,c.winner_guest_id,c.state FROM contests c WHERE c.id=?`).bind(data.contestId).first();
   if (!contest || contest.event_id !== data.eventId || !contest.prize_id || !contest.winner_guest_id || contest.state !== "finished") return fail("Este concurso no tiene un premio confirmado para entregar.", 409, "prize_not_ready");
-  const tokenEvent = await env.DB.prepare("SELECT id FROM events WHERE id=? AND public_staff_slug=? AND state='active'").bind(contest.event_id, access).first();
+  let tokenEvent = await env.DB.prepare("SELECT id FROM events WHERE id=? AND public_staff_slug=? AND state='active'").bind(contest.event_id, access).first();
+  if (!tokenEvent) {
+    const venue = await venueForStaff(env.DB, env, venueSlug, access);
+    tokenEvent = await activeVenueEvent(env.DB, venue, contest.event_id);
+  }
   if (!tokenEvent) return fail("El enlace de STAFF no corresponde a este evento.", 401, "staff_link_invalid");
   const current = await env.DB.prepare("SELECT delivered_at FROM prize_deliveries WHERE contest_id=? AND prize_id=? AND guest_id=?").bind(contest.id, contest.prize_id, contest.winner_guest_id).first();
   if (!current) return fail("No encontramos el premio de este ganador.", 404, "prize_delivery_not_found");

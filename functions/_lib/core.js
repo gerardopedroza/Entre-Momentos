@@ -28,6 +28,13 @@ export async function sha256(value) {
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
+export async function venueStaffToken(env, venueId) {
+  const secret = String(env.SESSION_PEPPER || env.ADMIN_PASSWORD_HASH || "");
+  if (!secret) throw new Error("No está configurada la clave segura para enlaces STAFF.");
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`entre-momentos:staff-venue:${venueId}`));
+  return [...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 export function base64url(bytes) {
   const data = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
   let binary = "";

@@ -24,7 +24,7 @@ let staffDashboard = null;
 let staffAuthenticated = false;
 let isDemo = false;
 // The bare site URL is a clickable demo; event links always carry ?event= and use the live guest list.
-let demoSearchEnabled = !new URLSearchParams(window.location.search).has("event");
+let demoSearchEnabled = !new URLSearchParams(window.location.search).has("event") && !new URLSearchParams(window.location.search).has("venue");
 let isSending = false;
 let dragStartX = null;
 let serverClockOffset = 0;
@@ -37,9 +37,14 @@ function screen(name) {
 
 async function api(path, options = {}) {
   const eventSlug = new URLSearchParams(window.location.search).get("event");
+  const venueSlug = new URLSearchParams(window.location.search).get("venue");
   if (eventSlug && (/^\/api\/guests\/identify(?:\/select)?$/.test(path) || path === "/api/events/current")) {
     const scoped = new URL(path, window.location.origin);
     scoped.searchParams.set("event", eventSlug);
+    path = scoped.pathname + scoped.search;
+  } else if (venueSlug && (/^\/api\/guests\/identify(?:\/select)?$/.test(path) || path === "/api/events/current")) {
+    const scoped = new URL(path, window.location.origin);
+    scoped.searchParams.set("venue", venueSlug);
     path = scoped.pathname + scoped.search;
   }
   let response;

@@ -243,7 +243,7 @@ function renderVenues() {
   $$('[data-delete-venue]', $("#venues-list")).forEach((button) => button.addEventListener("click", () => deleteVenue(button.dataset.deleteVenue)));
 }
 function eventCard(event, configButton = true) {
-  return `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(event.name)}</h3><div class="admin-meta">${esc(event.venue_name)} · ${dateLabel(event.event_date)}</div></div><span class="admin-badge ${event.state === "active" ? "active" : ""}">${eventStateLabel(event.state)}</span></div><div class="admin-meta" style="margin-top:8px">${Number(event.guest_count || 0)} invitados · ${Number(event.activity_count || 0)} momentos${event.drive_status === "ready" ? " · Drive conectado" : " · Drive pendiente"}</div><div class="admin-actions">${configButton ? `<button class="admin-button secondary" type="button" data-configure="${esc(event.id)}">Modificar evento</button><button class="admin-button secondary" type="button" data-delete-event="${esc(event.id)}">Eliminar evento</button>` : ""}<a class="admin-button secondary" href="${esc(event.staffUrl)}" target="_blank" rel="noopener noreferrer">Abrir STAFF</a><button class="admin-button" type="button" data-copy-staff="${esc(event.id)}" aria-label="Copiar URL de STAFF para ${esc(event.name)}"><svg aria-hidden="true" viewBox="0 0 24 24" style="width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>Copiar URL STAFF</button></div></article>`;
+  return `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(event.name)}</h3><div class="admin-meta">${esc(event.venue_name)} · ${dateLabel(event.event_date)}</div></div><span class="admin-badge ${event.state === "active" ? "active" : ""}">${eventStateLabel(event.state)}</span></div><div class="admin-meta" style="margin-top:8px">${Number(event.guest_count || 0)} invitados · ${Number(event.activity_count || 0)} momentos${event.drive_status === "ready" ? " · Drive conectado" : " · Drive pendiente"}</div>${configButton ? `<div class="admin-actions"><button class="admin-button secondary" type="button" data-configure="${esc(event.id)}">Modificar evento</button><button class="admin-button secondary" type="button" data-delete-event="${esc(event.id)}">Eliminar evento</button></div>` : ""}</article>`;
 }
 function editVenue(id) {
   const venue = state.venues.find((item) => item.id === id);
@@ -278,15 +278,17 @@ async function deleteEvent(id) {
     await loadDashboard();
   } catch (error) { message(error.message); }
 }
-function bindStaffCopy(root = document) {
-  $$('[data-copy-staff]', root).forEach((button) => button.addEventListener("click", async () => {
-    const event = state.events.find((item) => item.id === button.dataset.copyStaff);
-    if (!event) return;
-    try { await navigator.clipboard.writeText(event.staffUrl); }
-    catch { const field = document.createElement("textarea"); field.value = event.staffUrl; document.body.append(field); field.select(); document.execCommand("copy"); field.remove(); }
-    button.textContent = "URL copiada";
-    message(`Enlace STAFF de ${event.name} copiado. Ya puedes enviarlo por WhatsApp.`);
-    setTimeout(() => { if (button.isConnected) button.textContent = "Copiar URL STAFF"; }, 1800);
+function bindVenueUrlCopy(root = document) {
+  $$('[data-copy-venue-url]', root).forEach((button) => button.addEventListener("click", async () => {
+    const venue = state.venues.find((item) => item.id === button.dataset.venueId);
+    const url = venue?.[button.dataset.copyVenueUrl === "staff" ? "staffUrl" : "guestUrl"];
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); }
+    catch { const field = document.createElement("textarea"); field.value = url; document.body.append(field); field.select(); document.execCommand("copy"); field.remove(); }
+    const original = button.textContent;
+    button.textContent = "Copiada";
+    message(`${button.dataset.copyVenueUrl === "staff" ? "URL STAFF" : "URL de invitados"} de ${venue.name} copiada.`);
+    setTimeout(() => { if (button.isConnected) button.textContent = original; }, 1800);
   }));
 }
 function renderEvents() {
@@ -295,7 +297,6 @@ function renderEvents() {
   $("#events-list").innerHTML = grouped.size ? [...grouped].map(([venue, events]) => `<section class="event-venue-group"><div class="event-venue-heading"><h3>${esc(venue)}</h3><span>${events.length} evento(s)</span></div><div class="admin-list">${events.map((event) => eventCard(event)).join("")}</div></section>`).join("") : '<div class="empty-state">Aún no hay eventos. Crea uno después de registrar el lugar.</div>';
   $$('[data-configure]', $("#events-list")).forEach((button) => button.addEventListener("click", () => selectEvent(button.dataset.configure)));
   $$('[data-delete-event]', $("#events-list")).forEach((button) => button.addEventListener("click", () => deleteEvent(button.dataset.deleteEvent)));
-  bindStaffCopy($("#events-list"));
 }
 function openEventCreation() {
   navigate("events");
@@ -305,10 +306,8 @@ function openEventCreation() {
   $("#event-setup-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function renderStaff() {
-  const grouped = new Map();
-  state.events.forEach((event) => { if (!grouped.has(event.venue_name)) grouped.set(event.venue_name, []); grouped.get(event.venue_name).push(event); });
-  $("#staff-list").innerHTML = grouped.size ? [...grouped].map(([venue, events]) => `<section class="admin-card"><p class="admin-eyebrow">LUGAR</p><h2>${esc(venue)}</h2><div class="admin-list">${events.map((event) => eventCard(event, false)).join("")}</div></section>`).join("") : '<div class="empty-state">Cuando crees eventos, aquí encontrarás sus enlaces STAFF agrupados por lugar.</div>';
-  bindStaffCopy($("#staff-list"));
+  $("#staff-list").innerHTML = state.venues.length ? state.venues.map((venue) => `<section class="admin-card"><p class="admin-eyebrow">LUGAR</p><h2>${esc(venue.name)}</h2><p class="admin-meta">${venue.active_event_name ? `Evento activo hoy: ${esc(venue.active_event_name)}` : "Sin evento activo hoy; estos enlaces mostrarán el evento de este lugar cuando esté activo."}</p><div class="admin-url"><strong>STAFF</strong><input aria-label="URL STAFF de ${esc(venue.name)}" readonly value="${esc(venue.staffUrl)}"><button class="admin-button secondary" type="button" data-copy-venue-url="staff" data-venue-id="${esc(venue.id)}">Copiar</button></div><a class="admin-link-open" href="${esc(venue.staffUrl)}" target="_blank" rel="noopener noreferrer">Abrir enlace STAFF ↗</a><div class="admin-url"><strong>INVITADOS</strong><input aria-label="URL de invitados de ${esc(venue.name)}" readonly value="${esc(venue.guestUrl)}"><button class="admin-button secondary" type="button" data-copy-venue-url="guest" data-venue-id="${esc(venue.id)}">Copiar</button></div><a class="admin-link-open" href="${esc(venue.guestUrl)}" target="_blank" rel="noopener noreferrer">Abrir enlace de invitados ↗</a></section>`).join("") : '<div class="empty-state">Cuando registres un lugar, aquí aparecerán sus URLs para STAFF e invitados.</div>';
+  bindVenueUrlCopy($("#staff-list"));
 }
 
 async function selectEvent(id, tab = "details") {

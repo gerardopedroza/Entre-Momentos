@@ -3,20 +3,20 @@ import { fail, getEventDateLocal, isEligible, json, newId, normalizeName, nowIso
 import { downloadDriveImage, driveIdFromUrl, ensureActivityDriveFolder, uploadGuestPhoto } from "./google-drive.js";
 import { enqueueJob } from "./jobs.js";
 
-function publicUrl(event, venue) { return "/l/" + venue.slug + "?event=" + encodeURIComponent(event.slug); }
+function publicUrl(event, venue) { return "/l/" + encodeURIComponent(venue.slug) + "?venue=" + encodeURIComponent(venue.slug); }
 
 async function resolvePublicEvent(request, env, eventSession = null) {
   const url = new URL(request.url);
   const slug = url.searchParams.get("event");
   const venueSlug = url.searchParams.get("venue");
   let event = null;
-  if (eventSession?.event_id) event = await env.DB.prepare("SELECT * FROM events WHERE id=? AND state='active'").bind(eventSession.event_id).first();
-  if (!event && slug) event = await env.DB.prepare("SELECT * FROM events WHERE slug=? COLLATE NOCASE AND state='active'").bind(slug).first();
-  if (!event && venueSlug) {
+  if (venueSlug) {
     const venue = await env.DB.prepare("SELECT * FROM venues WHERE slug=? COLLATE NOCASE AND active=1").bind(venueSlug).first();
     if (venue) event = await env.DB.prepare("SELECT * FROM events WHERE venue_id=? AND event_date=? AND state='active' LIMIT 1")
       .bind(venue.id, getEventDateLocal(new Date(), venue.timezone)).first();
   }
+  if (!venueSlug && eventSession?.event_id) event = await env.DB.prepare("SELECT * FROM events WHERE id=? AND state='active'").bind(eventSession.event_id).first();
+  if (!venueSlug && !event && slug) event = await env.DB.prepare("SELECT * FROM events WHERE slug=? COLLATE NOCASE AND state='active'").bind(slug).first();
   return event;
 }
 

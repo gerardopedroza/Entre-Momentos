@@ -1,6 +1,6 @@
 import { createAdminSession, requireAdmin, revokeAdmin } from "./auth.js";
 import { enqueueJob, processDueJobs } from "./jobs.js";
-import { fail, getEventDateLocal, json, localDateTimeToIso, newId, nowIso, readJson, slugify } from "./core.js";
+import { fail, getEventDateLocal, json, localDateTimeToIso, newId, nowIso, readJson, slugify, venueStaffToken } from "./core.js";
 import { deleteDriveImage, driveIdFromUrl, ensureEventDriveStructure } from "./google-drive.js";
 
 const KINDS = new Set(["first_photo", "most_photos", "photo_with_couple", "bouquet", "manual"]);
@@ -14,8 +14,6 @@ async function log(db, action, entityType, entityId, eventId = null, detail = {}
   await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'admin', 'administrator', ?,?,?,?,?)")
     .bind(newId(), eventId, action, entityType, entityId, JSON.stringify(detail), nowIso()).run();
 }
-function publicEventPath(event, venue) { return "/l/" + venue.slug + "?event=" + encodeURIComponent(event.slug); }
-
 export async function handleAdminApi(ctx, path) {
   const { request, env } = ctx;
   const db = env.DB;
@@ -34,17 +32,23 @@ export async function handleAdminApi(ctx, path) {
 
     if (path === "/api/admin/dashboard" && method === "GET") {
       const venues = await db.prepare("SELECT v.*,COUNT(e.id) AS event_count FROM venues v LEFT JOIN events e ON e.venue_id=v.id GROUP BY v.id ORDER BY v.name").all();
-      const events = await db.prepare(`SELECT e.*,v.name AS venue_name,v.slug AS venue_slug,
+      const events = await db.prepare(`SELECT e.*,v.name AS venue_name,v.slug AS venue_slug,v.timezone AS venue_timezone,
         (SELECT COUNT(*) FROM event_activities a WHERE a.event_id=e.id AND a.active=1) AS activity_count,
         (SELECT COUNT(*) FROM event_guests g WHERE g.event_id=e.id AND g.active=1) AS guest_count,
         (SELECT COUNT(*) FROM integration_jobs j WHERE j.event_id=e.id AND j.state IN ('pending','retry','dead')) AS pending_jobs
         FROM events e JOIN venues v ON v.id=e.venue_id ORDER BY e.event_date DESC,e.name`).all();
       const origin = new URL(request.url).origin;
-      return json({ venues: venues.results || [], events: (events.results || []).map((event) => ({
-        ...event,
-        guestUrl: origin + publicEventPath(event, { slug: event.venue_slug }),
-        staffUrl: origin + "/staff.html?access=" + encodeURIComponent(event.public_staff_slug),
-      })) });
+      const today = new Map();
+      for (const event of events.results || []) if (event.state === "active" && event.event_date === getEventDateLocal(new Date(), event.venue_timezone)) today.set(event.venue_id, event);
+      return json({ venues: await Promise.all((venues.results || []).map(async (venue) => {
+        const activeEvent = today.get(venue.id);
+        const access = await venueStaffToken(env, venue.id);
+        return { ...venue,
+          active_event_name: activeEvent?.name || "",
+          guestUrl: origin + "/l/" + encodeURIComponent(venue.slug) + "?venue=" + encodeURIComponent(venue.slug),
+          staffUrl: origin + "/staff.html?venue=" + encodeURIComponent(venue.slug) + "&access=" + access,
+        };
+      })), events: events.results || [] });
     }
 
     if (path === "/api/admin/venues" && method === "GET") {
