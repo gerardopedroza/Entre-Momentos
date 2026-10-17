@@ -564,6 +564,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 
 /* Guest welcome: prominent event identity, readable rules, and a clear name search. */
 .identify-screen {
+  --welcome-top: 68px;
   inset: 0;
   justify-content: flex-start;
   gap: 0;
@@ -586,6 +587,7 @@ body[data-screen="welcome"] .app-frame .wordmark-symbol span { color: #ffe4c2; }
 body[data-screen="welcome"] .app-frame .event-backdrop { z-index: 0; }
 body[data-screen="welcome"] .app-frame main { z-index: 1; }
 .event-cover {
+  position: relative;
   flex: 1 1 auto;
   min-height: 245px;
   align-items: center;
@@ -604,9 +606,9 @@ body[data-screen="welcome"] .app-frame main { z-index: 1; }
   text-align: center;
   text-shadow: 0 2px 12px #14221aff;
 }
-.cover-caption { position: relative; isolation: isolate; width: 100%; margin: auto 0 30px; padding: 8px 10px 6px; text-align: center; }
+.cover-caption { position: absolute; top: calc(50dvh - var(--welcome-top)); right: 0; left: 0; width: 100%; margin: 0; padding: 8px 10px 6px; transform: translateY(-50%); text-align: center; }
 .cover-caption h1 { margin: 0; font: 400 clamp(58px,17vw,82px)/.88 "Allura",cursive; letter-spacing: 0; color: #fff; text-shadow: 0 2px 16px #14221add,0 0 24px #14221a82; }
-.cover-slogan { display: grid; gap: 0; margin-top: 7px; color: #fff; font-size: clamp(15px,4.2vw,18px); font-weight: 500; line-height: 1.3; text-shadow: 0 2px 10px #14221aff; }
+.cover-slogan { position: absolute; top: calc(50dvh - var(--welcome-top) + 52px); right: 19px; left: 19px; display: grid; gap: 0; margin: 0; color: #fff; font-size: clamp(15px,4.2vw,18px); font-weight: 500; line-height: 1.3; text-align: center; text-shadow: 0 2px 10px #14221aff; }
 .cover-slogan strong { font-weight: 700; letter-spacing: .2px; }
 .identity-form { flex: 0 0 auto; gap: 8px; padding: 0 19px max(12px,env(safe-area-inset-bottom)); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
 .identity-form .field-label { margin-bottom: 0; color: #334940; font-size: 14px; font-weight: 700; }
@@ -616,11 +618,10 @@ body[data-screen="welcome"] .app-frame main { z-index: 1; }
 .identity-form .primary-button span { margin-left: auto; }
 .identity-form .demo-entry { min-height: 24px; font-size: 11px; }
 @media (max-height: 700px) {
-  .identify-screen { padding-top: 60px; }
+  .identify-screen { --welcome-top: 60px; padding-top: 60px; }
   .event-cover { min-height: 200px; padding: 8px 17px 11px; }
-  .cover-caption { margin-bottom: 20px; }
   .cover-caption h1 { font-size: clamp(54px,15vw,72px); }
-  .cover-slogan { margin-top: 4px; font-size: 14px; }
+  .cover-slogan { top: calc(50dvh - var(--welcome-top) + 45px); font-size: 14px; }
   .identity-form { gap: 5px; padding: 0 14px max(8px,env(safe-area-inset-bottom)); }
   .identity-form > input { min-height: 42px; }
   .identity-form .primary-button { min-height: 44px; }
