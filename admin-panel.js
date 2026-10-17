@@ -527,7 +527,7 @@ async function importFile(input, kind) {
 
 $("#login-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const button = $("button", event.currentTarget); button.disabled = true; message("Comprobando acceso…");
-  try { await send("/api/admin/session", "POST", { username: $("#username").value.trim(), password: $("#password").value }); $("#password").value = ""; await loadDashboard(); navigate("overview"); message("Sesión iniciada."); }
+  try { await send("/api/admin/session", "POST", { username: $("#username").value.trim(), password: $("#password").value }); $("#password").value = ""; await loadDashboard(); navigate("overview"); message(""); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
