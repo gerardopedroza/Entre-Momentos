@@ -199,6 +199,7 @@ function renderCarousel() {
     const title = document.createElement("h2");
     title.className = "moment-card-name";
     title.textContent = moment.name || "Momento";
+    if (title.textContent.length > 24) title.classList.add("is-long");
     const time = document.createElement("p");
     time.className = "moment-card-meta";
     time.textContent = moment.start || moment.startTime || "";
