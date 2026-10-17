@@ -80,8 +80,15 @@ async function shapeEvent(db, event, venue, now = Date.now()) {
     coverUrl: activity.asset_id ? "/api/media/" + activity.asset_id : null,
     state: now < Date.parse(activity.starts_at) ? "upcoming" : now < Date.parse(activity.ends_at) ? "active" : "finished",
   }));
-  const current = moments.find((activity) => activity.state === "active");
-  const next = moments.find((activity) => activity.state === "upcoming");
+  const current = moments.find((activity) => {
+    const opensAt = Date.parse(activity.photoOpensAt || "");
+    const closesAt = Date.parse(activity.photoClosesAt || "");
+    return Number.isFinite(opensAt) && Number.isFinite(closesAt) && now >= opensAt && now < closesAt;
+  });
+  const next = moments.filter((activity) => {
+    const opensAt = Date.parse(activity.photoOpensAt || "");
+    return Number.isFinite(opensAt) && opensAt > now;
+  }).sort((a, b) => Date.parse(a.photoOpensAt) - Date.parse(b.photoOpensAt))[0] || moments[0];
   return {
     id: event.id,
     name: event.name,

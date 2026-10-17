@@ -309,50 +309,23 @@ async function removeAllEventPhotos(env, event) {
 async function downloadEventArchive(env, event) {
   const bucket = await requireEventBucket(env);
   const db = env.DB;
-  const [venue, activities, guests, tables, photos, dedications, contests, contestActivities, prizes, contestResults, deliveries, assets, objects] = await Promise.all([
-    db.prepare("SELECT * FROM venues WHERE id=?").bind(event.venue_id).first(),
-    db.prepare("SELECT * FROM event_activities WHERE event_id=? ORDER BY position,starts_at").bind(event.id).all(),
-    db.prepare("SELECT * FROM event_guests WHERE event_id=? ORDER BY name").bind(event.id).all(),
-    db.prepare("SELECT * FROM event_tables WHERE event_id=? ORDER BY position,name").bind(event.id).all(),
+  const [photos, dedications, objects] = await Promise.all([
     db.prepare(`SELECT ps.*,a.name AS activity_name,g.name AS guest_name FROM photo_submissions ps
       JOIN event_activities a ON a.id=ps.activity_id JOIN event_guests g ON g.id=ps.guest_id WHERE ps.event_id=? ORDER BY ps.received_at`).bind(event.id).all(),
     db.prepare("SELECT d.*,g.name AS guest_name FROM dedications d JOIN event_guests g ON g.id=d.guest_id WHERE d.event_id=? ORDER BY d.created_at").bind(event.id).all(),
-    db.prepare("SELECT * FROM contests WHERE event_id=? ORDER BY opens_at").bind(event.id).all(),
-    db.prepare("SELECT ca.* FROM contest_activities ca JOIN contests c ON c.id=ca.contest_id WHERE c.event_id=? ORDER BY ca.contest_id,ca.activity_id").bind(event.id).all(),
-    db.prepare("SELECT * FROM prizes WHERE event_id=? ORDER BY name").bind(event.id).all(),
-    db.prepare("SELECT * FROM contest_results WHERE event_id=? ORDER BY calculated_at").bind(event.id).all(),
-    db.prepare("SELECT pd.* FROM prize_deliveries pd JOIN contests c ON c.id=pd.contest_id WHERE c.event_id=? ORDER BY pd.created_at").bind(event.id).all(),
-    db.prepare("SELECT m.*,a.name AS activity_name FROM media_assets m LEFT JOIN event_activities a ON a.reference_asset_id=m.id WHERE m.event_id=? ORDER BY m.created_at").bind(event.id).all(),
     listEventObjects(bucket, event.id),
   ]);
-  const eventData = {
-    exportedAt: nowIso(), event: { ...event, drive_folder_url: null, drive_folder_id: null, dedications_sheet_url: null, dedications_sheet_id: null, drive_status: "not_configured" }, venue,
-    activities: activities.results || [], guests: guests.results || [], tables: tables.results || [],
-    photoSubmissions: photos.results || [], dedications: dedications.results || [], contests: contests.results || [],
-    contestActivities: contestActivities.results || [], prizes: prizes.results || [], contestResults: contestResults.results || [], prizeDeliveries: deliveries.results || [],
-    mediaAssets: assets.results || [],
-  };
   const files = [
-    { name: "Datos del evento/evento.json", bytes: new TextEncoder().encode(JSON.stringify(eventData, null, 2)) },
-    { name: "Datos del evento/dedicatorias.csv", bytes: new TextEncoder().encode("\ufeffNombre,Fecha,Mensaje\r\n" + (dedications.results || []).map((row) => [row.guest_name, row.created_at, row.message].map(csvCell).join(",")).join("\r\n")) },
+    { name: "Dedicatorias/dedicatorias.csv", bytes: new TextEncoder().encode("\ufeffNombre,Fecha,Mensaje\r\n" + (dedications.results || []).map((row) => [row.guest_name, row.created_at, row.message].map(csvCell).join(",")).join("\r\n")) },
   ];
   const objectByKey = new Map(objects.map((object) => [object.key, object]));
-  const used = new Set();
   for (const photo of photos.results || []) {
     const key = String(photo.drive_file_id || "").replace(/^r2:/, "");
     const object = objectByKey.get(key);
     if (!key || !object) continue;
     const extension = key.split(".").pop() || "jpg";
     const path = `Fotos/${safeArchiveName(photo.activity_name)}/${safeArchiveName(photo.received_at)}_${safeArchiveName(photo.guest_name)}_${safeArchiveName(photo.guest_id)}.${extension}`;
-    files.push({ name: path, key, size: object.size }); used.add(key);
-  }
-  const assetRows = new Map((assets.results || []).map((asset) => [asset.r2_key, asset]));
-  for (const object of objects) {
-    if (used.has(object.key) || object.key.endsWith("/event.json") || object.key.endsWith("/activity.json")) continue;
-    const asset = assetRows.get(object.key);
-    if (asset) files.push({ name: `Imagenes/${asset.kind === "event_cover" ? "Portada-" + safeArchiveName(asset.id) : "Referencia-" + safeArchiveName(asset.activity_name || asset.id)}.${object.key.split(".").pop()}`, key: object.key, size: object.size });
-    else files.push({ name: `Contenido R2/${object.key.slice(eventPrefix(event.id).length)}`, key: object.key, size: object.size });
-    used.add(object.key);
+    files.push({ name: path, key, size: object.size });
   }
   const body = zipStream(files, bucket);
   return new Response(body, { headers: {

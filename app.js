@@ -105,8 +105,20 @@ function showHome(profile, data, demo = false) {
   $("#connected-count").textContent = hasLiveCount ? String(count) : "—";
   $("#presence-status").textContent = count === 1 ? "invitado participando" : "invitados participando";
   $("#guest-presence").classList.toggle("has-live-count", hasLiveCount);
-  const active = moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
-  const next = moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
+  const now = Date.now() + serverClockOffset;
+  const photoWindowIndex = moments.findIndex((moment) => {
+    const opensAt = Date.parse(moment.photoOpensAt || "");
+    const closesAt = Date.parse(moment.photoClosesAt || "");
+    return Number.isFinite(opensAt) && Number.isFinite(closesAt) && now >= opensAt && now < closesAt;
+  });
+  const nextPhotoWindowIndex = moments.reduce((soonestIndex, moment, index) => {
+    const opensAt = Date.parse(moment.photoOpensAt || "");
+    if (!Number.isFinite(opensAt) || opensAt <= now) return soonestIndex;
+    const soonestAt = soonestIndex < 0 ? Infinity : Date.parse(moments[soonestIndex].photoOpensAt || "");
+    return opensAt < soonestAt ? index : soonestIndex;
+  }, -1);
+  const active = photoWindowIndex >= 0 ? photoWindowIndex : moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
+  const next = nextPhotoWindowIndex >= 0 ? nextPhotoWindowIndex : moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
   selectedMomentIndex = active >= 0 ? active : next >= 0 ? next : 0;
   const initialAvailable = findAvailableMoment(selectedMomentIndex, 1, true) ?? findAvailableMoment(selectedMomentIndex, -1, true);
   if (initialAvailable !== null) selectedMomentIndex = initialAvailable;
@@ -119,26 +131,33 @@ function showHome(profile, data, demo = false) {
 
 function showCarouselTapHint() {
   const stage = $("#carousel-stage");
-  if (!stage || !moments.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!stage || !moments.length) return;
   let alreadyShown = false;
-  try { alreadyShown = localStorage.getItem("em-carousel-gesture-seen-v3") === "1"; } catch {}
+  try { alreadyShown = localStorage.getItem("em-carousel-gesture-seen-v4") === "1"; } catch {}
   if (alreadyShown || carouselTapHintShown) return;
   carouselTapHintShown = true;
-  try { localStorage.setItem("em-carousel-gesture-seen-v3", "1"); } catch {}
   carouselTutorialTimers.forEach(window.clearTimeout);
   carouselTutorialTimers = [];
   stage.classList.remove("swipe-tutorial", "tap-tutorial");
   void stage.offsetWidth;
   const hasSwipeTarget = moments.length > 1;
-  if (hasSwipeTarget) stage.classList.add("swipe-tutorial");
-  carouselTutorialTimers.push(window.setTimeout(() => {
-    stage.classList.remove("swipe-tutorial");
-    stage.classList.add("tap-tutorial");
-  }, hasSwipeTarget ? 3600 : 100));
-  carouselTutorialTimers.push(window.setTimeout(() => {
-    stage.classList.remove("tap-tutorial");
-    carouselTutorialTimers = [];
-  }, hasSwipeTarget ? 7000 : 3200));
+  const playTutorial = () => {
+    if (!stage.isConnected || document.body.dataset.screen !== "home") {
+      carouselTapHintShown = false;
+      return;
+    }
+    if (hasSwipeTarget) stage.classList.add("swipe-tutorial");
+    carouselTutorialTimers.push(window.setTimeout(() => {
+      stage.classList.remove("swipe-tutorial");
+      stage.classList.add("tap-tutorial");
+    }, hasSwipeTarget ? 3900 : 100));
+    carouselTutorialTimers.push(window.setTimeout(() => {
+      stage.classList.remove("tap-tutorial");
+      try { localStorage.setItem("em-carousel-gesture-seen-v4", "1"); } catch {}
+      carouselTutorialTimers = [];
+    }, hasSwipeTarget ? 7600 : 3900));
+  };
+  requestAnimationFrame(() => requestAnimationFrame(playTutorial));
 }
 
 function setPresenceCount(count) {

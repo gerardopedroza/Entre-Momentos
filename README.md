@@ -19,7 +19,7 @@ Los enlaces de eventos en preparación se pueden copiar antes del evento, pero s
 - El navegador solo mantiene temporalmente la imagen durante la selección y vista previa. Las fotos se guardan en Cloudflare R2 con rutas separadas por evento y actividad.
 - Las dedicatorias se asocian con el nombre de quien las escribió y se guardan con los datos del evento; la descarga del evento incluye un CSV para abrir en Excel.
 - Cada evento tiene una carpeta lógica en R2 y cada actividad una subcarpeta. La primera foto crea la ruta de fotos de esa actividad; las siguientes se guardan en la misma ruta.
-- La administración puede descargar un ZIP con la configuración, invitados, dedicatorias e imágenes del evento. También puede borrar solo sus fotos de invitados o eliminar el evento completo y todos sus archivos R2.
+- La administración puede descargar un ZIP con las fotos que enviaron los invitados y un CSV de dedicatorias para abrir en Excel. Las imágenes precargadas de diseño y los archivos internos de R2 no se incluyen. También puede borrar solo las fotos de invitados o eliminar el evento completo y todos sus archivos R2.
 - El enlace STAFF muestra resultados de dinámicas y permite registrar la entrega de premios.
 
 ## Regla de diseño para todas las pantallas
@@ -36,7 +36,7 @@ El repositorio incluye páginas estáticas, Cloudflare Pages Functions y migraci
 - `SESSION_PEPPER`: valor secreto aleatorio para proteger sesiones y códigos de invitación.
 - Un bucket R2 enlazado a Pages con el binding `EVENT_MEDIA`.
 
-Configura el binding `EVENT_MEDIA` en Cloudflare Pages y enlázalo a un bucket R2. Portadas, imágenes de actividades y fotos de invitados se guardan en ese bucket; las fotos de portada y referencia se sirven desde `/api/media/{id}`. La información estructurada se conserva en D1 y se agrega al ZIP de descarga junto con sus imágenes. No se necesita autorizar una carpeta externa del fotógrafo.
+Configura el binding `EVENT_MEDIA` en Cloudflare Pages y enlázalo a un bucket R2. Portadas, imágenes de actividades y fotos de invitados se guardan en ese bucket; las fotos de portada y referencia se sirven desde `/api/media/{id}`. La información estructurada se conserva en D1; la descarga del ZIP se limita a las fotos de invitados y el CSV de dedicatorias. No se necesita autorizar una carpeta externa del fotógrafo.
 
 ## Publicar
 
