@@ -545,7 +545,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 .moment-card-action,
 .moment-thumbnail { display: none !important; }
 .moment-card.has-photo { background-color: #e9e5df; }
-.moment-card-submitted-check { position: absolute; top: 11px; right: 11px; display: grid; width: 34px; height: 34px; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #279357; color: #fff; box-shadow: 0 3px 10px #14251c55; }
+.moment-card-submitted-check { position: absolute; top: 50%; left: 50%; display: grid; width: 48px; height: 48px; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #279357; color: #fff; box-shadow: 0 3px 12px #14251c70; transform: translate(-50%,-50%); }
 .moment-card-submitted-check svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .carousel-tap-hand { position: absolute; z-index: 20; top: 48%; left: 53%; display: none; width: 46px; height: 54px; filter: drop-shadow(0 3px 3px #17261f47); pointer-events: none; }
 .carousel-stage.tap-tutorial .carousel-tap-hand { display: block; animation: hand-tap 3.5s ease-in-out both; }

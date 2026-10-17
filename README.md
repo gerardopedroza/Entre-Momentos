@@ -15,6 +15,7 @@ Los enlaces de eventos en preparación se pueden copiar antes del evento, pero s
 ## Qué hace la plataforma
 
 - La agenda abre la carga de fotos cinco minutos antes de cada actividad y la cierra cinco minutos antes de que termine. El servidor decide a qué actividad corresponde la foto y si participa en una dinámica.
+- El día operativo del evento termina a las 4:00 a. m.; después de medianoche, el evento sigue disponible hasta esa hora.
 - Cada invitado puede enviar una foto por actividad. Una foto enviada fuera del horario todavía se conserva para el álbum, pero no participa en esa dinámica.
 - El navegador solo mantiene temporalmente la imagen durante la selección y vista previa. Las fotos se guardan en Cloudflare R2 con rutas separadas por evento y actividad.
 - Las dedicatorias se asocian con el nombre de quien las escribió y se guardan con los datos del evento; la descarga del evento incluye un CSV para abrir en Excel.

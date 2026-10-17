@@ -68,7 +68,17 @@ export function setCookie(name, value, maxAge) {
 export function clearCookie(name) { return name + "=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"; }
 
 export function getEventDateLocal(date = new Date(), timeZone = TZ) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(date).filter((part) => part.type !== "literal").map(({ type, value }) => [type, Number(value)]));
+  let { year, month, day } = parts;
+  if (parts.hour < 4) {
+    const previous = new Date(Date.UTC(year, month - 1, day - 1));
+    year = previous.getUTCFullYear();
+    month = previous.getUTCMonth() + 1;
+    day = previous.getUTCDate();
+  }
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 // Convert a venue-local datetime into a UTC ISO timestamp without relying on the visitor's clock zone.
