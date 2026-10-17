@@ -163,6 +163,29 @@ export async function uploadGuestPhoto(env, folderId, eventId, guestId, idempote
   return result;
 }
 
+export async function uploadEventImage(env, folderId, eventId, assetId, file, fileName) {
+  const boundary = "em_" + crypto.randomUUID().replaceAll("-", "");
+  const key = eventId + ":asset:" + assetId;
+  const metadata = { name: fileName, mimeType: file.type, parents: [folderId], appProperties: { entreMomentosKey: key, eventId, assetId } };
+  const prefix = "--" + boundary + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + JSON.stringify(metadata) + "\r\n--" + boundary + "\r\nContent-Type: " + file.type + "\r\n\r\n";
+  const suffix = "\r\n--" + boundary + "--";
+  const { payload } = await driveRequest(env, "/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType", {
+    method: "POST", headers: { "Content-Type": "multipart/related; boundary=" + boundary }, body: new Blob([prefix, file, suffix]),
+  });
+  if (!payload?.id) throw new Error("Drive no confirmó la imagen del evento.");
+  return payload;
+}
+
+export async function downloadDriveImage(env, fileId) {
+  const response = await fetch(API + "/files/" + encodeURIComponent(fileId) + "?alt=media", { headers: { Authorization: "Bearer " + await accessToken(env) } });
+  if (!response.ok) throw Object.assign(new Error("Google Drive no pudo abrir la imagen del evento."), { code: "drive_api_error", providerStatus: response.status });
+  return response;
+}
+
+export async function deleteDriveImage(env, fileId) {
+  await driveRequest(env, "/files/" + encodeURIComponent(fileId), { method: "DELETE" });
+}
+
 async function sheetsRequest(env, sheetId, range, init) {
   const url = "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(sheetId) + "/values/" + encodeURIComponent(range);
   const response = await fetch(url, { ...init, headers: { Authorization: "Bearer " + await accessToken(env), ...(init.headers || {}) } });

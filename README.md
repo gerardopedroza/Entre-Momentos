@@ -34,7 +34,7 @@ El repositorio incluye páginas estáticas, Cloudflare Pages Functions y migraci
 - `SESSION_PEPPER`: valor secreto aleatorio para proteger sesiones y códigos de invitación.
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` y `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`: cuenta de servicio que crea carpetas y hojas, y carga fotos.
 
-Configura también un binding R2 llamado `EVENT_MEDIA` para almacenar la fotografía de fondo y las referencias visuales de las actividades. Cada carpeta de Drive debe compartirse explícitamente con el correo de la cuenta de servicio, con permiso de edición. No hace falta hacerla pública. La integración aún no puede operar hasta que esas credenciales y el binding de Cloudflare estén configurados. El enlace de carpeta por sí solo no concede acceso.
+Las fotografías de fondo y referencias visuales se guardan en la carpeta de Drive de cada evento cuando las credenciales de Google están disponibles. Si no se configuran, puede usarse un binding R2 llamado `EVENT_MEDIA` como alternativa. Cada carpeta de Drive debe compartirse explícitamente con el correo de la cuenta de servicio, con permiso de edición. No hace falta hacerla pública. El enlace de carpeta por sí solo no concede acceso.
 
 ## Publicar
 

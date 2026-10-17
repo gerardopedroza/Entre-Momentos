@@ -1,6 +1,6 @@
 import { createGuestSession, guestSession, revokeGuest } from "./auth.js";
 import { fail, getEventDateLocal, isEligible, json, newId, normalizeName, nowIso, readJson } from "./core.js";
-import { driveIdFromUrl, ensureActivityDriveFolder, uploadGuestPhoto } from "./google-drive.js";
+import { downloadDriveImage, driveIdFromUrl, ensureActivityDriveFolder, uploadGuestPhoto } from "./google-drive.js";
 import { enqueueJob } from "./jobs.js";
 
 function publicUrl(event, venue) { return "/l/" + venue.slug + "?event=" + encodeURIComponent(event.slug); }
@@ -241,7 +241,12 @@ async function submitDedication(request, env) {
 
 async function serveMedia(assetId, env) {
   const asset = await env.DB.prepare("SELECT r2_key,content_type,byte_size FROM media_assets WHERE id=?").bind(assetId).first();
-  if (!asset || !env.EVENT_MEDIA) return fail("No se encontró la imagen de referencia.", 404, "media_not_found");
+  if (!asset) return fail("No se encontró la imagen de referencia.", 404, "media_not_found");
+  if (asset.r2_key.startsWith("drive:")) {
+    const response = await downloadDriveImage(env, asset.r2_key.slice(6));
+    return new Response(response.body, { headers: { "Content-Type": asset.content_type, "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff" } });
+  }
+  if (!env.EVENT_MEDIA) return fail("La imagen de referencia no está disponible.", 404, "media_not_found");
   const object = await env.EVENT_MEDIA.get(asset.r2_key);
   if (!object) return fail("La imagen de referencia no está disponible.", 404, "media_not_found");
   return new Response(object.body, { headers: { "Content-Type": asset.content_type, "Content-Length": String(asset.byte_size), "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff" } });
