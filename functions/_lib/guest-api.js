@@ -258,7 +258,7 @@ async function submitPhoto(request, env) {
     await db.prepare("UPDATE photo_submissions SET storage_state='failed',error_code=? WHERE id=?").bind(String(error.code || "drive_error").slice(0, 80), submissionId).run();
     await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'photo.drive_failed','photo_submission',?,?,?)")
       .bind(newId(), event.id, session.guest_id, submissionId, JSON.stringify({ code: String(error.code || "drive_error") }), nowIso()).run();
-    return json({ error: "photo_not_stored", message: "La foto no llegó a la carpeta de Drive. Tu participación quedó registrada si el horario y las reglas la permiten. Vuelve a seleccionarla para reintentar.", participationRecorded: true, submissionId }, 502);
+    return json({ error: "photo_not_stored", participationRecorded: true, submissionId }, 502);
   }
 }
 

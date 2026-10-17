@@ -95,7 +95,7 @@ function showHome(profile, data, demo = false) {
   isDemo = demo;
   setEvent(data || demoEvent);
   submissions = new Map();
-  (profile?.submissions || []).forEach((item) => submissions.set(String(item.momentId), item));
+  (profile?.submissions || []).filter((item) => item.storageState === "stored").forEach((item) => submissions.set(String(item.momentId), item));
   $("#home-guest-name").textContent = profile?.name || profile?.displayName || "invitado";
   const nickname = profile?.nickname || "";
   $("#home-guest-nickname").textContent = nickname;
@@ -108,6 +108,8 @@ function showHome(profile, data, demo = false) {
   const active = moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
   const next = moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
   selectedMomentIndex = active >= 0 ? active : next >= 0 ? next : 0;
+  const initialAvailable = findAvailableMoment(selectedMomentIndex, 1, true) ?? findAvailableMoment(selectedMomentIndex, -1, true);
+  if (initialAvailable !== null) selectedMomentIndex = initialAvailable;
   renderCarousel();
   renderSchedule();
   resetUploadPanel();
@@ -174,6 +176,14 @@ function momentStatus(moment) {
   return "Momento del evento";
 }
 
+function findAvailableMoment(start, direction, includeStart = false) {
+  const first = includeStart ? start : start + direction;
+  for (let index = first; index >= 0 && index < moments.length; index += direction) {
+    if (!submissions.has(String(moments[index].id))) return index;
+  }
+  return null;
+}
+
 function renderCarousel() {
   const rail = $("#moment-carousel");
   rail.replaceChildren();
@@ -213,6 +223,14 @@ function renderCarousel() {
     if (moment.coverUrl) {
       card.style.backgroundImage = "url(\"" + moment.coverUrl + "\")";
       card.classList.add("has-photo");
+    }
+    if (submissions.has(String(moment.id))) {
+      const check = document.createElement("span");
+      check.className = "moment-card-submitted-check";
+      check.setAttribute("aria-hidden", "true");
+      check.innerHTML = '<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>';
+      card.append(check);
+      card.setAttribute("aria-label", (moment.name || "Momento") + ". Foto enviada; elige otro momento.");
     }
     card.addEventListener("click", () => selectMoment(index, true));
     slide.append(heading, card, time);
@@ -260,11 +278,23 @@ function updateCarousel() {
 
 function selectMoment(index, openPanel) {
   if (!moments.length) return;
-  selectedMomentIndex = Math.max(0, Math.min(moments.length - 1, index));
+  const boundedIndex = Math.max(0, Math.min(moments.length - 1, index));
+  if (submissions.has(String(moments[boundedIndex].id))) {
+    const direction = boundedIndex >= selectedMomentIndex ? 1 : -1;
+    const available = findAvailableMoment(boundedIndex, direction) ?? findAvailableMoment(boundedIndex, -direction);
+    if (available === null) return;
+    selectedMomentIndex = available;
+    openPanel = false;
+  } else selectedMomentIndex = boundedIndex;
   updateCarousel();
   if (openPanel) openUploadPanel();
 }
-function moveCarousel(amount) { if (moments.length) selectMoment(selectedMomentIndex + amount, false); }
+function moveCarousel(amount) {
+  if (!moments.length || !amount) return;
+  const direction = Math.sign(amount);
+  const available = findAvailableMoment(selectedMomentIndex, direction);
+  if (available !== null) selectMoment(available, false);
+}
 
 function renderSchedule() {
   const list = $("#public-schedule");
@@ -286,6 +316,12 @@ function renderSchedule() {
 
 function openUploadPanel() {
   if (!moments.length) return toast("La agenda aún no está disponible.");
+  if (submissions.has(String(moments[selectedMomentIndex]?.id))) {
+    const available = findAvailableMoment(selectedMomentIndex, 1, true) ?? findAvailableMoment(selectedMomentIndex, -1, true);
+    if (available === null) return;
+    selectedMomentIndex = available;
+    updateCarousel();
+  }
   $("#screen-home").classList.add("is-uploading");
   $("#upload-panel").classList.add("open");
 }
@@ -370,7 +406,7 @@ async function refreshEvent() {
     const currentEvent = payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload;
     setEvent(currentEvent);
     if (Array.isArray(payload.submissions)) {
-      submissions = new Map(payload.submissions.map((item) => [String(item.momentId), item]));
+      submissions = new Map(payload.submissions.filter((item) => item.storageState === "stored").map((item) => [String(item.momentId), item]));
     }
     renderCarousel();
     renderSchedule();
@@ -467,12 +503,12 @@ $("#send-photo").addEventListener("click", async () => {
     const result = await api("/api/photos", { method: "POST", headers: { "Idempotency-Key": uploadRequestId }, body: form });
     if (!result.submission?.id) throw new Error("El servicio no confirmó la foto.");
     submissions.set(String(moment.id), { ...result.submission, momentId: moment.id });
-    const eligible = result.submission.eligible === true;
+    const nextAvailable = findAvailableMoment(selectedMomentIndex, 1) ?? findAvailableMoment(selectedMomentIndex, -1);
+    if (nextAvailable !== null) selectedMomentIndex = nextAvailable;
     renderCarousel();
     resetUploadPanel();
-    toast("¡Gracias por compartir tu foto! Tu recuerdo ya forma parte de esta historia" + (eligible ? "" : " · Fuera del reto"));
-  } catch (error) {
-    $("#photo-feedback").textContent = error.message + " La imagen sigue solo en memoria; puedes reintentar.";
+  } catch {
+    $("#photo-feedback").textContent = "";
     $("#send-photo").disabled = false;
   } finally { isSending = false; }
 });
