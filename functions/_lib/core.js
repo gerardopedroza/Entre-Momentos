@@ -110,7 +110,8 @@ export function activityState(activity, now = Date.now()) {
 }
 
 export function evaluateContest(kind, entries, config = {}) {
-  const eligible = entries.filter((entry) => entry.eligible && entry.storage_state === "stored");
+  const eventWideFirstPhoto = kind === "first_photo" && config.scope === "event";
+  const eligible = entries.filter((entry) => (eventWideFirstPhoto || entry.eligible) && entry.storage_state === "stored");
   if (kind === "first_photo") {
     return eligible.sort((a, b) => Date.parse(a.received_at) - Date.parse(b.received_at) || String(a.id).localeCompare(String(b.id)))[0] || null;
   }
@@ -121,7 +122,7 @@ export function evaluateContest(kind, entries, config = {}) {
     for (const entry of scoped) {
       const state = counts.get(entry.guest_id) || { count: 0, reachedAt: entry.received_at, guest_id: entry.guest_id };
       state.count++;
-      if (Date.parse(entry.received_at) < Date.parse(state.reachedAt)) state.reachedAt = entry.received_at;
+      if (Date.parse(entry.received_at) > Date.parse(state.reachedAt)) state.reachedAt = entry.received_at;
       counts.set(entry.guest_id, state);
     }
     return [...counts.values()].sort((a, b) => b.count - a.count || Date.parse(a.reachedAt) - Date.parse(b.reachedAt) || a.guest_id.localeCompare(b.guest_id))[0] || null;

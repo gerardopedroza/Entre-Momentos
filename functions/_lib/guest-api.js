@@ -155,10 +155,12 @@ export async function handleGuestApi(ctx, path) {
 }
 
 async function eligibleForContest(db, event, activity, receivedAt) {
-  if (!event.contests_enabled || !isEligible(receivedAt, activity.photo_opens_at, activity.photo_closes_at)) return false;
+  if (!event.contests_enabled) return false;
+  const insideActivityWindow = isEligible(receivedAt, activity.photo_opens_at, activity.photo_closes_at);
   const contest = await db.prepare(`SELECT c.id FROM contests c JOIN contest_activities ca ON ca.contest_id=c.id
-    WHERE c.event_id=? AND ca.activity_id=? AND c.state='active' AND c.opens_at<=? AND c.closes_at>? LIMIT 1`)
-    .bind(event.id, activity.id, receivedAt, receivedAt).first();
+    WHERE c.event_id=? AND ca.activity_id=? AND c.state='active' AND c.opens_at<=? AND c.closes_at>?
+      AND (c.kind='first_photo' OR ?=1) LIMIT 1`)
+    .bind(event.id, activity.id, receivedAt, receivedAt, insideActivityWindow ? 1 : 0).first();
   return Boolean(contest);
 }
 

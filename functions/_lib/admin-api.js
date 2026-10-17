@@ -384,6 +384,12 @@ async function createPrize(request, env) {
   return json({ prize: await db.prepare("SELECT * FROM prizes WHERE id=?").bind(id).first() }, 201);
 }
 
+function contestTimestamp(value, timezone) {
+  const source = String(value || "");
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(source)) return localDateTimeToIso(source, timezone);
+  return new Date(source).toISOString();
+}
+
 async function createContest(request, env) {
   const db = env.DB;
   const data = await readJson(request);
@@ -391,8 +397,8 @@ async function createContest(request, env) {
   if (!event.contests_enabled) return fail("Los concursos están deshabilitados para este evento.", 409, "contests_disabled");
   if (!KINDS.has(data.kind)) return fail("Elige un tipo de concurso válido.");
   const name = String(data.name || "").trim();
-  const opensAt = new Date(data.opensAt).toISOString();
-  const closesAt = new Date(data.closesAt).toISOString();
+  const opensAt = contestTimestamp(data.opensAt, event.timezone);
+  const closesAt = contestTimestamp(data.closesAt, event.timezone);
   if (!name || Date.parse(opensAt) >= Date.parse(closesAt)) return fail("Revisa el nombre y las horas del concurso.");
   const activityIds = Array.isArray(data.activityIds) ? data.activityIds : [];
   for (const activityId of activityIds) {
@@ -415,11 +421,12 @@ async function updateContest(request, env, id) {
   const existing = await db.prepare("SELECT * FROM contests WHERE id=?").bind(id).first();
   if (!existing) return fail("No se encontró el reto.", 404, "contest_not_found");
   if (existing.state === "finished") return fail("Un reto finalizado no se puede modificar.", 409, "contest_finished");
+  const event = await eventOr404(db, existing.event_id);
   const data = await readJson(request);
   const name = String(data.name || "").trim();
   if (!name || !KINDS.has(data.kind)) return fail("Revisa el nombre y el tipo de reto.");
-  const opensAt = new Date(data.opensAt).toISOString();
-  const closesAt = new Date(data.closesAt).toISOString();
+  const opensAt = contestTimestamp(data.opensAt, event.timezone);
+  const closesAt = contestTimestamp(data.closesAt, event.timezone);
   if (Date.parse(opensAt) >= Date.parse(closesAt)) return fail("Revisa las horas del reto.");
   const activityIds = Array.isArray(data.activityIds) ? data.activityIds : [];
   for (const activityId of activityIds) {
@@ -471,7 +478,10 @@ export async function calculateAutomaticWinner(db, contest) {
   const activities = await db.prepare("SELECT activity_id FROM contest_activities WHERE contest_id=?").bind(contest.id).all();
   const ids = (activities.results || []).map((row) => row.activity_id);
   if (contest.kind === "most_photos" && !ids.length) return null;
-  let query = `SELECT id,guest_id,activity_id,received_at,eligible,storage_state FROM photo_submissions WHERE event_id=? AND eligible=1 AND received_at>=? AND received_at<?`;
+  let rules = {}; try { rules = JSON.parse(contest.rule_json || "{}"); } catch {}
+  const eventWideFirstPhoto = contest.kind === "first_photo" && rules.scope === "event";
+  let query = `SELECT id,guest_id,activity_id,received_at,eligible,storage_state FROM photo_submissions WHERE event_id=? AND storage_state='stored' AND received_at>=? AND received_at<?`;
+  if (!eventWideFirstPhoto) query += " AND eligible=1";
   const params = [contest.event_id, contest.opens_at, contest.closes_at];
   if (ids.length) { query += " AND activity_id IN (" + ids.map(() => "?").join(",") + ")"; params.push(...ids); }
   const submissions = await db.prepare(query).bind(...params).all();
@@ -482,7 +492,7 @@ export async function calculateAutomaticWinner(db, contest) {
   rows.forEach((row) => {
     const state = counts.get(row.guest_id) || { guest_id: row.guest_id, count: 0, reached_at: row.received_at };
     state.count++;
-    if (Date.parse(row.received_at) < Date.parse(state.reached_at)) state.reached_at = row.received_at;
+    if (Date.parse(row.received_at) > Date.parse(state.reached_at)) state.reached_at = row.received_at;
     counts.set(row.guest_id, state);
   });
   return [...counts.values()].sort((a, b) => b.count - a.count || Date.parse(a.reached_at) - Date.parse(b.reached_at) || a.guest_id.localeCompare(b.guest_id))[0] || null;
@@ -495,7 +505,7 @@ async function loadEventDetails(db, eventId) {
   let guests;
   try { guests = await db.prepare(`SELECT g.id,g.name,g.nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
   catch (error) { if (!isMissingColumn(error, "nickname")) throw error; guests = await db.prepare(`SELECT g.id,g.name,NULL AS nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
-  const contests = await db.prepare("SELECT * FROM contests WHERE event_id=? ORDER BY opens_at").bind(eventId).all();
+  const contests = await db.prepare("SELECT c.*,(SELECT group_concat(activity_id, ',') FROM contest_activities ca WHERE ca.contest_id=c.id) AS activity_ids FROM contests c WHERE c.event_id=? ORDER BY c.opens_at").bind(eventId).all();
   const prizes = await db.prepare("SELECT * FROM prizes WHERE event_id=? ORDER BY name").bind(eventId).all();
   return { event, venue, activities: activities.results || [], guests: guests.results || [], contests: contests.results || [], prizes: prizes.results || [] };
 }

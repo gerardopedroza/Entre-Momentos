@@ -26,6 +26,27 @@ function optionHtml(venues, selected = "") { return '<option value="">Selecciona
 function eventStateLabel(value) { return ({ active: "Activo", draft: "Preparación", inactive: "Inactivo", finished: "Finalizado" })[value] || value; }
 function dateLabel(date) { return date ? new Date(`${date}T12:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "Fecha pendiente"; }
 function timeLabel(value) { return value ? new Date(value).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Horario pendiente"; }
+function setPreviewElements(img, placeholder, url) {
+  if (img.dataset.objectUrl) { URL.revokeObjectURL(img.dataset.objectUrl); delete img.dataset.objectUrl; }
+  if (url) { img.src = url; if (url.startsWith("blob:")) img.dataset.objectUrl = url; img.hidden = false; placeholder.hidden = true; }
+  else { img.removeAttribute("src"); img.hidden = true; placeholder.hidden = false; }
+}
+function setCoverPreview(image, empty, url) {
+  setPreviewElements($(image), $(empty), url);
+}
+function previewCoverFile(input, image, empty) {
+  const file = $(input).files?.[0];
+  if (file) setCoverPreview(image, empty, URL.createObjectURL(file));
+}
+function timeParts(value, timezone) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone || "America/Mexico_City", hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(new Date(value));
+  return { clock: `${parts.find((part) => part.type === "hour").value}:${parts.find((part) => part.type === "minute").value}`, period: parts.find((part) => part.type === "dayPeriod").value.toUpperCase() };
+}
+function nextEventDateTime(date) {
+  const next = new Date(`${date}T12:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return `${next.toISOString().slice(0, 10)}T00:00`;
+}
 
 let lastPlaceSearchAt = 0;
 function timezoneOption(select, timezone) {
@@ -129,11 +150,21 @@ function addSetupActivity() {
   const card = document.createElement("article");
   card.className = "setup-activity-card";
   card.dataset.setupActivity = "";
-  card.innerHTML = `<div class="setup-activity-heading"><h4>Momento ${index + 1}</h4><button class="admin-button secondary" type="button" data-remove-setup-activity aria-label="Quitar momento">Quitar</button></div><div class="admin-two-col"><label>Nombre de la actividad<input name="name" placeholder="El brindis" minlength="2"></label><label>Foto de referencia (opcional)<input name="reference" type="file" accept="image/jpeg,image/png,image/webp"></label></div><label>Descripción breve (opcional)<textarea name="description" placeholder="Una frase que explique el momento" rows="2"></textarea></label><div class="admin-two-col"><label>Hora de inicio<div class="admin-time-entry"><input name="startClock" type="text" inputmode="numeric" maxlength="5" pattern="(?:[1-9]|1[0-2]):[0-5][0-9]" placeholder="5:30" aria-label="Hora y minutos de inicio"><select name="startPeriod" aria-label="AM o PM"><option>PM</option><option>AM</option></select></div></label><label>Hora de fin<div class="admin-time-entry"><input name="endClock" type="text" inputmode="numeric" maxlength="5" pattern="(?:[1-9]|1[0-2]):[0-5][0-9]" placeholder="6:30" aria-label="Hora y minutos de fin"><select name="endPeriod" aria-label="AM o PM"><option>PM</option><option>AM</option></select></div></label></div><label class="rule-toggle"><input name="hasContest" type="checkbox"><span>Incluir un reto o dinámica en este momento</span></label><div class="setup-challenge" hidden><div class="admin-two-col"><label>Nombre del reto<input name="contestName" placeholder="Primera foto del brindis"></label><label>Tipo de dinámica<select name="contestKind"><option value="first_photo">Primera foto elegible</option><option value="most_photos">Más fotos elegibles</option><option value="photo_with_couple">Foto con los novios</option><option value="bouquet">Ramo</option><option value="manual">Selección del equipo</option></select></label></div><label>Regla o condición<textarea name="contestRules" placeholder="Qué debe aparecer en la foto o cómo se elegirá" rows="2"></textarea></label><label class="rule-toggle"><input name="hasPrize" type="checkbox"><span>Esta dinámica tendrá premio físico</span></label><label data-prize-name hidden>Premio<input name="prizeName" placeholder="Ramo, recuerdo, etc."></label><p class="admin-help">Sin premio físico, se mostrará una felicitación digital.</p></div>`;
+  card.innerHTML = `<div class="setup-activity-heading"><h4>Momento ${index + 1}</h4><button class="admin-button secondary" type="button" data-remove-setup-activity aria-label="Quitar momento">Quitar</button></div>
+    <div class="admin-two-col"><label>Nombre de la actividad<input name="name" placeholder="El brindis" minlength="2"></label><label>Foto de referencia (opcional)<input name="reference" type="file" accept="image/jpeg,image/png,image/webp"><span class="cover-preview setup-reference-preview"><img data-reference-preview alt="Vista previa de la actividad" hidden><span data-reference-empty>La miniatura aparecerá aquí al seleccionarla.</span></span></label></div>
+    <label>Descripción breve (opcional)<textarea name="description" placeholder="Una frase que explique el momento" rows="2"></textarea></label>
+    <div class="admin-two-col"><label>Hora de inicio<div class="admin-time-entry"><input name="startClock" type="text" inputmode="numeric" maxlength="5" pattern="(?:[1-9]|1[0-2]):[0-5][0-9]" placeholder="5:30" aria-label="Hora y minutos de inicio"><select name="startPeriod" aria-label="AM o PM"><option>PM</option><option>AM</option></select></div></label>
+    <label>Hora de fin<div class="admin-time-entry"><input name="endClock" type="text" inputmode="numeric" maxlength="5" pattern="(?:[1-9]|1[0-2]):[0-5][0-9]" placeholder="6:30" aria-label="Hora y minutos de fin"><select name="endPeriod" aria-label="AM o PM"><option>PM</option><option>AM</option></select></div></label></div>
+    <label class="rule-toggle"><input name="hasContest" type="checkbox"><span>Premiar la primera foto de esta actividad</span></label>
+    <div class="setup-challenge" hidden><label>Nombre del reconocimiento<input name="contestName" placeholder="Primera foto del brindis"></label><label>Regla o condición<textarea name="contestRules" placeholder="Qué debe aparecer en la foto" rows="2"></textarea></label><label class="rule-toggle"><input name="hasPrize" type="checkbox"><span>Esta dinámica tendrá premio físico</span></label><label data-prize-name hidden>Premio<input name="prizeName" placeholder="Ramo, recuerdo, etc."></label><p class="admin-help">Si no hay premio, se mostrará una felicitación digital.</p></div>`;
   list.append(card);
   card.querySelector("[data-remove-setup-activity]").addEventListener("click", () => { if (list.children.length <= 1) return; card.remove(); [...list.children].forEach((item, i) => { item.querySelector("h4").textContent = `Momento ${i + 1}`; }); saveEventDraft(); });
   card.querySelector('[name="hasContest"]').addEventListener("change", (event) => { card.querySelector(".setup-challenge").hidden = !event.target.checked; });
   card.querySelector('[name="hasPrize"]').addEventListener("change", (event) => { card.querySelector("[data-prize-name]").hidden = !event.target.checked; });
+  card.querySelector('[name="reference"]').addEventListener("change", (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (file) setPreviewElements(card.querySelector("[data-reference-preview]"), card.querySelector("[data-reference-empty]"), URL.createObjectURL(file));
+  });
 }
 function saveEventDraft() {
   if (restoringEventDraft) return;
@@ -166,6 +197,7 @@ function restoreEventDraft() {
     card.querySelector("[data-prize-name]").hidden = !card.querySelector('[name="hasPrize"]').checked;
   });
   $("#setup-event-challenge").hidden = !$("#setup-event-challenge-enabled").checked;
+  $("#setup-event-close-time").hidden = $("#setup-event-challenge-kind").value !== "most_photos";
   $("#setup-event-prize-field").hidden = !$("#setup-event-challenge-prize-enabled").checked;
   restoringEventDraft = false;
   if (setupAgendaRows) $("#setup-agenda-preview").textContent = `${setupAgendaRows.length} momento(s) recuperados del borrador.`;
@@ -299,6 +331,7 @@ function fillEventForm({ event, venue }) {
   form.elements.driveFolderUrl.value = event.drive_folder_url || "";
   form.elements.state.value = event.state;
   form.elements.contestsEnabled.checked = Boolean(event.contests_enabled);
+  setCoverPreview("#event-edit-cover-preview", "#event-edit-cover-empty", event.cover_asset_id ? `/api/media/${encodeURIComponent(event.cover_asset_id)}` : "");
   $("#selected-event-title").textContent = event.name;
   $("#selected-event-state").textContent = eventStateLabel(event.state);
   $("#selected-event-state").classList.toggle("active", event.state === "active");
@@ -307,16 +340,40 @@ function setEventTab(tab) {
   $$('[data-event-tab]').forEach((button) => button.setAttribute("aria-pressed", button.dataset.eventTab === tab ? "true" : "false"));
   $$('[data-event-panel]').forEach((panel) => { panel.hidden = panel.dataset.eventPanel !== tab; });
 }
+function updateContestCriteriaFields() {
+  const kind = $("#contest-form [name=kind]").value;
+  $("#contest-activity-field").hidden = kind !== "first_activity_photo";
+  $("#contest-close-time-field").hidden = kind !== "most_photos";
+  if (kind !== "first_activity_photo") $("#contest-form [name=activityId]").value = "";
+}
 function renderEventDetails() {
   const { activities, guests, contests } = state.details;
-  $("#activities-list").innerHTML = activities.length ? activities.map((activity) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(activity.position)}. ${esc(activity.name)}</h3>${activity.description ? `<p class="admin-meta">${esc(activity.description)}</p>` : ""}<div class="admin-meta">${timeLabel(activity.starts_at)} – ${new Date(activity.ends_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></div><div class="admin-actions"><button class="admin-button secondary" type="button" data-edit-activity="${esc(activity.id)}">Modificar</button><button class="admin-button secondary" type="button" data-delete-activity="${esc(activity.id)}">Quitar</button></div></div><div class="admin-meta">Fotos: ${timeLabel(activity.photo_opens_at)} a ${new Date(activity.photo_closes_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></article>`).join("") : '<div class="empty-state">Agrega los momentos de la boda para construir el minuto a minuto.</div>';
+  $("#activities-list").innerHTML = activities.length ? `<div class="admin-actions activity-bulk-actions"><label class="activity-select-all"><input type="checkbox" data-select-all-activities> Seleccionar varias</label><button class="admin-button secondary" type="button" data-delete-selected-activities disabled>Quitar seleccionadas</button></div>${activities.map((activity) => `<article class="admin-row-card"><div class="admin-row-top"><label class="activity-select"><input type="checkbox" data-select-activity="${esc(activity.id)}" aria-label="Seleccionar ${esc(activity.name)}"></label><div class="activity-row-content"><h3>${esc(activity.position)}. ${esc(activity.name)}</h3>${activity.description ? `<p class="admin-meta">${esc(activity.description)}</p>` : ""}<div class="admin-meta">${timeLabel(activity.starts_at)} – ${new Date(activity.ends_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></div><div class="admin-actions"><button class="admin-button secondary" type="button" data-edit-activity="${esc(activity.id)}">Modificar</button><button class="admin-button secondary" type="button" data-delete-activity="${esc(activity.id)}">Quitar</button></div></div><div class="admin-meta">Fotos: ${timeLabel(activity.photo_opens_at)} a ${new Date(activity.photo_closes_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</div></article>`).join("")}` : '<div class="empty-state">Agrega los momentos de la boda para construir el minuto a minuto.</div>';
   $$('[data-delete-activity]', $("#activities-list")).forEach((button) => button.addEventListener("click", () => deactivate(`/api/admin/activities/${encodeURIComponent(button.dataset.deleteActivity)}`, "Actividad quitada.")));
+  const list = $("#activities-list");
+  const selectAll = list.querySelector("[data-select-all-activities]");
+  const removeSelected = list.querySelector("[data-delete-selected-activities]");
+  const updateSelection = () => {
+    const checks = $$('[data-select-activity]', list);
+    const selected = checks.filter((check) => check.checked);
+    removeSelected.disabled = selected.length === 0;
+    if (selectAll) { selectAll.checked = checks.length > 0 && selected.length === checks.length; selectAll.indeterminate = selected.length > 0 && selected.length < checks.length; }
+  };
+  selectAll?.addEventListener("change", () => { $$('[data-select-activity]', list).forEach((check) => { check.checked = selectAll.checked; }); updateSelection(); });
+  $$('[data-select-activity]', list).forEach((check) => check.addEventListener("change", updateSelection));
+  removeSelected?.addEventListener("click", async () => {
+    const ids = $$('[data-select-activity]:checked', list).map((check) => check.dataset.selectActivity);
+    if (!ids.length || !confirm(`¿Quitar ${ids.length} actividad(es) seleccionada(s) del minuto a minuto?`)) return;
+    removeSelected.disabled = true;
+    try { for (const id of ids) await api(`/api/admin/activities/${encodeURIComponent(id)}`, { method: "DELETE" }); message(`${ids.length} actividad(es) quitada(s).`); await selectEvent(state.selected); await loadDashboard(); }
+    catch (error) { message(error.message); removeSelected.disabled = false; }
+  });
   $("#guests-list").innerHTML = guests.length ? guests.map((guest) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(guest.name)}</h3>${guest.nickname ? `<div class="admin-meta">Apodo: ${esc(guest.nickname)}</div>` : ""}<div class="admin-meta">${guest.table_name ? `Mesa ${esc(guest.table_name)} · ` : ""}${guest.active ? `${Number(guest.photos_sent || 0)} foto(s) enviadas` : "Invitación desactivada"}</div></div>${guest.active ? `<button class="admin-button secondary" type="button" data-delete-guest="${esc(guest.id)}">Desactivar</button>` : '<span class="admin-badge">Inactivo</span>'}</div></article>`).join("") : '<div class="empty-state">Agrega a las personas invitadas o carga la lista desde un archivo CSV o Excel.</div>';
   $$('[data-delete-guest]', $("#guests-list")).forEach((button) => button.addEventListener("click", () => deactivate(`/api/admin/guests/${encodeURIComponent(button.dataset.deleteGuest)}`, "Invitación desactivada.")));
   const currentActivity = $("#contest-form [name=activityId]").value;
   $("#contest-form [name=activityId]").innerHTML = '<option value="">Cierre de todo el evento</option>' + activities.filter((a) => a.active).map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
   if (currentActivity) $("#contest-form [name=activityId]").value = currentActivity;
-  $("#contests-list").innerHTML = contests.length ? contests.map((contest) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(contest.name)}</h3><div class="admin-meta">${contest.kind === "first_photo" ? "Primera foto elegible" : contest.kind === "most_photos" ? "Más fotos elegibles" : contest.kind === "photo_with_couple" ? "Foto con los novios" : contest.kind === "bouquet" ? "Ramo" : "Selección del equipo"} · ${esc(eventStateLabel(contest.state))}</div></div><div class="admin-actions"><span class="admin-badge ${contest.prize_name ? "active" : ""}">${contest.prize_name ? `Premio: ${esc(contest.prize_name)}` : "Felicitación digital"}</span>${contest.state !== "finished" ? `<button class="admin-button secondary" type="button" data-edit-contest="${esc(contest.id)}">Modificar</button>` : ""}</div></div>${contest.validation_instructions ? `<p class="admin-meta" style="margin-bottom:0">${esc(contest.validation_instructions)}</p>` : ""}</article>`).join("") : '<div class="empty-state">Aún no hay retos o reconocimientos configurados.</div>';
+  $("#contests-list").innerHTML = contests.length ? contests.map((contest) => `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(contest.name)}</h3><div class="admin-meta">${contest.kind === "first_photo" ? ((contest.activity_ids || "").split(",").filter(Boolean).length === 1 ? "Primera foto de la actividad" : "Primera foto del evento") : contest.kind === "most_photos" ? "Mayor cantidad de fotos del evento" : contest.kind === "photo_with_couple" ? "Foto con los novios" : contest.kind === "bouquet" ? "Ramo" : "Selección del equipo"} · ${esc(eventStateLabel(contest.state))}</div></div><div class="admin-actions"><span class="admin-badge ${contest.prize_name ? "active" : ""}">${contest.prize_name ? `Premio: ${esc(contest.prize_name)}` : "Felicitación digital"}</span>${contest.state !== "finished" ? `<button class="admin-button secondary" type="button" data-edit-contest="${esc(contest.id)}">Modificar</button>` : ""}</div></div>${contest.validation_instructions ? `<p class="admin-meta" style="margin-bottom:0">${esc(contest.validation_instructions)}</p>` : ""}</article>`).join("") : '<div class="empty-state">Aún no hay retos o reconocimientos configurados.</div>';
 }
 async function deactivate(path, successText) {
   if (!confirm("¿Quieres desactivar este elemento?")) return;
@@ -480,7 +537,7 @@ $("#event-form").addEventListener("submit", async (event) => {
       if (!name && !startClock && !endClock) return null;
       if (name.length < 2 || !startClock || !endClock) throw new Error("Completa el nombre, la hora de inicio y la hora de fin de cada momento, o quita la tarjeta vacía.");
       const startsAt = manualEventDateTime(data.eventDate, startClock, card.querySelector("[name=startPeriod]").value); const endsAt = manualEventDateTime(data.eventDate, endClock, card.querySelector("[name=endPeriod]").value);
-      return { name, description: card.querySelector("[name=description]").value.trim(), startsAt, endsAt, reference: card.querySelector("[name=reference]").files?.[0] || null, contest: card.querySelector("[name=hasContest]").checked ? { name: card.querySelector("[name=contestName]").value.trim(), kind: card.querySelector("[name=contestKind]").value, rules: card.querySelector("[name=contestRules]").value.trim(), prize: card.querySelector("[name=hasPrize]").checked ? card.querySelector("[name=prizeName]").value.trim() : "" } : null };
+      return { name, description: card.querySelector("[name=description]").value.trim(), startsAt, endsAt, reference: card.querySelector("[name=reference]").files?.[0] || null, contest: card.querySelector("[name=hasContest]").checked ? { name: card.querySelector("[name=contestName]").value.trim(), kind: "first_photo", rules: card.querySelector("[name=contestRules]").value.trim(), prize: card.querySelector("[name=hasPrize]").checked ? card.querySelector("[name=prizeName]").value.trim() : "" } : null };
     }).filter(Boolean);
     const agendaFile = $("#setup-agenda-file").files?.[0];
     const importedActivities = agendaFile || setupAgendaRows ? (await (agendaFile ? readImportFile(agendaFile) : setupAgendaRows)).map((row) => {
@@ -496,8 +553,9 @@ $("#event-form").addEventListener("submit", async (event) => {
     }) : [];
     const activities = [...manualActivities, ...importedActivities].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
     if (!activities.length) throw new Error("Agrega al menos un momento manualmente o carga la agenda en CSV o Excel.");
-    const eventChallenge = data.contestsEnabled && $("#setup-event-challenge-enabled").checked ? { name: $("#setup-event-challenge-name").value.trim(), kind: $("#setup-event-challenge-kind").value, rules: $("#setup-event-challenge-rules").value.trim(), prize: $("#setup-event-challenge-prize-enabled").checked ? $("#setup-event-challenge-prize").value.trim() : "" } : null;
+    const eventChallenge = data.contestsEnabled && $("#setup-event-challenge-enabled").checked ? { name: $("#setup-event-challenge-name").value.trim(), kind: $("#setup-event-challenge-kind").value, rules: $("#setup-event-challenge-rules").value.trim(), prize: $("#setup-event-challenge-prize-enabled").checked ? $("#setup-event-challenge-prize").value.trim() : "", closeClock: $("#setup-event-close-clock").value, closePeriod: $("#setup-event-close-period").value } : null;
     if (eventChallenge && !eventChallenge.name) throw new Error("Escribe el nombre del reto general del evento.");
+    if (eventChallenge?.kind === "most_photos" && !eventChallenge.closeClock) throw new Error("Indica la hora de cierre para el reto de mayor cantidad de fotos.");
     for (const activity of activities) if (activity.contest && !activity.contest.name) throw new Error("Ponle un nombre a cada reto que agregues.");
     status.textContent = "Guardando evento, actividades, retos e invitados…";
     const requestedState = data.state; const result = await send("/api/admin/events", "POST", { ...data, state: "draft" }); created = result.event;
@@ -520,12 +578,14 @@ $("#event-form").addEventListener("submit", async (event) => {
       if (eventChallenge.prize) prizeId = (await send("/api/admin/prizes", "POST", { eventId: created.id, name: eventChallenge.prize, instructions: "Coordina la entrega con el STAFF al cierre del evento." })).prize.id;
       const opensAt = new Date(Math.min(...createdActivities.map((item) => Date.parse(item.photo_opens_at)))).toISOString();
       const closesAt = new Date(Math.max(...createdActivities.map((item) => Date.parse(item.photo_closes_at)))).toISOString();
-      await send("/api/admin/contests", "POST", { eventId: created.id, name: eventChallenge.name, kind: eventChallenge.prize ? eventChallenge.kind : "manual", activityIds: createdActivities.map((item) => item.id), opensAt, closesAt, state: data.state === "active" ? "active" : "draft", prizeId, validationInstructions: eventChallenge.rules || (eventChallenge.prize ? "" : "Felicitación digital al cierre del evento."), rules: { conditions: eventChallenge.rules } });
+      const contestOpenAt = eventChallenge.kind === "first_photo" ? `${data.eventDate}T00:00` : opensAt;
+      const contestCloseAt = eventChallenge.kind === "first_photo" ? nextEventDateTime(data.eventDate) : eventChallenge.kind === "most_photos" ? manualEventDateTime(data.eventDate, eventChallenge.closeClock, eventChallenge.closePeriod) : closesAt;
+      await send("/api/admin/contests", "POST", { eventId: created.id, name: eventChallenge.name, kind: eventChallenge.kind, activityIds: createdActivities.map((item) => item.id), opensAt: contestOpenAt, closesAt: contestCloseAt, state: data.state === "active" ? "active" : "draft", prizeId, validationInstructions: eventChallenge.rules || (eventChallenge.prize ? "" : "Felicitación digital al cierre del evento."), rules: { scope: "event", conditions: eventChallenge.rules } });
     }
     for (const guest of guests) await send("/api/admin/guests", "POST", { eventId: created.id, ...guest });
     if (requestedState === "active") await send(`/api/admin/events/${encodeURIComponent(created.id)}`, "PUT", { ...data, state: "active" });
     status.textContent = `Evento listo. ${activities.length} momento(s) y ${guests.length} invitado(s) guardados.`;
-    try { localStorage.removeItem(EVENT_DRAFT_KEY); } catch {} setupAgendaRows = null; setupGuestRows = null; form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); $("#setup-event-challenge").hidden = true; $("#setup-event-prize-field").hidden = true; form.elements.contestsEnabled.checked = true; $("#event-setup-card").hidden = true; await loadDashboard(); await selectEvent(created.id);
+    try { localStorage.removeItem(EVENT_DRAFT_KEY); } catch {} setupAgendaRows = null; setupGuestRows = null; form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); $("#setup-event-challenge").hidden = true; $("#setup-event-close-time").hidden = true; $("#setup-event-prize-field").hidden = true; setCoverPreview("#event-cover-preview", "#event-cover-empty", ""); form.elements.contestsEnabled.checked = true; $("#event-setup-card").hidden = true; await loadDashboard(); await selectEvent(created.id);
   } catch (error) {
     if (created?.id) { try { await api(`/api/admin/events/${encodeURIComponent(created.id)}`, { method: "DELETE" }); } catch {} status.textContent = "No se completó la configuración y se intentó retirar el evento incompleto."; }
     message(error.message); status.textContent = `${status.textContent} ${error.message}`;
@@ -537,7 +597,10 @@ $("#event-form").addEventListener("input", saveEventDraft);
 $("#event-form").addEventListener("change", saveEventDraft);
 restoreEventDraft();
 $("#setup-event-challenge-enabled").addEventListener("change", (event) => { $("#setup-event-challenge").hidden = !event.target.checked; });
+$("#setup-event-challenge-kind").addEventListener("change", (event) => { $("#setup-event-close-time").hidden = event.target.value !== "most_photos"; });
 $("#setup-event-challenge-prize-enabled").addEventListener("change", (event) => { $("#setup-event-prize-field").hidden = !event.target.checked; });
+$("#event-cover-upload").addEventListener("change", () => previewCoverFile("#event-cover-upload", "#event-cover-preview", "#event-cover-empty"));
+$("#event-edit-cover-upload").addEventListener("change", () => previewCoverFile("#event-edit-cover-upload", "#event-edit-cover-preview", "#event-edit-cover-empty"));
 $("#setup-agenda-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { setupAgendaRows = await readImportFile(file); saveEventDraft(); $("#setup-agenda-preview").textContent = `${setupAgendaRows.length} momento(s) detectados y guardados en el borrador. Se combinarán con los momentos manuales.`; } catch (error) { $("#setup-agenda-preview").textContent = error.message; event.currentTarget.value = ""; } });
 $("#setup-guests-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { setupGuestRows = guestRowsFromImport(await readImportFile(file)); saveEventDraft(); $("#setup-guests-preview").textContent = `${setupGuestRows.length} invitado(s) listos y guardados en el borrador.`; } catch (error) { $("#setup-guests-preview").textContent = error.message; event.currentTarget.value = ""; } });
 $("#event-edit-form").addEventListener("submit", async (event) => {
@@ -552,13 +615,15 @@ $("#activities-list").addEventListener("click", (event) => {
   const activity = state.details?.activities.find((item) => item.id === button.dataset.editActivity); if (!activity) return;
   const form = $("#activity-form"); const localTime = (value) => { const parts = new Intl.DateTimeFormat("en-US", { timeZone: state.details.event.timezone || "America/Mexico_City", hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(new Date(value)); return { clock: `${parts.find((part) => part.type === "hour").value}:${parts.find((part) => part.type === "minute").value}`, period: parts.find((part) => part.type === "dayPeriod").value.toUpperCase() }; }; const start = localTime(activity.starts_at); const end = localTime(activity.ends_at);
   form.elements.activityId.value = activity.id; form.elements.name.value = activity.name; form.elements.description.value = activity.description || ""; form.elements.startClock.value = start.clock; form.elements.startPeriod.value = start.period; form.elements.endClock.value = end.clock; form.elements.endPeriod.value = end.period;
+  setCoverPreview("#activity-reference-preview", "#activity-reference-empty", activity.reference_asset_id ? `/api/media/${encodeURIComponent(activity.reference_asset_id)}` : "");
   $("#save-activity-button").textContent = "Guardar cambios"; $("#cancel-activity-edit").hidden = false; form.scrollIntoView({ behavior: "smooth", block: "start" });
 });
-$("#cancel-activity-edit").addEventListener("click", (event) => { const form = $("#activity-form"); form.reset(); form.elements.activityId.value = ""; $("#save-activity-button").textContent = "Agregar actividad"; event.currentTarget.hidden = true; });
+$("#cancel-activity-edit").addEventListener("click", (event) => { const form = $("#activity-form"); form.reset(); form.elements.activityId.value = ""; setCoverPreview("#activity-reference-preview", "#activity-reference-empty", ""); $("#save-activity-button").textContent = "Agregar actividad"; event.currentTarget.hidden = true; });
+$("#activity-form").elements.reference.addEventListener("change", (event) => previewCoverFile(event.currentTarget, "#activity-reference-preview", "#activity-reference-empty"));
 $("#activity-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
   const data = Object.fromEntries(new FormData(form)); const reference = form.elements.reference.files?.[0]; const activityId = data.activityId; delete data.reference; delete data.activityId; data.startsAt = manualEventDateTime(state.details.event.event_date, data.startClock, data.startPeriod); data.endsAt = manualEventDateTime(state.details.event.event_date, data.endClock, data.endPeriod); delete data.startClock; delete data.startPeriod; delete data.endClock; delete data.endPeriod; data.eventId = state.selected; data.position = activityId ? state.details.activities.find((item) => item.id === activityId)?.position : state.details.activities.length + 1;
-  try { const result = activityId ? await send(`/api/admin/activities/${encodeURIComponent(activityId)}`, "PUT", data) : await send("/api/admin/activities", "POST", data); if (reference) await uploadEventAsset(state.selected, reference, "activity_reference", result.activity.id); form.reset(); form.elements.activityId.value = ""; $("#save-activity-button").textContent = "Agregar actividad"; $("#cancel-activity-edit").hidden = true; message(activityId ? "Cambios de la actividad guardados." : "Actividad agregada al minuto a minuto."); await selectEvent(state.selected); await loadDashboard(); }
+  try { const result = activityId ? await send(`/api/admin/activities/${encodeURIComponent(activityId)}`, "PUT", data) : await send("/api/admin/activities", "POST", data); if (reference) await uploadEventAsset(state.selected, reference, "activity_reference", result.activity.id); form.reset(); form.elements.activityId.value = ""; setCoverPreview("#activity-reference-preview", "#activity-reference-empty", ""); $("#save-activity-button").textContent = "Agregar actividad"; $("#cancel-activity-edit").hidden = true; message(activityId ? "Cambios de la actividad guardados." : "Actividad agregada al minuto a minuto."); await selectEvent(state.selected); await loadDashboard(); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
@@ -576,23 +641,36 @@ if (!$("#contest-form [name=contestId]")) { const id = document.createElement("i
 $("#contests-list").addEventListener("click", (event) => {
   const button = event.target.closest("[data-edit-contest]"); if (!button) return;
   const contest = state.details?.contests.find((item) => item.id === button.dataset.editContest); if (!contest) return;
-  const form = $("#contest-form"); form.elements.contestId.value = contest.id; form.elements.name.value = contest.name; form.elements.kind.value = contest.kind;
-  const linkedActivityIds = (contest.activity_ids || "").split(",").filter(Boolean); form.elements.activityId.value = linkedActivityIds.length === 1 ? linkedActivityIds[0] : "";
+  const form = $("#contest-form"); form.elements.contestId.value = contest.id; form.elements.name.value = contest.name;
+  const linkedActivityIds = (contest.activity_ids || "").split(",").filter(Boolean);
+  let contestRules = {}; try { contestRules = JSON.parse(contest.rule_json || "{}"); } catch {}
+  const isActivityScoped = contestRules.scope === "activity" || (!contestRules.scope && linkedActivityIds.length === 1 && state.details.activities.filter((item) => item.active).length > 1);
+  form.elements.kind.value = contest.kind === "most_photos" ? "most_photos" : contest.kind === "first_photo" && isActivityScoped ? "first_activity_photo" : "first_event_photo";
+  form.elements.activityId.value = form.elements.kind.value === "first_activity_photo" ? linkedActivityIds[0] : "";
+  if (form.elements.kind.value === "most_photos" && contest.closes_at) { const close = timeParts(contest.closes_at, state.details.event.timezone); form.elements.closeClock.value = close.clock; form.elements.closePeriod.value = close.period; }
+  updateContestCriteriaFields();
   form.elements.hasPrize.checked = Boolean(contest.prize_id); $("#prize-fields").hidden = !contest.prize_id; $("#felicitation-fields").hidden = Boolean(contest.prize_id);
   form.elements.prizeName.value = contest.prize_name || ""; form.elements.prizeInstructions.value = contest.prize_instructions || "";
   form.elements.validationInstructions.value = contest.validation_instructions || "";
   $("button[type=submit]", form).textContent = "Guardar cambios del reto"; form.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+$("#contest-form [name=kind]").addEventListener("change", updateContestCriteriaFields);
 $("#contest-form [name=hasPrize]").addEventListener("change", (event) => { $("#prize-fields").hidden = !event.target.checked; $("#felicitation-fields").hidden = event.target.checked; });
 $("#contest-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
   try {
     const values = Object.fromEntries(new FormData(form));
     const allActivities = state.details.activities.filter((activity) => activity.active);
-    const activity = allActivities.find((item) => item.id === values.activityId);
+    const kind = values.kind === "most_photos" ? "most_photos" : "first_photo";
+    const activity = values.kind === "first_activity_photo" ? allActivities.find((item) => item.id === values.activityId) : null;
+    const isEventFirstPhoto = values.kind === "first_event_photo";
+    if (values.kind === "first_activity_photo" && !activity) throw new Error("Selecciona la actividad cuya primera foto recibirá el premio.");
+    if (kind === "most_photos" && !form.elements.closeClock.value) throw new Error("Indica la hora de cierre para el reto de mayor cantidad de fotos.");
     const activityIds = activity ? [activity.id] : allActivities.map((item) => item.id);
-    const opensAt = activity?.photo_opens_at || (activityIds.length ? allActivities.map((a) => a.photo_opens_at).sort()[0] : new Date(`${state.details.event.event_date}T00:00:00`).toISOString());
-    const closesAt = activity?.photo_closes_at || (activityIds.length ? allActivities.map((a) => a.photo_closes_at).sort().at(-1) : new Date(`${state.details.event.event_date}T23:59:00`).toISOString());
+    const opensAt = isEventFirstPhoto ? `${state.details.event.event_date}T00:00` : activity?.photo_opens_at || (activityIds.length ? allActivities.map((a) => a.photo_opens_at).sort()[0] : new Date(`${state.details.event.event_date}T00:00:00`).toISOString());
+    const closesAt = kind === "most_photos"
+      ? manualEventDateTime(state.details.event.event_date, form.elements.closeClock.value, form.elements.closePeriod.value)
+      : isEventFirstPhoto ? nextEventDateTime(state.details.event.event_date) : activity?.photo_closes_at || (activityIds.length ? allActivities.map((a) => a.photo_closes_at).sort().at(-1) : new Date(`${state.details.event.event_date}T23:59:00`).toISOString());
     let prizeId = null;
     if (form.elements.hasPrize.checked) {
       if (!values.prizeName.trim()) throw new Error("Escribe el nombre del premio o cambia a Felicitación digital.");
@@ -602,8 +680,8 @@ $("#contest-form").addEventListener("submit", async (event) => {
     const felicitacion = form.elements.hasPrize.checked ? "" : `Felicitación digital: ${values.felicitation || "¡Gracias por compartir este momento!"}`;
     const instructions = [felicitacion, values.validationInstructions.trim()].filter(Boolean).join("\n\n");
     const contestId = values.contestId;
-    await send(contestId ? `/api/admin/contests/${encodeURIComponent(contestId)}` : "/api/admin/contests", contestId ? "PUT" : "POST", { eventId: state.selected, name: values.name, kind: form.elements.hasPrize.checked ? values.kind : "manual", activityIds, opensAt, closesAt, prizeId, validationInstructions: instructions, rules: { conditions: values.validationInstructions }, state: "active" });
-    form.reset(); $("button[type=submit]", form).textContent = "Guardar reto"; $("#prize-fields").hidden = false; $("#felicitation-fields").hidden = true; message(contestId ? "Cambios del reto guardados." : "Reto guardado y visible para el STAFF."); await selectEvent(state.selected);
+    await send(contestId ? `/api/admin/contests/${encodeURIComponent(contestId)}` : "/api/admin/contests", contestId ? "PUT" : "POST", { eventId: state.selected, name: values.name, kind, activityIds, opensAt, closesAt, prizeId, validationInstructions: instructions, rules: { scope: activity ? "activity" : "event", conditions: values.validationInstructions }, state: "active" });
+    form.reset(); updateContestCriteriaFields(); $("button[type=submit]", form).textContent = "Guardar reto"; $("#prize-fields").hidden = false; $("#felicitation-fields").hidden = true; message(contestId ? "Cambios del reto guardados." : "Reto guardado y visible para el STAFF."); await selectEvent(state.selected);
   } catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
