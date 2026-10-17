@@ -561,3 +561,65 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   .carousel-stage.tap-tutorial .carousel-tap-hand,
   .carousel-stage.tap-tutorial .moment-slide[aria-current="true"] .moment-card { animation: none; }
 }
+
+/* Guest welcome: prominent event identity, readable rules, and a clear name search. */
+.identify-screen { gap: 11px; }
+.event-cover {
+  flex: 0 0 40%;
+  min-height: 190px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 8px 12px;
+  color: #fff;
+}
+.cover-date {
+  margin: 0;
+  padding: 7px 15px;
+  border: 1px solid #ffffffd9;
+  border-radius: 999px;
+  background: #fffaf2ed;
+  color: #354940;
+  font-size: clamp(13px,3.7vw,16px);
+  font-weight: 700;
+  letter-spacing: .7px;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 4px 16px #26352c20;
+}
+.cover-caption { position: relative; isolation: isolate; width: 100%; margin-top: auto; padding: 6px 10px 4px; text-align: center; }
+.cover-caption::before { position: absolute; z-index: -1; inset: -6px -1px -2px; border-radius: 20px; background: linear-gradient(180deg,#26352c00,#26352cb8); content: ""; }
+.cover-caption h1 { margin: 0; font: 400 clamp(49px,14vw,70px)/.9 "Allura",cursive; letter-spacing: 0; color: #fff; text-shadow: 0 2px 12px #14221ac9; }
+.cover-slogan { display: grid; gap: 0; margin-top: 4px; color: #fff; font-size: clamp(14px,4vw,17px); font-weight: 500; line-height: 1.28; text-shadow: 0 2px 8px #14221ae6; }
+.cover-slogan strong { font-weight: 700; letter-spacing: .2px; }
+.guest-rules {
+  flex: 0 1 24%;
+  align-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid #ffffff;
+  border-radius: 20px;
+  background: #fffdf9ed;
+  box-shadow: 0 8px 22px #49383413,inset 0 1px #fff;
+}
+.guest-rule { min-height: 44px; gap: 12px; color: #293c37; font-size: clamp(14px,3.8vw,16px); font-weight: 600; line-height: 1.2; }
+.guest-rule-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border: 1px solid #fff; border-radius: 14px; box-shadow: 0 3px 7px #26352c12,inset 0 1px #fff; }
+.guest-rule-icon svg { width: 29px; height: 29px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.photo-rule-icon { background: linear-gradient(145deg,#ffe6dc,#fff1d6); color: #ca6959; }
+.time-rule-icon { background: linear-gradient(145deg,#e4f7ed,#dff2f7); color: #34846c; }
+.note-rule-icon { background: linear-gradient(145deg,#f1e9fb,#ffe8ef); color: #8664a4; }
+.identity-form { flex: 0 0 auto; gap: 7px; }
+.identity-form .field-label { margin-bottom: 1px; color: #334940; font-size: 14px; font-weight: 700; }
+.identity-form > input { min-height: 49px; font-size: 16px; }
+.identity-form > input::placeholder { color: #747b78; opacity: 1; }
+@media (max-height: 700px) {
+  .identify-screen { gap: 7px; }
+  .event-cover { flex-basis: 36%; min-height: 168px; padding-block: 9px; }
+  .cover-caption h1 { font-size: clamp(45px,13vw,62px); }
+  .cover-slogan { font-size: 14px; }
+  .guest-rules { flex-basis: 25%; gap: 4px; padding: 7px 10px; }
+  .guest-rule { min-height: 39px; font-size: 14px; }
+  .guest-rule-icon { flex-basis: 36px; width: 36px; height: 36px; }
+  .guest-rule-icon svg { width: 26px; height: 26px; }
+  .identity-form { gap: 5px; }
+  .identity-form > input { min-height: 44px; }
+}
