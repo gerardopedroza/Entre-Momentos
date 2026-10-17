@@ -202,7 +202,7 @@ function renderCarousel() {
     const time = document.createElement("p");
     time.className = "moment-card-meta";
     time.textContent = moment.start || moment.startTime || "";
-    heading.append(title, time);
+    heading.append(title);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "moment-card";
@@ -214,7 +214,7 @@ function renderCarousel() {
       card.classList.add("has-photo");
     }
     card.addEventListener("click", () => selectMoment(index, true));
-    slide.append(heading, card);
+    slide.append(heading, card, time);
     rail.append(slide);
     const dot = document.createElement("button");
     dot.type = "button";

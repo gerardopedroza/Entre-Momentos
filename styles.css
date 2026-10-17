@@ -502,14 +502,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 .home-screen { --carousel-card-height: min(34dvh,300px); }
 .carousel-section { min-height: 0; }
 .carousel-heading { gap: 0; }
-.carousel-stage { min-height: min(255px,calc(var(--carousel-card-height) + 48px)); }
+.carousel-stage { min-height: min(280px,calc(var(--carousel-card-height) + 73px)); }
 .moment-carousel { min-height: inherit; }
 .moment-slide {
   position: absolute;
   top: 50%;
   left: 50%;
   display: grid;
-  grid-template-rows: auto minmax(0,1fr);
+  grid-template-rows: auto minmax(0,1fr) auto;
   gap: 8px;
   width: min(58vw,260px);
   height: min(calc(var(--carousel-card-height) + 125px),100%);
@@ -519,7 +519,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 }
 .moment-slide-heading { display: grid; gap: 1px; min-height: 42px; align-content: end; padding-inline: 2px; text-align: center; }
 .moment-card-name { display: -webkit-box; margin: 0; overflow: hidden; color: #283c35; font: 500 clamp(17px,4.8vw,23px)/1.05 var(--serif); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.moment-card-meta { margin: 0; color: #697a73; font-size: 12px; font-variant-numeric: tabular-nums; }
+.moment-card-meta { margin: 0; padding-top: 2px; color: #44574e; font-size: 13px; font-variant-numeric: tabular-nums; text-align: center; }
+.moment-card-meta:empty { visibility: hidden; }
 .moment-card {
   position: relative;
   top: auto;
@@ -602,6 +603,7 @@ body[data-screen="welcome"] .app-frame main { z-index: 1; }
   justify-content: space-between;
   padding: 12px 19px 16px;
   color: #fff;
+  isolation: auto;
 }
 .cover-date {
   margin: 0;
@@ -612,11 +614,12 @@ body[data-screen="welcome"] .app-frame main { z-index: 1; }
   letter-spacing: 1.7px;
   line-height: 1.2;
   text-align: center;
-  text-shadow: 0 2px 12px #14221aff;
+  mix-blend-mode: difference;
+  text-shadow: 0 1px 3px #0008;
 }
 .cover-caption { position: absolute; top: calc(50dvh - var(--welcome-top)); right: 0; left: 0; width: 100%; margin: 0; padding: 8px 10px 6px; transform: translateY(-50%); text-align: center; }
-.cover-caption h1 { margin: 0; font: 400 clamp(58px,17vw,82px)/.88 "Allura",cursive; letter-spacing: 0; color: #fff; text-shadow: 0 2px 16px #14221add,0 0 24px #14221a82; }
-.cover-slogan { position: absolute; top: calc(50dvh - var(--welcome-top) + 52px); right: 19px; left: 19px; display: grid; gap: 0; margin: 0; color: #fff; font-size: clamp(15px,4.2vw,18px); font-weight: 500; line-height: 1.3; text-align: center; text-shadow: 0 2px 10px #14221aff; }
+.cover-caption h1 { margin: 0; font: 400 clamp(58px,17vw,82px)/.88 "Allura",cursive; letter-spacing: 0; color: #fff; mix-blend-mode: difference; text-shadow: 0 1px 3px #0008; }
+.cover-slogan { position: absolute; top: calc(50dvh - var(--welcome-top) + 52px); right: 19px; left: 19px; display: grid; gap: 0; margin: 0; color: #fff; font-size: clamp(15px,4.2vw,18px); font-weight: 500; line-height: 1.3; text-align: center; mix-blend-mode: difference; text-shadow: 0 1px 3px #0008; }
 .cover-slogan strong { font-weight: 700; letter-spacing: .2px; }
 .identity-form { flex: 0 0 auto; gap: 8px; padding: 0 19px max(12px,env(safe-area-inset-bottom)); border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
 .identity-form .field-label { margin-bottom: 0; color: #334940; font-size: 14px; font-weight: 700; }
