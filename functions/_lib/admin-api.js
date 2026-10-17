@@ -331,7 +331,7 @@ async function saveActivity(request, env, existing) {
   const event = await eventOr404(db, data.eventId || existing?.event_id);
   const name = String(data.name || existing?.name || "").trim();
   const description = String(data.description || existing?.description || "").trim().slice(0, 1000);
-  const position = Number.isInteger(Number(data.position)) ? Number(data.position) : Number(existing?.position || 1);
+  let position = Number(existing?.position || 1);
   if (name.length < 2) return fail("Escribe el nombre de la actividad.");
   const startsAt = data.startsAt?.includes("Z") || /[+-]\d\d:\d\d$/.test(data.startsAt || "") ? new Date(data.startsAt).toISOString() : localDateTimeToIso(data.startsAt, event.timezone);
   const endsAt = data.endsAt?.includes("Z") || /[+-]\d\d:\d\d$/.test(data.endsAt || "") ? new Date(data.endsAt).toISOString() : localDateTimeToIso(data.endsAt, event.timezone);
@@ -340,6 +340,10 @@ async function saveActivity(request, env, existing) {
   const overlap = await db.prepare(`SELECT id,name FROM event_activities WHERE event_id=? AND active=1 AND id<>? AND starts_at<? AND ends_at>? LIMIT 1`)
     .bind(event.id, existing?.id || "", endsAt, startsAt).first();
   if (overlap) return fail("El horario se cruza con «" + overlap.name + ". Ajusta el cronograma para evitar dos momentos activos a la vez.", 409, "activity_overlap");
+  if (!existing) {
+    const lastPosition = await db.prepare("SELECT COALESCE(MAX(position),0) AS max_position FROM event_activities WHERE event_id=?").bind(event.id).first();
+    position = Number(lastPosition?.max_position || 0) + 1;
+  }
   const id = existing?.id || newId();
   const time = nowIso();
   if (existing) {

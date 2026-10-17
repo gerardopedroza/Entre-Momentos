@@ -485,7 +485,7 @@ async function importFile(input, kind) {
         catch (error) { skipped++; firstRowError ||= error.message; }
       }
     } else {
-      let position = state.details.activities.length;
+      let position = Math.max(0, ...state.details.activities.map((activity) => Number(activity.position) || 0));
       for (const row of rows) {
         const name = col(row, ["nombredelaactividad", "actividad", "momento", "nombre", "name"]);
         const starts = col(row, ["horadeinicio", "horainicio", "inicio", "empieza", "start", "startsat"]);
@@ -632,7 +632,7 @@ $("#cancel-activity-edit").addEventListener("click", (event) => { const form = $
 $("#activity-form").elements.reference.addEventListener("change", (event) => previewCoverFile(event.currentTarget, "#activity-reference-preview", "#activity-reference-empty"));
 $("#activity-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
-  const data = Object.fromEntries(new FormData(form)); const reference = form.elements.reference.files?.[0]; const activityId = data.activityId; delete data.reference; delete data.activityId; data.startsAt = manualEventDateTime(state.details.event.event_date, data.startClock, data.startPeriod); data.endsAt = manualEventDateTime(state.details.event.event_date, data.endClock, data.endPeriod); delete data.startClock; delete data.startPeriod; delete data.endClock; delete data.endPeriod; data.eventId = state.selected; data.position = activityId ? state.details.activities.find((item) => item.id === activityId)?.position : state.details.activities.length + 1;
+  const data = Object.fromEntries(new FormData(form)); const reference = form.elements.reference.files?.[0]; const activityId = data.activityId; delete data.reference; delete data.activityId; data.startsAt = manualEventDateTime(state.details.event.event_date, data.startClock, data.startPeriod); data.endsAt = manualEventDateTime(state.details.event.event_date, data.endClock, data.endPeriod); delete data.startClock; delete data.startPeriod; delete data.endClock; delete data.endPeriod; data.eventId = state.selected; data.position = activityId ? state.details.activities.find((item) => item.id === activityId)?.position : Math.max(0, ...state.details.activities.map((activity) => Number(activity.position) || 0)) + 1;
   try { const result = activityId ? await send(`/api/admin/activities/${encodeURIComponent(activityId)}`, "PUT", data) : await send("/api/admin/activities", "POST", data); if (reference) await uploadEventAsset(state.selected, reference, "activity_reference", result.activity.id); form.reset(); form.elements.activityId.value = ""; setCoverPreview("#activity-reference-preview", "#activity-reference-empty", ""); $("#save-activity-button").textContent = "Agregar actividad"; $("#cancel-activity-edit").hidden = true; message(activityId ? "Cambios de la actividad guardados." : "Actividad agregada al minuto a minuto."); await selectEvent(state.selected, "activities"); await loadDashboard(); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
