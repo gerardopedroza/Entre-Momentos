@@ -505,8 +505,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   display: grid;
   grid-template-rows: auto minmax(0,1fr);
   gap: 8px;
-  width: min(68vw,320px);
-  height: min(calc(var(--carousel-card-height) + 48px),100%);
+  width: min(58vw,260px);
+  height: min(calc(var(--carousel-card-height) + 125px),100%);
   transform-origin: center center;
   transition: transform .42s cubic-bezier(.2,.75,.25,1),opacity .32s;
   perspective: 900px;
@@ -554,7 +554,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   .home-screen { --carousel-card-height: min(32dvh,245px); }
 }
 @media (max-width: 360px) {
-  .moment-slide { width: min(72vw,280px); }
+  .moment-slide { width: min(62vw,235px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .moment-slide,.moment-card { transition: none; }

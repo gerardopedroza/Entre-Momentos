@@ -217,14 +217,14 @@ function renderCarousel() {
 
 function updateCarousel() {
   const slides = $$(".moment-slide", $("#moment-carousel"));
-  const cardOffset = Math.min(145, window.innerWidth * 0.33);
+  const cardOffset = Math.min(180, window.innerWidth * 0.46);
   slides.forEach((slide, index) => {
     const offset = index - selectedMomentIndex;
     const distance = Math.abs(offset);
     const side = Math.sign(offset);
     slide.style.transform = "translate(-50%,-50%) translateX(" + offset * cardOffset + "px) translateY(" + (distance ? 4 : 0) + "px) scale(" + Math.max(.78, 1 - distance * .13) + ") rotateY(" + (-side * 3) + "deg)";
     slide.style.zIndex = String(10 - distance);
-    slide.style.opacity = distance > 1 ? "0" : distance ? ".65" : "1";
+    slide.style.opacity = distance > 1 ? "0" : distance ? ".74" : "1";
     slide.style.pointerEvents = distance > 1 ? "none" : "auto";
     slide.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
   });
