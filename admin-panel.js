@@ -59,7 +59,7 @@ function timezoneOption(select, timezone) {
 }
 function attachPlaceAutocomplete(formId, suggestionsId, statusId) {
   const form = $(formId);
-  const input = form.elements.name;
+  const input = form.elements.placeCity;
   const list = $(suggestionsId);
   const status = $(statusId);
   let timer = null;
@@ -511,7 +511,7 @@ $("#admin-scroll-top").addEventListener("click", () => $("#admin-content").scrol
 
 $("#venue-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
-  const data = Object.fromEntries(new FormData(form));
+  const data = Object.fromEntries(new FormData(form)); delete data.placeCity;
   try { await send("/api/admin/venues", "POST", data); form.reset(); message("Lugar guardado."); await loadDashboard(); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
@@ -520,7 +520,7 @@ attachPlaceAutocomplete("#venue-form", "#venue-suggestions", "#venue-search-stat
 attachPlaceAutocomplete("#venue-edit-form", "#venue-edit-suggestions", "#venue-edit-search-status");
 $("#venue-edit-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button[type=submit]", form); button.disabled = true;
-  const data = Object.fromEntries(new FormData(form));
+  const data = Object.fromEntries(new FormData(form)); delete data.placeCity;
   try { await send(`/api/admin/venues/${encodeURIComponent(data.id)}`, "PUT", data); $("#venue-editor").hidden = true; message("Cambios del lugar guardados."); await loadDashboard(); }
   catch (error) { message(error.message); }
   finally { button.disabled = false; }
