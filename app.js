@@ -371,8 +371,6 @@ $("#guest-form").addEventListener("submit", async (event) => {
       $("#search-message").textContent = "En esta prueba, escribe Ana para ver a las dos invitadas homónimas.";
       return;
     }
-    $("#homonym-title").textContent = "¿Cuál Ana eres tú?";
-    $("#homonym-subtitle").textContent = "Encontré dos Ana López. Elige tu mesa para entrar.";
     [
       { id: "demo-ana-4", name: "Ana López", reference: "Mesa 4" },
       { id: "demo-ana-8", name: "Ana López", reference: "Mesa 8" },
@@ -383,10 +381,6 @@ $("#guest-form").addEventListener("submit", async (event) => {
   try {
     const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
     if (Array.isArray(result.matches) && result.matches.length > 1) {
-      $("#homonym-title").textContent = "¿Cuál eres tú?";
-      $("#homonym-subtitle").textContent = result.hasMore
-        ? "Hay más coincidencias. Agrega tu apellido para encontrar la tuya."
-        : "Hay varias personas con ese nombre. Elige tu nombre y mesa.";
       result.matches.forEach((profile) => guestChoice(profile));
       $("#homonym-feedback").textContent = "";
       screen("homonyms");
