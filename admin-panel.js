@@ -663,7 +663,7 @@ $("#contests-list").addEventListener("click", (event) => {
 $("#contest-form [name=kind]").addEventListener("change", updateContestCriteriaFields);
 $("#contest-form [name=hasPrize]").addEventListener("change", (event) => { $("#prize-fields").hidden = !event.target.checked; $("#felicitation-fields").hidden = event.target.checked; });
 $("#contest-form").addEventListener("submit", async (event) => {
-  event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
+  event.preventDefault(); const form = event.currentTarget; const button = $("button[type=submit]", form); button.disabled = true;
   try {
     const values = Object.fromEntries(new FormData(form));
     const allActivities = state.details.activities.filter((activity) => activity.active);
@@ -687,7 +687,7 @@ $("#contest-form").addEventListener("submit", async (event) => {
     const instructions = [felicitacion, values.validationInstructions.trim()].filter(Boolean).join("\n\n");
     const contestId = values.contestId;
     await send(contestId ? `/api/admin/contests/${encodeURIComponent(contestId)}` : "/api/admin/contests", contestId ? "PUT" : "POST", { eventId: state.selected, name: values.name, kind, activityIds, opensAt, closesAt, prizeId, validationInstructions: instructions, rules: { scope: activity ? "activity" : "event", conditions: values.validationInstructions }, state: "active" });
-    form.reset(); updateContestCriteriaFields(); $("button[type=submit]", form).textContent = "Guardar reto"; $("#prize-fields").hidden = false; $("#felicitation-fields").hidden = true; message(contestId ? "Cambios del reto guardados." : "Reto guardado y visible para el STAFF."); await selectEvent(state.selected);
+    form.reset(); updateContestCriteriaFields(); button.textContent = "Guardar reto"; $("#prize-fields").hidden = false; $("#felicitation-fields").hidden = true; await selectEvent(state.selected, "contests"); message(contestId ? "Cambios del reto guardados." : "Reto guardado y visible para el STAFF.");
   } catch (error) { message(error.message); }
   finally { button.disabled = false; }
 });
