@@ -120,8 +120,6 @@ function showHome(profile, data, demo = false) {
   const active = photoWindowIndex >= 0 ? photoWindowIndex : moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
   const next = nextPhotoWindowIndex >= 0 ? nextPhotoWindowIndex : moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
   selectedMomentIndex = active >= 0 ? active : next >= 0 ? next : 0;
-  const initialAvailable = findAvailableMoment(selectedMomentIndex, 1, true) ?? findAvailableMoment(selectedMomentIndex, -1, true);
-  if (initialAvailable !== null) selectedMomentIndex = initialAvailable;
   renderCarousel();
   renderSchedule();
   resetUploadPanel();
@@ -249,7 +247,7 @@ function renderCarousel() {
       check.setAttribute("aria-hidden", "true");
       check.innerHTML = '<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>';
       card.append(check);
-      card.setAttribute("aria-label", (moment.name || "Momento") + ". Foto enviada; elige otro momento.");
+      card.setAttribute("aria-label", (moment.name || "Momento") + ". Foto enviada; puedes volver a ver este momento.");
     }
     card.addEventListener("click", () => selectMoment(index, true));
     slide.append(heading, card, time);
@@ -298,21 +296,15 @@ function updateCarousel() {
 function selectMoment(index, openPanel) {
   if (!moments.length) return;
   const boundedIndex = Math.max(0, Math.min(moments.length - 1, index));
-  if (submissions.has(String(moments[boundedIndex].id))) {
-    const direction = boundedIndex >= selectedMomentIndex ? 1 : -1;
-    const available = findAvailableMoment(boundedIndex, direction) ?? findAvailableMoment(boundedIndex, -direction);
-    if (available === null) return;
-    selectedMomentIndex = available;
-    openPanel = false;
-  } else selectedMomentIndex = boundedIndex;
+  selectedMomentIndex = boundedIndex;
+  if (submissions.has(String(moments[boundedIndex].id))) openPanel = false;
   updateCarousel();
   if (openPanel) openUploadPanel();
 }
 function moveCarousel(amount) {
   if (!moments.length || !amount) return;
-  const direction = Math.sign(amount);
-  const available = findAvailableMoment(selectedMomentIndex, direction);
-  if (available !== null) selectMoment(available, false);
+  const nextIndex = selectedMomentIndex + Math.sign(amount);
+  if (nextIndex >= 0 && nextIndex < moments.length) selectMoment(nextIndex, false);
 }
 
 function renderSchedule() {
@@ -336,10 +328,7 @@ function renderSchedule() {
 function openUploadPanel() {
   if (!moments.length) return toast("La agenda aún no está disponible.");
   if (submissions.has(String(moments[selectedMomentIndex]?.id))) {
-    const available = findAvailableMoment(selectedMomentIndex, 1, true) ?? findAvailableMoment(selectedMomentIndex, -1, true);
-    if (available === null) return;
-    selectedMomentIndex = available;
-    updateCarousel();
+    return toast("Ya compartiste una foto para este momento.");
   }
   $("#screen-home").classList.add("is-uploading");
   $("#upload-panel").classList.add("open");
