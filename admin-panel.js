@@ -19,6 +19,7 @@ function showLoggedIn() { loginCard.hidden = true; shell.hidden = false; }
 function navigate(view) {
   $$(".admin-view").forEach((section) => { section.hidden = section.id !== `view-${view}`; });
   $$(".admin-nav [data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
+  if (view === "events") { $("#event-setup-card").hidden = true; $("#event-editor").hidden = true; }
   $("#admin-content").scrollTo({ top: 0, behavior: "smooth" });
 }
 function optionHtml(venues, selected = "") { return '<option value="">Selecciona un lugar</option>' + venues.filter((v) => v.active).map((v) => `<option value="${esc(v.id)}" ${v.id === selected ? "selected" : ""}>${esc(v.name)}</option>`).join(""); }
@@ -118,6 +119,10 @@ function attachPlaceAutocomplete(formId, suggestionsId, statusId) {
 }
 
 let setupActivityCount = 0;
+const EVENT_DRAFT_KEY = "entre-momentos:event-setup-draft";
+let restoringEventDraft = false;
+let setupAgendaRows = null;
+let setupGuestRows = null;
 function addSetupActivity() {
   const list = $("#setup-activities");
   const index = list.children.length;
@@ -126,9 +131,47 @@ function addSetupActivity() {
   card.dataset.setupActivity = "";
   card.innerHTML = `<div class="setup-activity-heading"><h4>Momento ${index + 1}</h4><button class="admin-button secondary" type="button" data-remove-setup-activity aria-label="Quitar momento">Quitar</button></div><div class="admin-two-col"><label>Nombre de la actividad<input name="name" placeholder="El brindis" minlength="2"></label><label>Foto de referencia (opcional)<input name="reference" type="file" accept="image/jpeg,image/png,image/webp"></label></div><label>Descripción breve (opcional)<textarea name="description" placeholder="Una frase que explique el momento" rows="2"></textarea></label><div class="admin-two-col"><label>Hora de inicio<div class="admin-time-entry"><input name="startClock" type="text" inputmode="numeric" maxlength="5" pattern="(?:[1-9]|1[0-2]):[0-5][0-9]" placeholder="5:30" aria-label="Hora y minutos de inicio"><select name="startPeriod" aria-label="AM o PM"><option>PM</option><option>AM</option></select></div></label><label>Hora de fin<div class="admin-time-entry"><input name="endClock" type="text" inputmode="numeric" maxlength="5" pattern="(?:[1-9]|1[0-2]):[0-5][0-9]" placeholder="6:30" aria-label="Hora y minutos de fin"><select name="endPeriod" aria-label="AM o PM"><option>PM</option><option>AM</option></select></div></label></div><label class="rule-toggle"><input name="hasContest" type="checkbox"><span>Incluir un reto o dinámica en este momento</span></label><div class="setup-challenge" hidden><div class="admin-two-col"><label>Nombre del reto<input name="contestName" placeholder="Primera foto del brindis"></label><label>Tipo de dinámica<select name="contestKind"><option value="first_photo">Primera foto elegible</option><option value="most_photos">Más fotos elegibles</option><option value="photo_with_couple">Foto con los novios</option><option value="bouquet">Ramo</option><option value="manual">Selección del equipo</option></select></label></div><label>Regla o condición<textarea name="contestRules" placeholder="Qué debe aparecer en la foto o cómo se elegirá" rows="2"></textarea></label><label class="rule-toggle"><input name="hasPrize" type="checkbox"><span>Esta dinámica tendrá premio físico</span></label><label data-prize-name hidden>Premio<input name="prizeName" placeholder="Ramo, recuerdo, etc."></label><p class="admin-help">Sin premio físico, se mostrará una felicitación digital.</p></div>`;
   list.append(card);
-  card.querySelector("[data-remove-setup-activity]").addEventListener("click", () => { if (list.children.length <= 1) return; card.remove(); [...list.children].forEach((item, i) => { item.querySelector("h4").textContent = `Momento ${i + 1}`; }); });
+  card.querySelector("[data-remove-setup-activity]").addEventListener("click", () => { if (list.children.length <= 1) return; card.remove(); [...list.children].forEach((item, i) => { item.querySelector("h4").textContent = `Momento ${i + 1}`; }); saveEventDraft(); });
   card.querySelector('[name="hasContest"]').addEventListener("change", (event) => { card.querySelector(".setup-challenge").hidden = !event.target.checked; });
   card.querySelector('[name="hasPrize"]').addEventListener("change", (event) => { card.querySelector("[data-prize-name]").hidden = !event.target.checked; });
+}
+function saveEventDraft() {
+  if (restoringEventDraft) return;
+  const form = $("#event-form");
+  const fields = [...form.querySelectorAll("input:not([type=file]),select,textarea")].map((field) => ({ value: field.value, checked: field.type === "checkbox" ? field.checked : undefined }));
+  try {
+    localStorage.setItem(EVENT_DRAFT_KEY, JSON.stringify({ fields, activityCount: $("#setup-activities").children.length, agendaRows: setupAgendaRows, guestRows: setupGuestRows, savedAt: Date.now() }));
+    $("#setup-event-feedback").textContent = "Borrador guardado automáticamente en este navegador.";
+  } catch { $("#setup-event-feedback").textContent = "No se pudo guardar el borrador automáticamente. Completa y guarda el evento antes de cerrar."; }
+}
+function restoreEventDraft() {
+  let draft;
+  try { draft = JSON.parse(localStorage.getItem(EVENT_DRAFT_KEY) || "null"); } catch { return; }
+  if (!draft?.fields?.length) return;
+  setupAgendaRows = Array.isArray(draft.agendaRows) ? draft.agendaRows : null;
+  setupGuestRows = Array.isArray(draft.guestRows) ? draft.guestRows : null;
+  restoringEventDraft = true;
+  const list = $("#setup-activities");
+  list.innerHTML = "";
+  for (let index = 0; index < Math.max(1, Math.min(Number(draft.activityCount) || 1, 30)); index++) addSetupActivity();
+  const fields = [...$("#event-form").querySelectorAll("input:not([type=file]),select,textarea")];
+  fields.forEach((field, index) => {
+    const saved = draft.fields[index];
+    if (!saved) return;
+    if (field.type === "checkbox") field.checked = Boolean(saved.checked);
+    else field.value = saved.value ?? "";
+  });
+  $("#setup-activities").querySelectorAll("[data-setup-activity]").forEach((card) => {
+    card.querySelector(".setup-challenge").hidden = !card.querySelector('[name="hasContest"]').checked;
+    card.querySelector("[data-prize-name]").hidden = !card.querySelector('[name="hasPrize"]').checked;
+  });
+  $("#setup-event-challenge").hidden = !$("#setup-event-challenge-enabled").checked;
+  $("#setup-event-prize-field").hidden = !$("#setup-event-challenge-prize-enabled").checked;
+  restoringEventDraft = false;
+  if (setupAgendaRows) $("#setup-agenda-preview").textContent = `${setupAgendaRows.length} momento(s) recuperados del borrador.`;
+  if (setupGuestRows) $("#setup-guests-preview").textContent = `${setupGuestRows.length} invitado(s) recuperados del borrador.`;
+  const restoredFiles = [setupAgendaRows && `${setupAgendaRows.length} momentos`, setupGuestRows && `${setupGuestRows.length} invitados`].filter(Boolean).join(" y ");
+  $("#setup-event-feedback").textContent = `Recuperé el borrador guardado en este navegador${restoredFiles ? `, incluida la lista de ${restoredFiles}` : ""}. Las fotografías sí tendrás que seleccionarlas de nuevo.`;
 }
 async function uploadEventAsset(eventId, file, kind, activityId = "") {
   if (!file) return null;
@@ -213,10 +256,18 @@ function bindStaffCopy(root = document) {
   }));
 }
 function renderEvents() {
-  $("#events-list").innerHTML = state.events.length ? state.events.map((event) => eventCard(event)).join("") : '<div class="empty-state">Aún no hay eventos. Crea uno después de registrar el lugar.</div>';
+  const grouped = new Map();
+  state.events.forEach((event) => { const venue = event.venue_name || "Sin lugar"; if (!grouped.has(venue)) grouped.set(venue, []); grouped.get(venue).push(event); });
+  $("#events-list").innerHTML = grouped.size ? [...grouped].map(([venue, events]) => `<section class="event-venue-group"><div class="event-venue-heading"><h3>${esc(venue)}</h3><span>${events.length} evento(s)</span></div><div class="admin-list">${events.map((event) => eventCard(event)).join("")}</div></section>`).join("") : '<div class="empty-state">Aún no hay eventos. Crea uno después de registrar el lugar.</div>';
   $$('[data-configure]', $("#events-list")).forEach((button) => button.addEventListener("click", () => selectEvent(button.dataset.configure)));
   $$('[data-delete-event]', $("#events-list")).forEach((button) => button.addEventListener("click", () => deleteEvent(button.dataset.deleteEvent)));
   bindStaffCopy($("#events-list"));
+}
+function openEventCreation() {
+  navigate("events");
+  $("#event-editor").hidden = true;
+  $("#event-setup-card").hidden = false;
+  $("#event-setup-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function renderStaff() {
   const grouped = new Map();
@@ -230,11 +281,13 @@ async function selectEvent(id) {
     const result = await api(`/api/admin/events/${encodeURIComponent(id)}/details`);
     state.selected = id;
     state.details = result;
+    $("#event-setup-card").hidden = true;
     fillEventForm(result);
     renderEventDetails();
     $("#event-editor").hidden = false;
     setEventTab("details");
     navigate("events");
+    $("#event-editor").hidden = false;
     $("#event-editor").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) { message(error.message); }
 }
@@ -391,6 +444,9 @@ $("#login-form").addEventListener("submit", async (event) => {
 $("#logout").addEventListener("click", async () => { try { await api("/api/admin/session", { method: "DELETE" }); } catch {} window.location.replace("/"); });
 $$('[data-view]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.view)));
 $$('[data-go]').forEach((button) => button.addEventListener("click", () => navigate(button.dataset.go)));
+$("#create-event-button").addEventListener("click", openEventCreation);
+$$('[data-create-event]').forEach((button) => button.addEventListener("click", openEventCreation));
+$("#cancel-create-event").addEventListener("click", () => { $("#event-setup-card").hidden = true; $("#admin-content").scrollTo({ top: 0, behavior: "smooth" }); });
 $$('[data-event-tab]').forEach((button) => button.addEventListener("click", () => setEventTab(button.dataset.eventTab)));
 $("#admin-content").addEventListener("scroll", (event) => { $("#admin-scroll-top").hidden = event.currentTarget.scrollTop < 240; }, { passive: true });
 $("#admin-scroll-top").addEventListener("click", () => $("#admin-content").scrollTo({ top: 0, behavior: "smooth" }));
@@ -417,7 +473,7 @@ $("#event-form").addEventListener("submit", async (event) => {
   const data = { name: form.elements.name.value.trim(), venueId: form.elements.venueId.value, eventDate: form.elements.eventDate.value, driveFolderUrl: form.elements.driveFolderUrl.value.trim(), state: form.elements.state.value, contestsEnabled: form.elements.contestsEnabled.checked };
   const cover = $("#event-cover-upload").files?.[0]; const cards = $$("[data-setup-activity]", form); let created = null;
   try {
-    const guestFile = $("#setup-guests-file").files?.[0]; const guests = guestFile ? guestRowsFromImport(await readImportFile(guestFile)) : [];
+    const guestFile = $("#setup-guests-file").files?.[0]; const guests = guestFile ? guestRowsFromImport(await readImportFile(guestFile)) : (setupGuestRows || []);
     const manualActivities = cards.map((card) => {
       const name = card.querySelector("[name=name]").value.trim(); const startClock = card.querySelector("[name=startClock]").value; const endClock = card.querySelector("[name=endClock]").value;
       if (!name && !startClock && !endClock) return null;
@@ -426,7 +482,7 @@ $("#event-form").addEventListener("submit", async (event) => {
       return { name, description: card.querySelector("[name=description]").value.trim(), startsAt, endsAt, reference: card.querySelector("[name=reference]").files?.[0] || null, contest: card.querySelector("[name=hasContest]").checked ? { name: card.querySelector("[name=contestName]").value.trim(), kind: card.querySelector("[name=contestKind]").value, rules: card.querySelector("[name=contestRules]").value.trim(), prize: card.querySelector("[name=hasPrize]").checked ? card.querySelector("[name=prizeName]").value.trim() : "" } : null };
     }).filter(Boolean);
     const agendaFile = $("#setup-agenda-file").files?.[0];
-    const importedActivities = agendaFile ? (await readImportFile(agendaFile)).map((row) => {
+    const importedActivities = agendaFile || setupAgendaRows ? (await (agendaFile ? readImportFile(agendaFile) : setupAgendaRows)).map((row) => {
       const name = col(row, ["nombredelaactividad", "actividad", "momento", "nombre", "name"]);
       const starts = col(row, ["horadeinicio", "horainicio", "inicio", "empieza", "start", "startsat"]);
       const ends = col(row, ["horafin", "horadefin", "fin", "termina", "end", "endsat"]);
@@ -468,18 +524,21 @@ $("#event-form").addEventListener("submit", async (event) => {
     for (const guest of guests) await send("/api/admin/guests", "POST", { eventId: created.id, ...guest });
     if (requestedState === "active") await send(`/api/admin/events/${encodeURIComponent(created.id)}`, "PUT", { ...data, state: "active" });
     status.textContent = `Evento listo. ${activities.length} momento(s) y ${guests.length} invitado(s) guardados.`;
-    form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); $("#setup-event-challenge").hidden = true; $("#setup-event-prize-field").hidden = true; form.elements.contestsEnabled.checked = true; await loadDashboard(); await selectEvent(created.id);
+    try { localStorage.removeItem(EVENT_DRAFT_KEY); } catch {} setupAgendaRows = null; setupGuestRows = null; form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); $("#setup-event-challenge").hidden = true; $("#setup-event-prize-field").hidden = true; form.elements.contestsEnabled.checked = true; $("#event-setup-card").hidden = true; await loadDashboard(); await selectEvent(created.id);
   } catch (error) {
     if (created?.id) { try { await api(`/api/admin/events/${encodeURIComponent(created.id)}`, { method: "DELETE" }); } catch {} status.textContent = "No se completó la configuración y se intentó retirar el evento incompleto."; }
     message(error.message); status.textContent = `${status.textContent} ${error.message}`;
   } finally { button.disabled = false; }
 });
 addSetupActivity();
-$("#add-setup-activity").addEventListener("click", addSetupActivity);
+$("#add-setup-activity").addEventListener("click", () => { addSetupActivity(); saveEventDraft(); });
+$("#event-form").addEventListener("input", saveEventDraft);
+$("#event-form").addEventListener("change", saveEventDraft);
+restoreEventDraft();
 $("#setup-event-challenge-enabled").addEventListener("change", (event) => { $("#setup-event-challenge").hidden = !event.target.checked; });
 $("#setup-event-challenge-prize-enabled").addEventListener("change", (event) => { $("#setup-event-prize-field").hidden = !event.target.checked; });
-$("#setup-agenda-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { const rows = await readImportFile(file); $("#setup-agenda-preview").textContent = `${rows.length} momento(s) detectados. Se combinarás con los momentos que agregues manualmente.`; } catch (error) { $("#setup-agenda-preview").textContent = error.message; event.currentTarget.value = ""; } });
-$("#setup-guests-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { const rows = guestRowsFromImport(await readImportFile(file)); $("#setup-guests-preview").textContent = `${rows.length} invitado(s) listos para agregarse al evento.`; } catch (error) { $("#setup-guests-preview").textContent = error.message; event.currentTarget.value = ""; } });
+$("#setup-agenda-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { setupAgendaRows = await readImportFile(file); saveEventDraft(); $("#setup-agenda-preview").textContent = `${setupAgendaRows.length} momento(s) detectados y guardados en el borrador. Se combinarán con los momentos manuales.`; } catch (error) { $("#setup-agenda-preview").textContent = error.message; event.currentTarget.value = ""; } });
+$("#setup-guests-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { setupGuestRows = guestRowsFromImport(await readImportFile(file)); saveEventDraft(); $("#setup-guests-preview").textContent = `${setupGuestRows.length} invitado(s) listos y guardados en el borrador.`; } catch (error) { $("#setup-guests-preview").textContent = error.message; event.currentTarget.value = ""; } });
 $("#event-edit-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
   const data = Object.fromEntries(new FormData(form)); const cover = form.elements.cover.files?.[0]; delete data.cover; data.contestsEnabled = form.elements.contestsEnabled.checked;
