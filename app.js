@@ -77,7 +77,7 @@ function setEvent(data) {
   $("#staff-event-kicker").textContent = (eventData.name || "EVENTO").toLocaleUpperCase("es-MX");
   const cover = eventData.coverUrl || "";
   if (cover) {
-    const imageLayer = "linear-gradient(180deg,transparent 0%,transparent 47%,rgba(255,250,246,.72) 76%,#fffaf6 100%),url(\"" + cover + "\")";
+    const imageLayer = "linear-gradient(180deg,rgba(24,32,29,.14) 0%,rgba(24,32,29,.04) 28%,transparent 52%,rgba(255,250,246,.05) 66%,rgba(255,250,246,.3) 78%,rgba(255,250,246,.76) 90%,#fffaf6 100%),url(\"" + cover + "\")";
     $("#event-backdrop").style.backgroundImage = imageLayer;
   } else {
     $("#event-backdrop").style.removeProperty("background-image");
