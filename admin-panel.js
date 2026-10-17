@@ -305,22 +305,41 @@ async function readImportFile(file) {
 }
 function col(row, names) { for (const name of names) { const value = row[name]; if (value !== undefined && value !== null && String(value).trim()) return String(value).trim(); } return ""; }
 function dateTime(value, date) {
-  if (typeof value === "number" && value >= 0 && value < 1) {
-    const minutes = Math.round(value * 24 * 60) % (24 * 60);
-    return `${date}T${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}:00`;
+  const formatTime = (minutes, seconds = 0) => {
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    return `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  };
+  // Excel stores times as a fraction of a day; serial date-times also include
+  // whole days, which we intentionally ignore because the event has one date.
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    const fraction = value % 1;
+    return formatTime(Math.round(fraction * 24 * 60) % (24 * 60));
   }
-  const source = String(value || "").trim();
-  const time = source.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?$/i);
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) return formatTime(value.getHours() * 60 + value.getMinutes(), value.getSeconds());
+
+  const source = String(value ?? "").trim();
+  const clockSource = source.match(/^\d{4}-\d{2}-\d{2}[T ](.+)$/)?.[1] || source;
+  const normalized = clockSource.normalize("NFKC").toLocaleLowerCase("es-MX")
+    .replace(/[\u200b-\u200f\uFEFF]/g, "")
+    .replace(/([ap])\s*\.?\s*m\.?/g, "$1m")
+    .replace(/\bde\s+la\s+mañana\b/g, "am")
+    .replace(/\bde\s+la\s+(?:tarde|noche)\b/g, "pm");
+  const time = normalized.match(/^(\d{1,2})\s*:\s*(\d{2})(?:\s*:\s*(\d{2}))?\s*(am|pm)?$/i);
   if (time) {
     let hour = Number(time[1]);
-    const suffix = time[4]?.replace(/\./g, "").toLowerCase();
+    const minute = Number(time[2]);
+    const second = Number(time[3] || 0);
+    const suffix = time[4]?.toLowerCase();
+    if (minute > 59 || second > 59 || (suffix ? hour < 1 || hour > 12 : hour > 23)) throw new Error(`La hora «${source}» no es válida.`);
     if (suffix) hour = (hour % 12) + (suffix === "pm" ? 12 : 0);
-    if (hour > 23 || Number(time[2]) > 59) throw new Error(`La hora «${source}» no es válida.`);
-    return `${date}T${String(hour).padStart(2, "0")}:${time[2]}:${time[3] || "00"}`;
+    return formatTime(hour * 60 + minute, second);
   }
-  const parsed = new Date(source);
-  if (!Number.isNaN(parsed.valueOf())) return parsed.toISOString();
-  throw new Error(`No se reconoce la hora «${source}». Usa HH:MM o fecha y hora.`);
+  // Accept ISO date/time or localized date-time strings while always assigning
+  // the activity to the event's configured date.
+  const embeddedClock = source.match(/^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}[T ,]+(.+)$/i)?.[1];
+  if (embeddedClock) return dateTime(embeddedClock, date);
+  throw new Error(`No se reconoce la hora «${source}». Usa, por ejemplo, 09:00, 5:30 p. m. o 17:30.`);
 }
 function manualEventDateTime(date, clock, period) {
   const match = String(clock || "").trim().match(/^(\d{1,2}):([0-5]\d)$/);
