@@ -152,9 +152,9 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .gallery-button svg { width: 19px; height: 19px; }
 .photo-review { display: grid; grid-template-columns: 74px 1fr; gap: 8px 10px; align-items: center; }
 .photo-review > img { width: 74px; height: 74px; border-radius: 4px; background: #e8e9df; object-fit: cover; }
-.photo-review-actions { display: grid; grid-template-columns: 1fr auto; gap: 5px; }
-.photo-review-actions .primary-button { min-height: 43px; padding-inline: 12px; font-size: 13px; }
-.photo-review-actions .text-button { grid-column: 1 / -1; min-height: 28px; justify-self: center; font-size: 12px; }
+.photo-review-actions { display: grid; grid-template-columns: repeat(3,50px); justify-content: center; gap: 10px; }
+.photo-review-actions > button { display: grid; width: 50px; height: 50px; min-height: 50px; place-items: center; padding: 0; border-radius: 50%; }
+.photo-review-actions .primary-button { font-size: 13px; }
 .photo-review .form-message { grid-column: 1 / -1; }
 .back-button { align-self: flex-start; display: flex; align-items: center; gap: 8px; min-height: 38px; margin: -7px 0 17px; color: var(--olive-dark); font-size: 14px; }
 .step-heading { margin: 0 0 18px; }
@@ -347,13 +347,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   filter: grayscale(.15);
 }
 .photo-review-actions .send-photo-button {
-  justify-self: end;
-  width: 50px;
-  min-height: 50px !important;
-  padding: 0;
   border-radius: 50%;
 }
-.send-photo-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.photo-review-actions > button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions .change-photo-button { border: 1px solid #fff8d9; border-bottom: 4px solid #d7a632; background: linear-gradient(145deg,#ffe994,#f4c44f); color: #674a13; box-shadow: 0 3px 0 #d7a632,0 7px 13px #8a651d24; }
+.screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions .cancel-photo-button { border: 1px solid #ffe2dc; border-bottom: 4px solid #b92e3b; background: linear-gradient(145deg,#f98a7b,#dc4f59); color: #fff; box-shadow: 0 3px 0 #b92e3b,0 7px 13px #a43c3c24; }
+.photo-review-actions .change-photo-button:active,
+.photo-review-actions .cancel-photo-button:active { transform: translateY(2px); border-bottom-width: 2px; }
 .screen:not(.staff-login-screen):not(.admin-screen) .secondary-button {
   border: 1px solid #ffffff;
   border-bottom: 3px solid #cdbfe1;
@@ -565,6 +565,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 }
 @media (max-width: 360px) {
   .moment-slide { width: min(62vw,235px); }
+  .photo-review { grid-template-columns: 60px minmax(0,1fr); gap: 8px; }
+  .photo-review > img { width: 60px; height: 60px; }
+  .photo-review-actions { grid-template-columns: repeat(3,46px); gap: 8px; }
+  .photo-review-actions > button { width: 46px; height: 46px; min-height: 46px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .moment-slide,.moment-card { transition: none; }
