@@ -7,6 +7,7 @@ const KINDS = new Set(["first_photo", "most_photos", "photo_with_couple", "bouqu
 
 function routeId(path, prefix) { return path.slice(prefix.length).split("/").filter(Boolean); }
 function apiError(error) { return fail(error.message || "No se pudo completar la operación.", error.status || 400, error.code || "invalid_request"); }
+function isMissingColumn(error, column) { return new RegExp(`(?:no such column:\\s*(?:[\\w]+\\.)?${column}\\b|has no column named\\s+${column}\\b)`, "i").test(String(error?.message || error)); }
 async function authorized(ctx) { await requireAdmin(ctx.request, ctx.env); }
 async function eventOr404(db, id) { const row = await db.prepare("SELECT * FROM events WHERE id=?").bind(id).first(); if (!row) throw Object.assign(new Error("No se encontró el evento."), { status: 404, code: "event_not_found" }); return row; }
 async function log(db, action, entityType, entityId, eventId = null, detail = {}) {
@@ -166,7 +167,7 @@ export async function handleAdminApi(ctx, path) {
       try { rows = await db.prepare(`SELECT g.id,g.event_id,g.name,g.nickname,t.name AS table_name,g.active,
         (SELECT COUNT(*) FROM photo_submissions p WHERE p.guest_id=g.id) AS photos_sent
         FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
-      catch (error) { if (!/no such column: g\.nickname/i.test(error.message)) throw error; rows = await db.prepare(`SELECT g.id,g.event_id,g.name,NULL AS nickname,t.name AS table_name,g.active,
+      catch (error) { if (!isMissingColumn(error, "nickname")) throw error; rows = await db.prepare(`SELECT g.id,g.event_id,g.name,NULL AS nickname,t.name AS table_name,g.active,
         (SELECT COUNT(*) FROM photo_submissions p WHERE p.guest_id=g.id) AS photos_sent
         FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
       return json({ guests: rows.results || [] });
@@ -317,11 +318,11 @@ async function saveActivity(request, env, existing) {
   if (existing) {
     try { await db.prepare(`UPDATE event_activities SET name=?,description=?,position=?,starts_at=?,ends_at=?,photo_opens_at=?,photo_closes_at=?,active=?,updated_at=? WHERE id=? AND event_id=?`)
       .bind(name, description, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, data.active === false ? 0 : 1, time, id, event.id).run(); }
-    catch (error) { if (!/no such column: description/i.test(error.message)) throw error; await db.prepare(`UPDATE event_activities SET name=?,position=?,starts_at=?,ends_at=?,photo_opens_at=?,photo_closes_at=?,active=?,updated_at=? WHERE id=? AND event_id=?`).bind(name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, data.active === false ? 0 : 1, time, id, event.id).run(); }
+    catch (error) { if (!isMissingColumn(error, "description")) throw error; await db.prepare(`UPDATE event_activities SET name=?,position=?,starts_at=?,ends_at=?,photo_opens_at=?,photo_closes_at=?,active=?,updated_at=? WHERE id=? AND event_id=?`).bind(name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, data.active === false ? 0 : 1, time, id, event.id).run(); }
   } else {
     try { await db.prepare(`INSERT INTO event_activities (id,event_id,name,description,position,starts_at,ends_at,photo_opens_at,photo_closes_at,active,created_at,updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, description, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run(); }
-    catch (error) { if (!/no such column: description/i.test(error.message)) throw error; await db.prepare(`INSERT INTO event_activities (id,event_id,name,position,starts_at,ends_at,photo_opens_at,photo_closes_at,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run(); }
+    catch (error) { if (!isMissingColumn(error, "description")) throw error; await db.prepare(`INSERT INTO event_activities (id,event_id,name,position,starts_at,ends_at,photo_opens_at,photo_closes_at,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run(); }
   }
   if (event.drive_folder_id) await enqueueJob(db, event.id, "init_drive");
   await log(db, existing ? "activity.updated" : "activity.created", "activity", id, event.id);
@@ -352,7 +353,7 @@ async function createGuest(request, env) {
       await db.prepare("INSERT INTO event_guests (id,event_id,name,name_key,invitation_code_hash,table_id,nickname,active,created_at) VALUES (?,?,?,?,?,?,?,1,?)")
         .bind(id, event.id, name, name.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim(), hashHex, tableId, nickname, nowIso()).run();
     } catch (error) {
-      if (!/no such column: nickname/i.test(error.message)) throw error;
+      if (!isMissingColumn(error, "nickname")) throw error;
       await db.prepare("INSERT INTO event_guests (id,event_id,name,name_key,invitation_code_hash,table_id,active,created_at) VALUES (?,?,?,?,?,?,1,?)")
         .bind(id, event.id, name, name.toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim(), hashHex, tableId, nowIso()).run();
     }
@@ -483,7 +484,7 @@ async function loadEventDetails(db, eventId) {
   const activities = await db.prepare("SELECT * FROM event_activities WHERE event_id=? ORDER BY position,starts_at").bind(eventId).all();
   let guests;
   try { guests = await db.prepare(`SELECT g.id,g.name,g.nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
-  catch (error) { if (!/no such column: g\.nickname/i.test(error.message)) throw error; guests = await db.prepare(`SELECT g.id,g.name,NULL AS nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
+  catch (error) { if (!isMissingColumn(error, "nickname")) throw error; guests = await db.prepare(`SELECT g.id,g.name,NULL AS nickname,t.name AS table_name,g.active FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id WHERE g.event_id=? ORDER BY g.name`).bind(eventId).all(); }
   const contests = await db.prepare("SELECT * FROM contests WHERE event_id=? ORDER BY opens_at").bind(eventId).all();
   const prizes = await db.prepare("SELECT * FROM prizes WHERE event_id=? ORDER BY name").bind(eventId).all();
   return { event, venue, activities: activities.results || [], guests: guests.results || [], contests: contests.results || [], prizes: prizes.results || [] };

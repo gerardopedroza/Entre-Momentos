@@ -124,7 +124,7 @@ function addSetupActivity() {
   const card = document.createElement("article");
   card.className = "setup-activity-card";
   card.dataset.setupActivity = "";
-  card.innerHTML = `<div class="setup-activity-heading"><h4>Momento ${index + 1}</h4><button class="admin-button secondary" type="button" data-remove-setup-activity aria-label="Quitar momento">Quitar</button></div><div class="admin-two-col"><label>Nombre de la actividad<input name="name" placeholder="El brindis" required minlength="2"></label><label>Foto de referencia (opcional)<input name="reference" type="file" accept="image/jpeg,image/png,image/webp"></label></div><label>Descripción breve (opcional)<textarea name="description" placeholder="Una frase que explique el momento" rows="2"></textarea></label><div class="admin-two-col"><label>Hora de inicio<input name="startsAt" type="datetime-local" required></label><label>Hora de fin<input name="endsAt" type="datetime-local" required></label></div><label class="rule-toggle"><input name="hasContest" type="checkbox"><span>Incluir un reto o dinámica en este momento</span></label><div class="setup-challenge" hidden><div class="admin-two-col"><label>Nombre del reto<input name="contestName" placeholder="Primera foto del brindis"></label><label>Tipo de dinámica<select name="contestKind"><option value="first_photo">Primera foto elegible</option><option value="most_photos">Más fotos elegibles</option><option value="photo_with_couple">Foto con los novios</option><option value="bouquet">Ramo</option><option value="manual">Selección del equipo</option></select></label></div><label>Regla o condición<textarea name="contestRules" placeholder="Qué debe aparecer en la foto o cómo se elegirá" rows="2"></textarea></label><label class="rule-toggle"><input name="hasPrize" type="checkbox"><span>Esta dinámica tendrá premio físico</span></label><label data-prize-name hidden>Premio<input name="prizeName" placeholder="Ramo, recuerdo, etc."></label><p class="admin-help">Sin premio físico, se mostrará una felicitación digital.</p></div>`;
+  card.innerHTML = `<div class="setup-activity-heading"><h4>Momento ${index + 1}</h4><button class="admin-button secondary" type="button" data-remove-setup-activity aria-label="Quitar momento">Quitar</button></div><div class="admin-two-col"><label>Nombre de la actividad<input name="name" placeholder="El brindis" minlength="2"></label><label>Foto de referencia (opcional)<input name="reference" type="file" accept="image/jpeg,image/png,image/webp"></label></div><label>Descripción breve (opcional)<textarea name="description" placeholder="Una frase que explique el momento" rows="2"></textarea></label><div class="admin-two-col"><label>Hora de inicio<input name="startsAt" type="datetime-local"></label><label>Hora de fin<input name="endsAt" type="datetime-local"></label></div><label class="rule-toggle"><input name="hasContest" type="checkbox"><span>Incluir un reto o dinámica en este momento</span></label><div class="setup-challenge" hidden><div class="admin-two-col"><label>Nombre del reto<input name="contestName" placeholder="Primera foto del brindis"></label><label>Tipo de dinámica<select name="contestKind"><option value="first_photo">Primera foto elegible</option><option value="most_photos">Más fotos elegibles</option><option value="photo_with_couple">Foto con los novios</option><option value="bouquet">Ramo</option><option value="manual">Selección del equipo</option></select></label></div><label>Regla o condición<textarea name="contestRules" placeholder="Qué debe aparecer en la foto o cómo se elegirá" rows="2"></textarea></label><label class="rule-toggle"><input name="hasPrize" type="checkbox"><span>Esta dinámica tendrá premio físico</span></label><label data-prize-name hidden>Premio<input name="prizeName" placeholder="Ramo, recuerdo, etc."></label><p class="admin-help">Sin premio físico, se mostrará una felicitación digital.</p></div>`;
   list.append(card);
   card.querySelector("[data-remove-setup-activity]").addEventListener("click", () => { if (list.children.length <= 1) return; card.remove(); [...list.children].forEach((item, i) => { item.querySelector("h4").textContent = `Momento ${i + 1}`; }); });
   card.querySelector('[name="hasContest"]').addEventListener("change", (event) => { card.querySelector(".setup-challenge").hidden = !event.target.checked; });
@@ -393,14 +393,37 @@ $("#event-form").addEventListener("submit", async (event) => {
   const cover = $("#event-cover-upload").files?.[0]; const cards = $$("[data-setup-activity]", form); let created = null;
   try {
     const guestFile = $("#setup-guests-file").files?.[0]; const guests = guestFile ? guestRowsFromImport(await readImportFile(guestFile)) : [];
-    const activities = cards.map((card) => ({ name: card.querySelector("[name=name]").value.trim(), description: card.querySelector("[name=description]").value.trim(), startsAt: card.querySelector("[name=startsAt]").value, endsAt: card.querySelector("[name=endsAt]").value, reference: card.querySelector("[name=reference]").files?.[0] || null, contest: card.querySelector("[name=hasContest]").checked ? { name: card.querySelector("[name=contestName]").value.trim(), kind: card.querySelector("[name=contestKind]").value, rules: card.querySelector("[name=contestRules]").value.trim(), prize: card.querySelector("[name=hasPrize]").checked ? card.querySelector("[name=prizeName]").value.trim() : "" } : null })).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    const manualActivities = cards.map((card) => {
+      const name = card.querySelector("[name=name]").value.trim(); const startsAt = card.querySelector("[name=startsAt]").value; const endsAt = card.querySelector("[name=endsAt]").value;
+      if (!name && !startsAt && !endsAt) return null;
+      if (name.length < 2 || !startsAt || !endsAt) throw new Error("Completa el nombre, la hora de inicio y la hora de fin de cada momento, o quita la tarjeta vacía.");
+      return { name, description: card.querySelector("[name=description]").value.trim(), startsAt, endsAt, reference: card.querySelector("[name=reference]").files?.[0] || null, contest: card.querySelector("[name=hasContest]").checked ? { name: card.querySelector("[name=contestName]").value.trim(), kind: card.querySelector("[name=contestKind]").value, rules: card.querySelector("[name=contestRules]").value.trim(), prize: card.querySelector("[name=hasPrize]").checked ? card.querySelector("[name=prizeName]").value.trim() : "" } : null };
+    }).filter(Boolean);
+    const agendaFile = $("#setup-agenda-file").files?.[0];
+    const importedActivities = agendaFile ? (await readImportFile(agendaFile)).map((row) => {
+      const name = col(row, ["nombredelaactividad", "actividad", "momento", "nombre", "name"]);
+      const starts = col(row, ["horadeinicio", "horainicio", "inicio", "empieza", "start", "startsat"]);
+      const ends = col(row, ["horafin", "horadefin", "fin", "termina", "end", "endsat"]);
+      if (!name || !starts || !ends) throw new Error("La agenda debe tener Nombre de la actividad, Hora de inicio y Hora fin en cada fila.");
+      const challengeName = col(row, ["reto", "dinamica", "nombredelreto", "contest", "challenge"]);
+      const challengeKind = col(row, ["tipodereto", "tipo", "challengekind"]);
+      const validKinds = ["first_photo", "most_photos", "photo_with_couple", "bouquet", "manual"];
+      return { name, description: col(row, ["descripcion", "description"]), startsAt: dateTime(starts, data.eventDate), endsAt: dateTime(ends, data.eventDate), reference: null,
+        contest: challengeName ? { name: challengeName, kind: validKinds.includes(challengeKind) ? challengeKind : "manual", rules: col(row, ["regla", "condicion", "condiciones", "instrucciones", "validationinstructions"]), prize: col(row, ["premio", "prize"]) } : null };
+    }) : [];
+    const activities = [...manualActivities, ...importedActivities].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    if (!activities.length) throw new Error("Agrega al menos un momento manualmente o carga la agenda en CSV o Excel.");
+    const eventChallenge = data.contestsEnabled && $("#setup-event-challenge-enabled").checked ? { name: $("#setup-event-challenge-name").value.trim(), kind: $("#setup-event-challenge-kind").value, rules: $("#setup-event-challenge-rules").value.trim(), prize: $("#setup-event-challenge-prize-enabled").checked ? $("#setup-event-challenge-prize").value.trim() : "" } : null;
+    if (eventChallenge && !eventChallenge.name) throw new Error("Escribe el nombre del reto general del evento.");
     for (const activity of activities) if (activity.contest && !activity.contest.name) throw new Error("Ponle un nombre a cada reto que agregues.");
     status.textContent = "Guardando evento, actividades, retos e invitados…";
     const requestedState = data.state; const result = await send("/api/admin/events", "POST", { ...data, state: "draft" }); created = result.event;
     if (cover) { status.textContent = "Guardando fotografía principal…"; await uploadEventAsset(created.id, cover, "event_cover"); }
+    const createdActivities = [];
     for (let i = 0; i < activities.length; i++) {
       const activity = activities[i]; status.textContent = `Guardando momento ${i + 1} de ${activities.length}…`;
       const saved = await send("/api/admin/activities", "POST", { eventId: created.id, name: activity.name, description: activity.description, startsAt: activity.startsAt, endsAt: activity.endsAt, position: i + 1 });
+      createdActivities.push(saved.activity);
       if (activity.reference) await uploadEventAsset(created.id, activity.reference, "activity_reference", saved.activity.id);
       if (activity.contest && data.contestsEnabled) {
         let prizeId = null;
@@ -409,10 +432,17 @@ $("#event-form").addEventListener("submit", async (event) => {
         await send("/api/admin/contests", "POST", { eventId: created.id, name: activity.contest.name, kind: activity.contest.kind, activityIds: [saved.activity.id], opensAt, closesAt, state: data.state === "active" ? "active" : "draft", prizeId, validationInstructions: activity.contest.rules, rules: { conditions: activity.contest.rules } });
       }
     }
+    if (eventChallenge && data.contestsEnabled) {
+      let prizeId = null;
+      if (eventChallenge.prize) prizeId = (await send("/api/admin/prizes", "POST", { eventId: created.id, name: eventChallenge.prize, instructions: "Coordina la entrega con el STAFF al cierre del evento." })).prize.id;
+      const opensAt = new Date(Math.min(...createdActivities.map((item) => Date.parse(item.photo_opens_at)))).toISOString();
+      const closesAt = new Date(Math.max(...createdActivities.map((item) => Date.parse(item.photo_closes_at)))).toISOString();
+      await send("/api/admin/contests", "POST", { eventId: created.id, name: eventChallenge.name, kind: eventChallenge.prize ? eventChallenge.kind : "manual", activityIds: createdActivities.map((item) => item.id), opensAt, closesAt, state: data.state === "active" ? "active" : "draft", prizeId, validationInstructions: eventChallenge.rules || (eventChallenge.prize ? "" : "Felicitación digital al cierre del evento."), rules: { conditions: eventChallenge.rules } });
+    }
     for (const guest of guests) await send("/api/admin/guests", "POST", { eventId: created.id, ...guest });
     if (requestedState === "active") await send(`/api/admin/events/${encodeURIComponent(created.id)}`, "PUT", { ...data, state: "active" });
     status.textContent = `Evento listo. ${activities.length} momento(s) y ${guests.length} invitado(s) guardados.`;
-    form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); form.elements.contestsEnabled.checked = true; await loadDashboard(); await selectEvent(created.id);
+    form.reset(); $("#setup-activities").innerHTML = ""; setupActivityCount = 0; addSetupActivity(); $("#setup-event-challenge").hidden = true; $("#setup-event-prize-field").hidden = true; form.elements.contestsEnabled.checked = true; await loadDashboard(); await selectEvent(created.id);
   } catch (error) {
     if (created?.id) { try { await api(`/api/admin/events/${encodeURIComponent(created.id)}`, { method: "DELETE" }); } catch {} status.textContent = "No se completó la configuración y se intentó retirar el evento incompleto."; }
     message(error.message); status.textContent = `${status.textContent} ${error.message}`;
@@ -420,6 +450,9 @@ $("#event-form").addEventListener("submit", async (event) => {
 });
 addSetupActivity();
 $("#add-setup-activity").addEventListener("click", addSetupActivity);
+$("#setup-event-challenge-enabled").addEventListener("change", (event) => { $("#setup-event-challenge").hidden = !event.target.checked; });
+$("#setup-event-challenge-prize-enabled").addEventListener("change", (event) => { $("#setup-event-prize-field").hidden = !event.target.checked; });
+$("#setup-agenda-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { const rows = await readImportFile(file); $("#setup-agenda-preview").textContent = `${rows.length} momento(s) detectados. Se combinarás con los momentos que agregues manualmente.`; } catch (error) { $("#setup-agenda-preview").textContent = error.message; event.currentTarget.value = ""; } });
 $("#setup-guests-file").addEventListener("change", async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; try { const rows = guestRowsFromImport(await readImportFile(file)); $("#setup-guests-preview").textContent = `${rows.length} invitado(s) listos para agregarse al evento.`; } catch (error) { $("#setup-guests-preview").textContent = error.message; event.currentTarget.value = ""; } });
 $("#event-edit-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button", form); button.disabled = true;
@@ -458,7 +491,7 @@ $("#contests-list").addEventListener("click", (event) => {
   const button = event.target.closest("[data-edit-contest]"); if (!button) return;
   const contest = state.details?.contests.find((item) => item.id === button.dataset.editContest); if (!contest) return;
   const form = $("#contest-form"); form.elements.contestId.value = contest.id; form.elements.name.value = contest.name; form.elements.kind.value = contest.kind;
-  form.elements.activityId.value = (contest.activity_ids || "").split(",")[0] || "";
+  const linkedActivityIds = (contest.activity_ids || "").split(",").filter(Boolean); form.elements.activityId.value = linkedActivityIds.length === 1 ? linkedActivityIds[0] : "";
   form.elements.hasPrize.checked = Boolean(contest.prize_id); $("#prize-fields").hidden = !contest.prize_id; $("#felicitation-fields").hidden = Boolean(contest.prize_id);
   form.elements.prizeName.value = contest.prize_name || ""; form.elements.prizeInstructions.value = contest.prize_instructions || "";
   form.elements.validationInstructions.value = contest.validation_instructions || "";
