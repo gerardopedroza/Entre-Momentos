@@ -358,10 +358,11 @@ async function readImportFile(file) {
 }
 function col(row, names) { for (const name of names) { const value = row[name]; if (value !== undefined && value !== null && String(value).trim()) return String(value).trim(); } return ""; }
 function dateTime(value, date) {
-  const formatTime = (minutes, seconds = 0) => {
+  const formatTime = (minutes) => {
     const hour = Math.floor(minutes / 60);
     const minute = minutes % 60;
-    return `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    // The API expects a venue-local timestamp with minute precision (YYYY-MM-DDTHH:mm).
+    return `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   };
   // Excel stores times as a fraction of a day; serial date-times also include
   // whole days, which we intentionally ignore because the event has one date.
@@ -369,7 +370,7 @@ function dateTime(value, date) {
     const fraction = value % 1;
     return formatTime(Math.round(fraction * 24 * 60) % (24 * 60));
   }
-  if (value instanceof Date && !Number.isNaN(value.valueOf())) return formatTime(value.getHours() * 60 + value.getMinutes(), value.getSeconds());
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) return formatTime(value.getHours() * 60 + value.getMinutes());
 
   const source = String(value ?? "").trim();
   const clockSource = source.match(/^\d{4}-\d{2}-\d{2}[T ](.+)$/)?.[1] || source;
