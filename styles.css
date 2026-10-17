@@ -108,20 +108,26 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .moment-card-action.is-submitted { border-color: #c7dfca; background: #f2fff3ed; color: #287345; font-weight: 600; }
 .moment-card-action.is-submitted svg { width: 17px; height: 17px; stroke-width: 2.2; }
 .moment-card.has-photo::before { background: linear-gradient(180deg,#17241b00 20%,#17241b1f 48%,#17241bd9 100%); }
-.moment-carousel.swipe-tutorial .moment-card[aria-current="true"] { animation: swipe-card-demo 1.45s cubic-bezier(.2,.7,.25,1) both; }
-.moment-carousel.swipe-tutorial .moment-card[aria-current="false"] { animation: swipe-stack-demo 1.45s cubic-bezier(.2,.7,.25,1) both; }
-@keyframes swipe-card-demo {
-  0%, 100% { translate: 0 0; rotate: 0deg; }
-  24% { translate: 24px 0; rotate: 3deg; }
-  55% { translate: -30px 0; rotate: -4deg; }
+.carousel-stage.swipe-tutorial .moment-slide[aria-current="true"] {
+  z-index: 11 !important;
+  animation: swipe-card-demo 2.8s cubic-bezier(.2,.72,.25,1) both;
 }
-@keyframes swipe-stack-demo {
-  0%, 100% { filter: saturate(.72); }
-  24%, 55% { filter: saturate(1); }
+.carousel-stage.swipe-tutorial .moment-slide.tutorial-neighbor {
+  z-index: 12 !important;
+  animation: swipe-neighbor-demo 2.8s cubic-bezier(.2,.72,.25,1) both;
+}
+@keyframes swipe-card-demo {
+  0%, 14%, 100% { translate: 0 0; rotate: 0deg; opacity: 1; }
+  42%, 68% { translate: var(--tutorial-swipe-x) 0; rotate: var(--tutorial-tilt); opacity: .12; }
+  92% { translate: 0 0; rotate: 0deg; opacity: 1; }
+}
+@keyframes swipe-neighbor-demo {
+  0%, 26%, 100% { translate: 0 0; opacity: .74; filter: saturate(.72); }
+  52%, 72% { translate: var(--tutorial-center-x) 0; opacity: 1; filter: saturate(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .moment-card { transition-duration: .01ms; }
-  .moment-carousel.swipe-tutorial .moment-card { animation: none; }
+  .carousel-stage.swipe-tutorial .moment-slide { animation: none; }
 }
 .moment-thumbnail { position: absolute; right: 11px; bottom: 11px; width: 42px; height: 42px; border: 2px solid #fff; border-radius: 5px; object-fit: cover; box-shadow: 0 2px 8px #0003; }
 .empty-carousel { position: absolute; inset: 10% 8%; display: grid; place-items: center; margin: 0; border: 1px dashed #cbd2c8; border-radius: 8px; color: var(--muted); font-size: 14px; text-align: center; }
@@ -537,17 +543,19 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 .moment-card-action,
 .moment-thumbnail { display: none !important; }
 .moment-card.has-photo { background-color: #e9e5df; }
-.carousel-tap-hand { position: absolute; z-index: 20; top: 55%; left: 58%; display: none; width: 46px; height: 54px; filter: drop-shadow(0 3px 3px #17261f47); pointer-events: none; }
-.carousel-stage.tap-tutorial .carousel-tap-hand { display: block; animation: hand-tap 1.2s ease-in-out both; }
-.carousel-stage.tap-tutorial .moment-slide[aria-current="true"] .moment-card { animation: photo-press 1.2s ease-in-out both; }
+.carousel-tap-hand { position: absolute; z-index: 20; top: 48%; left: 53%; display: none; width: 46px; height: 54px; filter: drop-shadow(0 3px 3px #17261f47); pointer-events: none; }
+.carousel-stage.tap-tutorial .carousel-tap-hand { display: block; animation: hand-tap 3s ease-in-out both; }
+.carousel-stage.tap-tutorial .moment-slide[aria-current="true"] .moment-card { animation: photo-press 3s ease-in-out both; }
 @keyframes hand-tap {
-  0%,100% { opacity: 0; transform: translate(15px,-7px) scale(.94); }
-  12%,72% { opacity: 1; }
-  34%,48% { opacity: 1; transform: translate(0,7px) scale(.87); }
+  0%, 100% { opacity: 0; transform: translate(24px,-14px) scale(.94); }
+  12%, 82% { opacity: 1; }
+  38%, 59% { opacity: 1; transform: translate(0,9px) scale(.88); }
+  70% { opacity: 1; transform: translate(0,0) scale(1); }
 }
 @keyframes photo-press {
-  0%,100% { transform: scale(1); }
-  34%,48% { transform: scale(.965); }
+  0%, 34%, 100% { transform: scale(1); }
+  48%, 60% { transform: scale(.955); }
+  72% { transform: scale(1.015); }
 }
 .carousel-pagination { flex-basis: 17px; padding-top: 8px; }
 @media (max-height: 700px) {

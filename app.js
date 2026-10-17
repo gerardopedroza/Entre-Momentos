@@ -33,6 +33,7 @@ let refreshingEvent = false;
 let presenceInterval = null;
 let presenceBusy = false;
 let carouselTapHintShown = false;
+let carouselTutorialTimers = [];
 
 function screen(name) {
   $$(".screen").forEach((item) => { item.hidden = item.id !== "screen-" + name; });
@@ -102,7 +103,7 @@ function showHome(profile, data, demo = false) {
   const count = eventData.presence?.activeCount;
   const hasLiveCount = Number.isInteger(count) && count >= 0;
   $("#connected-count").textContent = hasLiveCount ? String(count) : "—";
-  $("#presence-status").textContent = hasLiveCount ? (count === 1 ? "invitado mirando" : count === 0 ? "nadie mirando" : "invitados mirando") : "invitados mirando";
+  $("#presence-status").textContent = count === 1 ? "invitado participando" : "invitados participando";
   $("#guest-presence").classList.toggle("has-live-count", hasLiveCount);
   const active = moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
   const next = moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
@@ -118,21 +119,31 @@ function showCarouselTapHint() {
   const stage = $("#carousel-stage");
   if (!stage || !moments.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   let alreadyShown = false;
-  try { alreadyShown = localStorage.getItem("em-carousel-tap-seen-v2") === "1"; } catch {}
+  try { alreadyShown = localStorage.getItem("em-carousel-gesture-seen-v3") === "1"; } catch {}
   if (alreadyShown || carouselTapHintShown) return;
   carouselTapHintShown = true;
-  try { localStorage.setItem("em-carousel-tap-seen-v2", "1"); } catch {}
-  stage.classList.remove("tap-tutorial");
+  try { localStorage.setItem("em-carousel-gesture-seen-v3", "1"); } catch {}
+  carouselTutorialTimers.forEach(window.clearTimeout);
+  carouselTutorialTimers = [];
+  stage.classList.remove("swipe-tutorial", "tap-tutorial");
   void stage.offsetWidth;
-  stage.classList.add("tap-tutorial");
-  window.setTimeout(() => stage.classList.remove("tap-tutorial"), 1300);
+  const hasSwipeTarget = moments.length > 1;
+  if (hasSwipeTarget) stage.classList.add("swipe-tutorial");
+  carouselTutorialTimers.push(window.setTimeout(() => {
+    stage.classList.remove("swipe-tutorial");
+    stage.classList.add("tap-tutorial");
+  }, hasSwipeTarget ? 3600 : 100));
+  carouselTutorialTimers.push(window.setTimeout(() => {
+    stage.classList.remove("tap-tutorial");
+    carouselTutorialTimers = [];
+  }, hasSwipeTarget ? 7000 : 3200));
 }
 
 function setPresenceCount(count) {
   if (!Number.isInteger(count) || count < 0) return;
   eventData.presence = { ...(eventData.presence || {}), activeCount: count };
   $("#connected-count").textContent = String(count);
-  $("#presence-status").textContent = count === 1 ? "invitado mirando" : count === 0 ? "nadie mirando" : "invitados mirando";
+  $("#presence-status").textContent = count === 1 ? "invitado participando" : "invitados participando";
   $("#guest-presence").classList.add("has-live-count");
 }
 
@@ -227,6 +238,11 @@ function updateCarousel() {
     slide.style.zIndex = String(10 - distance);
     slide.style.opacity = distance > 1 ? "0" : distance ? ".74" : "1";
     slide.style.pointerEvents = distance > 1 ? "none" : "auto";
+    const neighborIndex = selectedMomentIndex < moments.length - 1 ? selectedMomentIndex + 1 : selectedMomentIndex - 1;
+    slide.classList.toggle("tutorial-neighbor", index === neighborIndex);
+    slide.style.setProperty("--tutorial-swipe-x", (neighborIndex > selectedMomentIndex ? -1 : 1) * Math.max(cardOffset + 78, window.innerWidth * 0.62) + "px");
+    slide.style.setProperty("--tutorial-tilt", neighborIndex > selectedMomentIndex ? "-8deg" : "8deg");
+    slide.style.setProperty("--tutorial-center-x", -offset * cardOffset + "px");
     slide.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
   });
   $$(".carousel-dot", $("#carousel-pagination")).forEach((dot, index) => dot.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false"));
