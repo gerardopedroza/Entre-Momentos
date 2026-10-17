@@ -1,7 +1,7 @@
 import { createAdminSession, requireAdmin, revokeAdmin } from "./auth.js";
-import { enqueueJob, processDueJobs } from "./jobs.js";
 import { fail, getEventDateLocal, json, localDateTimeToIso, newId, nowIso, readJson, slugify, venueStaffToken } from "./core.js";
-import { deleteDriveImage, driveIdFromUrl, ensureEventDriveStructure } from "./google-drive.js";
+import { deleteDriveImage } from "./google-drive.js";
+import { createActivityFolderMarker, createEventFolderMarker, csvCell, deleteAllEventPhotos, deleteEventObjects, eventPrefix, listEventObjects, requireEventBucket, zipStream } from "./r2-storage.js";
 
 const KINDS = new Set(["first_photo", "most_photos", "photo_with_couple", "bouquet", "manual"]);
 
@@ -32,9 +32,11 @@ export async function handleAdminApi(ctx, path) {
 
     if (path === "/api/admin/dashboard" && method === "GET") {
       const venues = await db.prepare("SELECT v.*,COUNT(e.id) AS event_count FROM venues v LEFT JOIN events e ON e.venue_id=v.id GROUP BY v.id ORDER BY v.name").all();
-      const events = await db.prepare(`SELECT e.*,v.name AS venue_name,v.slug AS venue_slug,v.timezone AS venue_timezone,
+      const events = await db.prepare(`SELECT e.id,e.venue_id,e.name,e.slug,e.event_date,e.timezone,e.state,e.cover_asset_id,e.contests_enabled,e.public_staff_slug,e.created_at,e.updated_at,
+        v.name AS venue_name,v.slug AS venue_slug,v.timezone AS venue_timezone,
         (SELECT COUNT(*) FROM event_activities a WHERE a.event_id=e.id AND a.active=1) AS activity_count,
         (SELECT COUNT(*) FROM event_guests g WHERE g.event_id=e.id AND g.active=1) AS guest_count,
+        (SELECT COUNT(*) FROM photo_submissions p WHERE p.event_id=e.id AND p.storage_state='stored') AS photo_count,
         (SELECT COUNT(*) FROM integration_jobs j WHERE j.event_id=e.id AND j.state IN ('pending','retry','dead')) AS pending_jobs
         FROM events e JOIN venues v ON v.id=e.venue_id ORDER BY e.event_date DESC,e.name`).all();
       const origin = new URL(request.url).origin;
@@ -86,6 +88,7 @@ export async function handleAdminApi(ctx, path) {
       if (method === "DELETE" || (method === "POST" && action === "deactivate")) {
         if (method === "DELETE") {
           const events = (await db.prepare("SELECT id,name FROM events WHERE venue_id=?").bind(id).all()).results || [];
+          for (const event of events) await prepareEventRemoval(env, event.id);
           const stamp = nowIso();
           await db.batch([
             db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,NULL,'admin','administrator','venue.deleted','venue',?,?,?)")
@@ -106,8 +109,8 @@ export async function handleAdminApi(ctx, path) {
     if (path === "/api/admin/events" && method === "GET") {
       const venueId = new URL(request.url).searchParams.get("venueId");
       const events = venueId
-        ? await db.prepare("SELECT e.*,v.name AS venue_name,v.slug AS venue_slug FROM events e JOIN venues v ON v.id=e.venue_id WHERE e.venue_id=? ORDER BY e.event_date DESC").bind(venueId).all()
-        : await db.prepare("SELECT e.*,v.name AS venue_name,v.slug AS venue_slug FROM events e JOIN venues v ON v.id=e.venue_id ORDER BY e.event_date DESC").all();
+        ? await db.prepare("SELECT e.id,e.venue_id,e.name,e.slug,e.event_date,e.timezone,e.state,e.cover_asset_id,e.contests_enabled,e.public_staff_slug,e.created_at,e.updated_at,v.name AS venue_name,v.slug AS venue_slug FROM events e JOIN venues v ON v.id=e.venue_id WHERE e.venue_id=? ORDER BY e.event_date DESC").bind(venueId).all()
+        : await db.prepare("SELECT e.id,e.venue_id,e.name,e.slug,e.event_date,e.timezone,e.state,e.cover_asset_id,e.contests_enabled,e.public_staff_slug,e.created_at,e.updated_at,v.name AS venue_name,v.slug AS venue_slug FROM events e JOIN venues v ON v.id=e.venue_id ORDER BY e.event_date DESC").all();
       return json({ events: events.results || [] });
     }
     if (path === "/api/admin/events" && method === "POST") return await createEvent(request, env);
@@ -117,14 +120,14 @@ export async function handleAdminApi(ctx, path) {
       const event = await eventOr404(db, id);
       if (method === "POST" && action === "assets") return await uploadEventAsset(request, env, event);
       if (method === "PUT" && !action) return await updateEvent(request, env, event);
+      if (method === "GET" && action === "download") return await downloadEventArchive(env, event);
+      if (method === "DELETE" && action === "photos") {
+        const deletedCount = await removeAllEventPhotos(env, event);
+        await log(db, "event.photos_deleted", "event", id, id, { deletedCount });
+        return json({ ok: true, deletedCount });
+      }
       if (method === "DELETE") {
-        const media = await db.prepare("SELECT r2_key FROM media_assets WHERE event_id=?").bind(id).all();
-        for (const asset of media.results || []) {
-          if (asset.r2_key.startsWith("drive:")) {
-            if (env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) await deleteDriveImage(env, asset.r2_key.slice(6));
-          }
-          else if (env.EVENT_MEDIA) await env.EVENT_MEDIA.delete(asset.r2_key);
-        }
+        await prepareEventRemoval(env, id);
         const stamp = nowIso();
         await db.batch([
           db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?,'admin','administrator','event.deleted','event',?,?,?)")
@@ -138,12 +141,6 @@ export async function handleAdminApi(ctx, path) {
         await db.prepare("UPDATE events SET state='inactive',updated_at=? WHERE id=?").bind(nowIso(), id).run();
         await log(db, "event.archived", "event", id, id);
         return json({ ok: true, state: "inactive" });
-      }
-      if (method === "POST" && action === "drive/retry") {
-        await enqueueJob(db, id, "init_drive");
-        const results = await processDueJobs(env, 5);
-        const refreshed = await eventOr404(db, id);
-        return json({ event: { id, driveStatus: refreshed.drive_status }, jobs: results });
       }
       if (method === "POST" && action === "staff-link/rotate") {
         const access = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
@@ -225,13 +222,7 @@ export async function handleAdminApi(ctx, path) {
     }
     if (path === "/api/admin/prizes" && method === "POST") return await createPrize(request, env);
 
-    if (path === "/api/admin/integrations" && method === "GET") {
-      const rows = await db.prepare(`SELECT e.id,e.name,e.drive_status,e.drive_folder_id,e.drive_folder_url,e.dedications_sheet_id,
-        (SELECT COUNT(*) FROM integration_jobs j WHERE j.event_id=e.id AND j.state IN ('pending','retry','dead')) AS pending_jobs
-        FROM events e ORDER BY e.updated_at DESC`).all();
-      return json({ integrations: rows.results || [], googleConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) });
-    }
-    if (path === "/api/admin/jobs/retry" && method === "POST") return json({ results: await processDueJobs(env, 50) });
+    if (path === "/api/admin/integrations" && method === "GET") return json({ integrations: [], storage: "Cloudflare R2" });
 
     return fail("No existe esa operación administrativa.", 404, "route_not_found");
   } catch (error) { return apiError(error); }
@@ -262,6 +253,114 @@ async function uploadEventAsset(request, env, event) {
   } catch (error) { if (provider === "drive") await deleteDriveImage(env, key.slice(6)); else await env.EVENT_MEDIA.delete(key); throw error; }
   return json({ asset: { id, kind, url: "/api/media/" + id, storage: provider } }, 201);
 }
+
+function safeArchiveName(value) {
+  return String(value || "archivo").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._ -]+/g, "").trim().replace(/[ .]+/g, "-").slice(0, 80) || "archivo";
+}
+
+async function deleteLegacyDriveResources(env, eventId) {
+  const db = env.DB;
+  const event = await eventOr404(db, eventId);
+  const [photos, folders, assets] = await Promise.all([
+    db.prepare("SELECT drive_file_id FROM photo_submissions WHERE event_id=? AND drive_file_id IS NOT NULL AND drive_file_id NOT LIKE 'r2:%'").bind(eventId).all(),
+    db.prepare("SELECT drive_folder_id,purpose FROM storage_folders WHERE event_id=?").bind(eventId).all(),
+    db.prepare("SELECT r2_key FROM media_assets WHERE event_id=? AND r2_key LIKE 'drive:%'").bind(eventId).all(),
+  ]);
+  const orderedIds = [
+    ...(photos.results || []).map((row) => row.drive_file_id).filter(Boolean),
+    ...(assets.results || []).map((row) => row.r2_key?.startsWith("drive:") ? row.r2_key.slice(6) : "").filter(Boolean),
+    event.dedications_sheet_id || "",
+    ...(folders.results || []).sort((left, right) => {
+      const priority = (purpose) => purpose === "activity" ? 0 : purpose === "moments" ? 2 : 1;
+      return priority(left.purpose) - priority(right.purpose);
+    }).map((row) => row.drive_folder_id).filter(Boolean),
+  ].filter(Boolean);
+  const ids = [...new Set(orderedIds)];
+  if (!ids.length) return;
+  if (!env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+    throw Object.assign(new Error("Este evento aún tiene archivos heredados en Drive. Conecta temporalmente las credenciales de Drive para eliminarlos con seguridad."), { status: 409, code: "legacy_drive_cleanup_required" });
+  }
+  for (const fileId of ids) {
+    try { await deleteDriveImage(env, fileId); }
+    catch (error) { if (Number(error.providerStatus) !== 404) throw error; }
+  }
+}
+
+async function prepareEventRemoval(env, eventId) {
+  const bucket = await requireEventBucket(env);
+  await deleteLegacyDriveResources(env, eventId);
+  await deleteEventObjects(bucket, eventId);
+}
+
+async function removeAllEventPhotos(env, event) {
+  await requireEventBucket(env);
+  const rows = await env.DB.prepare("SELECT drive_file_id FROM photo_submissions WHERE event_id=? AND drive_file_id IS NOT NULL AND drive_file_id NOT LIKE 'r2:%'").bind(event.id).all();
+  const legacyIds = [...new Set((rows.results || []).map((row) => row.drive_file_id).filter(Boolean))];
+  if (legacyIds.length && (!env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY)) {
+    throw Object.assign(new Error("Este evento tiene fotografías antiguas en Drive. Conecta temporalmente sus credenciales para borrarlas junto con las de R2."), { status: 409, code: "legacy_drive_cleanup_required" });
+  }
+  for (const fileId of legacyIds) {
+    try { await deleteDriveImage(env, fileId); }
+    catch (error) { if (Number(error.providerStatus) !== 404) throw error; }
+  }
+  return await deleteAllEventPhotos(env, env.DB, event.id) + legacyIds.length;
+}
+
+async function downloadEventArchive(env, event) {
+  const bucket = await requireEventBucket(env);
+  const db = env.DB;
+  const [venue, activities, guests, tables, photos, dedications, contests, contestActivities, prizes, contestResults, deliveries, assets, objects] = await Promise.all([
+    db.prepare("SELECT * FROM venues WHERE id=?").bind(event.venue_id).first(),
+    db.prepare("SELECT * FROM event_activities WHERE event_id=? ORDER BY position,starts_at").bind(event.id).all(),
+    db.prepare("SELECT * FROM event_guests WHERE event_id=? ORDER BY name").bind(event.id).all(),
+    db.prepare("SELECT * FROM event_tables WHERE event_id=? ORDER BY position,name").bind(event.id).all(),
+    db.prepare(`SELECT ps.*,a.name AS activity_name,g.name AS guest_name FROM photo_submissions ps
+      JOIN event_activities a ON a.id=ps.activity_id JOIN event_guests g ON g.id=ps.guest_id WHERE ps.event_id=? ORDER BY ps.received_at`).bind(event.id).all(),
+    db.prepare("SELECT d.*,g.name AS guest_name FROM dedications d JOIN event_guests g ON g.id=d.guest_id WHERE d.event_id=? ORDER BY d.created_at").bind(event.id).all(),
+    db.prepare("SELECT * FROM contests WHERE event_id=? ORDER BY opens_at").bind(event.id).all(),
+    db.prepare("SELECT ca.* FROM contest_activities ca JOIN contests c ON c.id=ca.contest_id WHERE c.event_id=? ORDER BY ca.contest_id,ca.activity_id").bind(event.id).all(),
+    db.prepare("SELECT * FROM prizes WHERE event_id=? ORDER BY name").bind(event.id).all(),
+    db.prepare("SELECT * FROM contest_results WHERE event_id=? ORDER BY calculated_at").bind(event.id).all(),
+    db.prepare("SELECT pd.* FROM prize_deliveries pd JOIN contests c ON c.id=pd.contest_id WHERE c.event_id=? ORDER BY pd.created_at").bind(event.id).all(),
+    db.prepare("SELECT m.*,a.name AS activity_name FROM media_assets m LEFT JOIN event_activities a ON a.reference_asset_id=m.id WHERE m.event_id=? ORDER BY m.created_at").bind(event.id).all(),
+    listEventObjects(bucket, event.id),
+  ]);
+  const eventData = {
+    exportedAt: nowIso(), event: { ...event, drive_folder_url: null, drive_folder_id: null, dedications_sheet_url: null, dedications_sheet_id: null, drive_status: "not_configured" }, venue,
+    activities: activities.results || [], guests: guests.results || [], tables: tables.results || [],
+    photoSubmissions: photos.results || [], dedications: dedications.results || [], contests: contests.results || [],
+    contestActivities: contestActivities.results || [], prizes: prizes.results || [], contestResults: contestResults.results || [], prizeDeliveries: deliveries.results || [],
+    mediaAssets: assets.results || [],
+  };
+  const files = [
+    { name: "Datos del evento/evento.json", bytes: new TextEncoder().encode(JSON.stringify(eventData, null, 2)) },
+    { name: "Datos del evento/dedicatorias.csv", bytes: new TextEncoder().encode("\ufeffNombre,Fecha,Mensaje\r\n" + (dedications.results || []).map((row) => [row.guest_name, row.created_at, row.message].map(csvCell).join(",")).join("\r\n")) },
+  ];
+  const objectByKey = new Map(objects.map((object) => [object.key, object]));
+  const used = new Set();
+  for (const photo of photos.results || []) {
+    const key = String(photo.drive_file_id || "").replace(/^r2:/, "");
+    const object = objectByKey.get(key);
+    if (!key || !object) continue;
+    const extension = key.split(".").pop() || "jpg";
+    const path = `Fotos/${safeArchiveName(photo.activity_name)}/${safeArchiveName(photo.received_at)}_${safeArchiveName(photo.guest_name)}_${safeArchiveName(photo.guest_id)}.${extension}`;
+    files.push({ name: path, key, size: object.size }); used.add(key);
+  }
+  const assetRows = new Map((assets.results || []).map((asset) => [asset.r2_key, asset]));
+  for (const object of objects) {
+    if (used.has(object.key) || object.key.endsWith("/event.json") || object.key.endsWith("/activity.json")) continue;
+    const asset = assetRows.get(object.key);
+    if (asset) files.push({ name: `Imagenes/${asset.kind === "event_cover" ? "Portada-" + safeArchiveName(asset.id) : "Referencia-" + safeArchiveName(asset.activity_name || asset.id)}.${object.key.split(".").pop()}`, key: object.key, size: object.size });
+    else files.push({ name: `Contenido R2/${object.key.slice(eventPrefix(event.id).length)}`, key: object.key, size: object.size });
+    used.add(object.key);
+  }
+  const body = zipStream(files, bucket);
+  return new Response(body, { headers: {
+    "Content-Type": "application/zip",
+    "Content-Disposition": `attachment; filename="${safeArchiveName(event.name)}-evento.zip"`,
+    "Cache-Control": "no-store",
+  } });
+}
 async function createEvent(request, env) {
   const db = env.DB;
   const data = await readJson(request);
@@ -276,24 +375,27 @@ async function createEvent(request, env) {
     const conflict = await db.prepare("SELECT id FROM events WHERE venue_id=? AND event_date=? AND state='active'").bind(venue.id, eventDate).first();
     if (conflict) return fail("Ese lugar ya tiene una boda activa en esa fecha.", 409, "event_date_conflict");
   }
-  const folderId = driveIdFromUrl(data.driveFolderUrl);
-  if (!folderId) return fail("Agrega una carpeta de Google Drive válida asignada a esta boda.", 422, "drive_folder_required");
-  if (folderId && await db.prepare("SELECT id FROM events WHERE drive_folder_id=?").bind(folderId).first()) return fail("Esta carpeta de Drive ya está vinculada a otro evento.", 409, "drive_folder_already_used");
+  try { await requireEventBucket(env); } catch (error) { return apiError(error); }
   const id = newId();
   const staffSlug = crypto.randomUUID().replaceAll("-", "");
   const time = nowIso();
   try {
-    await db.prepare(`INSERT INTO events (id,venue_id,name,slug,event_date,timezone,state,drive_folder_url,drive_folder_id,drive_status,contests_enabled,public_staff_slug,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .bind(id, venue.id, name, slug, eventDate, venue.timezone || "America/Mexico_City", state, data.driveFolderUrl || null, folderId || null, folderId || venue.drive_root_folder_id ? "pending" : "not_configured", data.contestsEnabled === false ? 0 : 1, staffSlug, time, time).run();
+    await db.prepare(`INSERT INTO events (id,venue_id,name,slug,event_date,timezone,state,drive_status,contests_enabled,public_staff_slug,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,'not_configured',?,?,?,?)`)
+      .bind(id, venue.id, name, slug, eventDate, venue.timezone || "America/Mexico_City", state, data.contestsEnabled === false ? 0 : 1, staffSlug, time, time).run();
   } catch (error) {
     if (/UNIQUE/i.test(error.message)) return fail("La URL corta o la reserva de lugar y fecha ya está en uso.", 409, "event_conflict");
     if (/venue_inactive/.test(error.message)) return fail("Activa el lugar antes de activar el evento.", 409, "venue_inactive");
     throw error;
   }
-  if (folderId || venue.drive_root_folder_id) await enqueueJob(db, id, "init_drive");
+  try { await createEventFolderMarker(env, { id, name, event_date: eventDate }); }
+  catch (error) {
+    try { await deleteEventObjects(env.EVENT_MEDIA, id); } catch {}
+    await db.prepare("DELETE FROM events WHERE id=?").bind(id).run();
+    throw error;
+  }
   await log(db, "event.created", "event", id, id, { venueId: venue.id, eventDate, state });
-  return json({ event: await db.prepare("SELECT * FROM events WHERE id=?").bind(id).first(), driveStatus: folderId ? "pending" : "not_configured" }, 201);
+  return json({ event: await db.prepare("SELECT * FROM events WHERE id=?").bind(id).first(), storage: "Cloudflare R2" }, 201);
 }
 
 async function updateEvent(request, env, event) {
@@ -306,33 +408,25 @@ async function updateEvent(request, env, event) {
   const eventDate = String(data.eventDate || event.event_date);
   const slug = slugify(data.slug || event.slug || name);
   const state = ["draft", "active", "inactive", "finished"].includes(data.state) ? data.state : event.state;
-  const folderUrl = Object.hasOwn(data, "driveFolderUrl") ? (String(data.driveFolderUrl || "").trim() || null) : event.drive_folder_url;
-  const folderId = folderUrl ? driveIdFromUrl(folderUrl) : null;
-  if (folderUrl && !folderId) return fail("El enlace de Drive no parece ser una carpeta válida.");
-  if (!folderId) return fail("Cada evento debe conservar su carpeta de Google Drive.", 422, "drive_folder_required");
-  if (folderId && folderId !== event.drive_folder_id && await db.prepare("SELECT id FROM events WHERE drive_folder_id=? AND id<>?").bind(folderId, event.id).first()) return fail("Esta carpeta ya está asociada a otra boda.", 409, "drive_folder_already_used");
-  if (folderId !== event.drive_folder_id) {
-    const assets = await db.prepare("SELECT COUNT(*) AS count FROM storage_folders WHERE event_id=?").bind(event.id).first();
-    if (Number(assets?.count || 0) && folderId) return fail("Este evento ya tiene carpetas en Drive. Conserva esa carpeta o migra el evento con el soporte del administrador.", 409, "drive_root_locked");
-  }
+  try { await requireEventBucket(env); } catch (error) { return apiError(error); }
   try {
-    await db.prepare(`UPDATE events SET venue_id=?,name=?,slug=?,event_date=?,timezone=?,state=?,drive_folder_url=?,drive_folder_id=?,
-      drive_status=?,contests_enabled=?,updated_at=? WHERE id=?`)
-      .bind(venue.id, name, slug, eventDate, venue.timezone, state, folderUrl, folderId, folderId ? (folderId === event.drive_folder_id ? event.drive_status : "pending") : "not_configured", data.contestsEnabled === false ? 0 : data.contestsEnabled === true ? 1 : event.contests_enabled, nowIso(), event.id).run();
+    await db.prepare(`UPDATE events SET venue_id=?,name=?,slug=?,event_date=?,timezone=?,state=?,contests_enabled=?,updated_at=? WHERE id=?`)
+      .bind(venue.id, name, slug, eventDate, venue.timezone, state, data.contestsEnabled === false ? 0 : data.contestsEnabled === true ? 1 : event.contests_enabled, nowIso(), event.id).run();
   } catch (error) {
     if (/UNIQUE/i.test(error.message)) return fail("La URL o el lugar ya tienen un evento activo en esa fecha.", 409, "event_conflict");
     if (/venue_inactive/.test(error.message)) return fail("Activa el lugar antes de activar el evento.", 409, "venue_inactive");
     throw error;
   }
-  if (folderId && (folderId !== event.drive_folder_id || event.drive_status !== "ready")) await enqueueJob(db, event.id, "init_drive");
+  await createEventFolderMarker(env, { id: event.id, name, event_date: eventDate });
   await log(db, "event.updated", "event", event.id, event.id);
-  return json({ event: await db.prepare("SELECT * FROM events WHERE id=?").bind(event.id).first() });
+  return json({ event: { id: event.id, venue_id: venue.id, name, slug, event_date: eventDate, timezone: venue.timezone, state } });
 }
 
 async function saveActivity(request, env, existing) {
   const db = env.DB;
   const data = await readJson(request);
   const event = await eventOr404(db, data.eventId || existing?.event_id);
+  try { await requireEventBucket(env); } catch (error) { return apiError(error); }
   const name = String(data.name || existing?.name || "").trim();
   const description = String(data.description || existing?.description || "").trim().slice(0, 1000);
   let position = Number(existing?.position || 1);
@@ -359,9 +453,10 @@ async function saveActivity(request, env, existing) {
       VALUES (?,?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, description, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run(); }
     catch (error) { if (!isMissingColumn(error, "description")) throw error; await db.prepare(`INSERT INTO event_activities (id,event_id,name,position,starts_at,ends_at,photo_opens_at,photo_closes_at,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,1,?,?)`).bind(id, event.id, name, position, window.startsAt, window.endsAt, window.photoOpensAt, window.photoClosesAt, time, time).run(); }
   }
-  if (event.drive_folder_id) await enqueueJob(db, event.id, "init_drive");
+  const savedActivity = await db.prepare("SELECT * FROM event_activities WHERE id=?").bind(id).first();
+  await createActivityFolderMarker(env, event.id, savedActivity);
   await log(db, existing ? "activity.updated" : "activity.created", "activity", id, event.id);
-  return json({ activity: await db.prepare("SELECT * FROM event_activities WHERE id=?").bind(id).first() }, existing ? 200 : 201);
+  return json({ activity: savedActivity }, existing ? 200 : 201);
 }
 
 async function createGuest(request, env) {
@@ -524,7 +619,8 @@ export async function calculateAutomaticWinner(db, contest) {
 }
 
 async function loadEventDetails(db, eventId) {
-  const event = await eventOr404(db, eventId);
+  const row = await eventOr404(db, eventId);
+  const event = { id: row.id, venue_id: row.venue_id, name: row.name, slug: row.slug, event_date: row.event_date, timezone: row.timezone, state: row.state, cover_asset_id: row.cover_asset_id, contests_enabled: row.contests_enabled, public_staff_slug: row.public_staff_slug, created_at: row.created_at, updated_at: row.updated_at };
   const venue = await db.prepare("SELECT id,name,slug,timezone,active FROM venues WHERE id=?").bind(event.venue_id).first();
   const activities = await db.prepare("SELECT * FROM event_activities WHERE event_id=? AND active=1 ORDER BY position,starts_at").bind(eventId).all();
   let guests;
@@ -533,10 +629,4 @@ async function loadEventDetails(db, eventId) {
   const contests = await db.prepare("SELECT c.*,(SELECT group_concat(activity_id, ',') FROM contest_activities ca WHERE ca.contest_id=c.id) AS activity_ids FROM contests c WHERE c.event_id=? ORDER BY c.opens_at").bind(eventId).all();
   const prizes = await db.prepare("SELECT * FROM prizes WHERE event_id=? ORDER BY name").bind(eventId).all();
   return { event, venue, activities: activities.results || [], guests: guests.results || [], contests: contests.results || [], prizes: prizes.results || [] };
-}
-
-export async function ensureEventFoldersNow(env, eventId) {
-  const event = await env.DB.prepare("SELECT * FROM events WHERE id=?").bind(eventId).first();
-  if (!event) throw new Error("No se encontró el evento.");
-  return ensureEventDriveStructure(env, env.DB, event);
 }

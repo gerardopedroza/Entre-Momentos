@@ -243,7 +243,7 @@ function renderVenues() {
   $$('[data-delete-venue]', $("#venues-list")).forEach((button) => button.addEventListener("click", () => deleteVenue(button.dataset.deleteVenue)));
 }
 function eventCard(event, configButton = true) {
-  return `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(event.name)}</h3><div class="admin-meta">${esc(event.venue_name)} · ${dateLabel(event.event_date)}</div></div><span class="admin-badge ${event.state === "active" ? "active" : ""}">${eventStateLabel(event.state)}</span></div><div class="admin-meta" style="margin-top:8px">${Number(event.guest_count || 0)} invitados · ${Number(event.activity_count || 0)} momentos${event.drive_status === "ready" ? " · Drive conectado" : " · Drive pendiente"}</div>${configButton ? `<div class="admin-actions"><button class="admin-button secondary" type="button" data-configure="${esc(event.id)}">Modificar evento</button><button class="admin-button secondary" type="button" data-delete-event="${esc(event.id)}">Eliminar evento</button></div>` : ""}</article>`;
+  return `<article class="admin-row-card"><div class="admin-row-top"><div><h3>${esc(event.name)}</h3><div class="admin-meta">${esc(event.venue_name)} · ${dateLabel(event.event_date)}</div></div><span class="admin-badge ${event.state === "active" ? "active" : ""}">${eventStateLabel(event.state)}</span></div><div class="admin-meta" style="margin-top:8px">${Number(event.guest_count || 0)} invitados · ${Number(event.activity_count || 0)} momentos · ${Number(event.photo_count || 0)} fotos en R2</div>${configButton ? `<div class="admin-actions"><button class="admin-button secondary" type="button" data-configure="${esc(event.id)}">Modificar evento</button><button class="admin-button secondary" type="button" data-download-event="${esc(event.id)}">Descargar evento</button><button class="admin-button secondary" type="button" data-delete-photos="${esc(event.id)}">Eliminar fotos</button><button class="admin-button secondary" type="button" data-delete-event="${esc(event.id)}">Eliminar evento</button></div>` : ""}</article>`;
 }
 function editVenue(id) {
   const venue = state.venues.find((item) => item.id === id);
@@ -260,7 +260,7 @@ async function deleteVenue(id) {
   if (!venue) return;
   const eventCount = Number(venue.event_count || 0);
   const consequence = eventCount ? ` También se eliminarán permanentemente sus ${eventCount} evento(s), junto con su agenda e invitados.` : "";
-  if (!confirm(`¿Eliminar el lugar «${venue.name}»?${consequence} Se borrará la configuración del sitio; las carpetas y fotos de Google Drive no se eliminarán. Esta acción no se puede deshacer.`)) return;
+  if (!confirm(`¿Eliminar el lugar «${venue.name}»?${consequence} También se borrarán de R2 las fotos y archivos de cada evento de este lugar. Esta acción no se puede deshacer.`)) return;
   try {
     await api(`/api/admin/venues/${encodeURIComponent(id)}`, { method: "DELETE" });
     $("#venue-editor").hidden = true;
@@ -270,11 +270,34 @@ async function deleteVenue(id) {
 }
 async function deleteEvent(id) {
   const event = state.events.find((item) => item.id === id);
-  if (!event || !confirm(`¿Eliminar permanentemente el evento «${event.name}» de ${event.venue_name}? También se eliminarán su agenda, invitados y configuración. Su carpeta y fotos de Google Drive se conservarán. Esta acción no se puede deshacer.`)) return;
+  if (!event || !confirm(`¿Eliminar permanentemente el evento «${event.name}» de ${event.venue_name}? Se eliminarán sus fotos de R2, portada, fotos de actividades, agenda, invitados y demás información. No afecta otros eventos. Esta acción no se puede deshacer.`)) return;
   try {
     await api(`/api/admin/events/${encodeURIComponent(id)}`, { method: "DELETE" });
     if (state.selected === id) { state.selected = null; state.details = null; $("#event-editor").hidden = true; }
     message(`Evento «${event.name}» eliminado.`);
+    await loadDashboard();
+  } catch (error) { message(error.message); }
+}
+async function downloadEvent(id) {
+  const event = state.events.find((item) => item.id === id);
+  if (!event) return;
+  try {
+    message(`Preparando la descarga de «${event.name}»…`);
+    const response = await fetch(`/api/admin/events/${encodeURIComponent(id)}/download`, { credentials: "same-origin" });
+    if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.message || "No se pudo preparar la descarga."); }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob); const link = document.createElement("a");
+    link.href = url; link.download = `${event.name.replace(/[^\p{L}\p{N} -]/gu, "").trim() || "evento"}-evento.zip`;
+    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    message(`Descarga de «${event.name}» iniciada.`);
+  } catch (error) { message(error.message); }
+}
+async function deleteEventPhotos(id) {
+  const event = state.events.find((item) => item.id === id);
+  if (!event || !confirm(`¿Eliminar todas las fotos de invitados de «${event.name}»? Solo se borrarán las fotos de este evento; se conservarán su portada, referencias, agenda e invitados.`)) return;
+  try {
+    const result = await api(`/api/admin/events/${encodeURIComponent(id)}/photos`, { method: "DELETE" });
+    message(`${Number(result.deletedCount || 0)} foto(s) eliminadas de «${event.name}».`);
     await loadDashboard();
   } catch (error) { message(error.message); }
 }
@@ -297,6 +320,8 @@ function renderEvents() {
   $("#events-list").innerHTML = grouped.size ? [...grouped].map(([venue, events]) => `<section class="event-venue-group"><div class="event-venue-heading"><h3>${esc(venue)}</h3><span>${events.length} evento(s)</span></div><div class="admin-list">${events.map((event) => eventCard(event)).join("")}</div></section>`).join("") : '<div class="empty-state">Aún no hay eventos. Crea uno después de registrar el lugar.</div>';
   $$('[data-configure]', $("#events-list")).forEach((button) => button.addEventListener("click", () => selectEvent(button.dataset.configure)));
   $$('[data-delete-event]', $("#events-list")).forEach((button) => button.addEventListener("click", () => deleteEvent(button.dataset.deleteEvent)));
+  $$('[data-download-event]', $("#events-list")).forEach((button) => button.addEventListener("click", () => downloadEvent(button.dataset.downloadEvent)));
+  $$('[data-delete-photos]', $("#events-list")).forEach((button) => button.addEventListener("click", () => deleteEventPhotos(button.dataset.deletePhotos)));
 }
 function openEventCreation() {
   navigate("events");
@@ -330,7 +355,6 @@ function fillEventForm({ event, venue }) {
   form.elements.name.value = event.name;
   form.elements.venueId.value = venue.id;
   form.elements.eventDate.value = event.event_date;
-  form.elements.driveFolderUrl.value = event.drive_folder_url || "";
   form.elements.state.value = event.state;
   form.elements.contestsEnabled.checked = Boolean(event.contests_enabled);
   setCoverPreview("#event-edit-cover-preview", "#event-edit-cover-empty", event.cover_asset_id ? `/api/media/${encodeURIComponent(event.cover_asset_id)}` : "");
@@ -538,7 +562,7 @@ $("#venue-edit-form").addEventListener("submit", async (event) => {
 $("#cancel-venue-edit").addEventListener("click", () => { $("#venue-editor").hidden = true; $("#venue-edit-form").reset(); });
 $("#event-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget; const button = $("button[type=submit]", form); const status = $("#setup-event-feedback"); button.disabled = true; status.textContent = "Preparando la configuración…";
-  const data = { name: form.elements.name.value.trim(), venueId: form.elements.venueId.value, eventDate: form.elements.eventDate.value, driveFolderUrl: form.elements.driveFolderUrl.value.trim(), state: form.elements.state.value, contestsEnabled: form.elements.contestsEnabled.checked };
+  const data = { name: form.elements.name.value.trim(), venueId: form.elements.venueId.value, eventDate: form.elements.eventDate.value, state: form.elements.state.value, contestsEnabled: form.elements.contestsEnabled.checked };
   const cover = $("#event-cover-upload").files?.[0]; const cards = $$("[data-setup-activity]", form); let created = null;
   try {
     const guestFile = $("#setup-guests-file").files?.[0]; const guests = guestFile ? guestRowsFromImport(await readImportFile(guestFile)) : (setupGuestRows || []);

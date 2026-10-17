@@ -574,7 +574,6 @@ function renderStaff() {
   const event = staffDashboard.event || {};
   $("#staff-event-name").value = event.name || "";
   $("#staff-event-date").value = event.date || "";
-  $("#staff-drive-url").value = event.driveFolderUrl || "";
 }
 function renderStaffTables(tables) {
   const root = $("#staff-tables");
@@ -671,7 +670,6 @@ $("#staff-event-form").addEventListener("submit", async (event) => {
   const form = new FormData();
   form.append("name", $("#staff-event-name").value.trim());
   form.append("date", $("#staff-event-date").value);
-  form.append("driveFolderUrl", $("#staff-drive-url").value.trim());
   const cover = $("#staff-cover-image").files?.[0];
   if (cover) form.append("cover", cover, cover.name);
   const button = $("button[type=submit]", event.currentTarget);

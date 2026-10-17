@@ -11,7 +11,7 @@ export async function onRequest(context) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": new URL(request.url).origin, "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS", "Access-Control-Allow-Headers": "Content-Type,Idempotency-Key", "Access-Control-Allow-Credentials": "true", "Vary": "Origin" } });
   try {
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) await requireSameOrigin(request);
-    if (path === "/api/health" && request.method === "GET") return json({ status: "ok", database: "connected", googleDrive: Boolean(env.GOOGLE_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY), serverTime: new Date().toISOString() });
+    if (path === "/api/health" && request.method === "GET") return json({ status: "ok", database: "connected", cloudflareR2: Boolean(env.EVENT_MEDIA), serverTime: new Date().toISOString() });
     if (path.startsWith("/api/admin/")) return await handleAdminApi(context, path);
     if (path.startsWith("/api/staff/")) {
       const response = await handleStaffApi(context, path);

@@ -1,7 +1,7 @@
 import { createGuestSession, guestSession, revokeGuest } from "./auth.js";
 import { fail, getEventDateLocal, isEligible, json, newId, normalizeName, nowIso, readJson } from "./core.js";
-import { downloadDriveImage, driveIdFromUrl, ensureActivityDriveFolder, uploadGuestPhoto } from "./google-drive.js";
-import { enqueueJob } from "./jobs.js";
+import { downloadDriveImage } from "./google-drive.js";
+import { storeDedication, uploadGuestPhoto } from "./r2-storage.js";
 
 let presenceTablePromise = null;
 const PRESENCE_TTL_MS = 45000;
@@ -246,18 +246,16 @@ async function submitPhoto(request, env) {
     } catch { return fail("Ya existe un envío registrado para este momento. Pide ayuda al fotógrafo.", 409, "photo_submission_conflict"); }
   }
   try {
-    let folderId = activity.drive_folder_id;
-    if (!folderId) folderId = await ensureActivityDriveFolder(env, db, event, activity);
-    const saved = await uploadGuestPhoto(env, folderId, event.id, session.guest_id, idempotencyKey, file, safeImageName(file.name, session.guest_id, activity.name));
+    const saved = await uploadGuestPhoto(env, event, activity, session.guest_id, file, safeImageName(file.name, session.guest_id, activity.name));
     await db.prepare("UPDATE photo_submissions SET storage_state='stored',drive_file_id=?,error_code=NULL WHERE id=?")
-      .bind(saved.id, submissionId).run();
+      .bind("r2:" + saved.key, submissionId).run();
     await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'photo.stored','photo_submission',?,'{}',?)")
       .bind(newId(), event.id, session.guest_id, submissionId, nowIso()).run();
     return json({ submission: { id: submissionId, momentId: activity.id, eligible, storageState: "stored", receivedAt } }, 201);
   } catch (error) {
-    await db.prepare("UPDATE photo_submissions SET storage_state='failed',error_code=? WHERE id=?").bind(String(error.code || "drive_error").slice(0, 80), submissionId).run();
-    await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'photo.drive_failed','photo_submission',?,?,?)")
-      .bind(newId(), event.id, session.guest_id, submissionId, JSON.stringify({ code: String(error.code || "drive_error") }), nowIso()).run();
+    await db.prepare("UPDATE photo_submissions SET storage_state='failed',error_code=? WHERE id=?").bind(String(error.code || "r2_upload_error").slice(0, 80), submissionId).run();
+    await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'photo.r2_failed','photo_submission',?,?,?)")
+      .bind(newId(), event.id, session.guest_id, submissionId, JSON.stringify({ code: String(error.code || "r2_upload_error") }), nowIso()).run();
     return json({ error: "photo_not_stored", participationRecorded: true, submissionId }, 502);
   }
 }
@@ -277,13 +275,18 @@ async function submitDedication(request, env) {
   if (message.length < 1 || message.length > 500) return fail("La dedicatoria debe tener entre 1 y 500 caracteres.");
   const id = newId();
   const stamp = nowIso();
-  await db.prepare("INSERT INTO dedications (id,event_id,guest_id,message,created_at,sheet_state) VALUES (?,?,?,?,?,'pending')")
-    .bind(id, session.event_id, session.guest_id, message, stamp).run();
-  try { await enqueueJob(db, session.event_id, "sync_dedication", id); }
-  catch (error) { console.error("dedication_job_enqueue_failed", String(error.code || "database_error")); }
+  const guest = await db.prepare("SELECT name FROM event_guests WHERE id=? AND event_id=?").bind(session.guest_id, session.event_id).first();
+  const dedicationObject = { id, guestName: guest?.name || "Invitado", message, createdAt: stamp };
+  let objectKey;
+  try { objectKey = await storeDedication(env, session.event_id, dedicationObject); }
+  catch (error) { return fail("No se pudo guardar la dedicatoria en el almacenamiento del evento. Inténtalo de nuevo.", error.status || 503, error.code || "event_media_unavailable"); }
+  try {
+    await db.prepare("INSERT INTO dedications (id,event_id,guest_id,message,created_at,sheet_state) VALUES (?,?,?,?,?,'synced')")
+      .bind(id, session.event_id, session.guest_id, message, stamp).run();
+  } catch (error) { try { await env.EVENT_MEDIA.delete(objectKey); } catch {} throw error; }
   await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'dedication.created','dedication',?,'{}',?)")
     .bind(newId(), session.event_id, session.guest_id, id, stamp).run();
-  return json({ messageId: id, storageState: "pending", message: "Tu dedicatoria está guardada y se sincronizará con la hoja del evento." }, 202);
+  return json({ messageId: id, storageState: "stored", message: "Tu dedicatoria quedó guardada para el álbum." }, 201);
 }
 
 async function serveMedia(assetId, env) {

@@ -4,20 +4,22 @@ Web móvil para que los invitados compartan una foto y una dedicatoria en cada m
 
 ## Enlaces y accesos
 
-- `/admin.html`: administración privada. Al iniciar sesión muestra, para cada evento, el enlace de invitados y el enlace STAFF, con botones para copiar. También permite registrar lugares y crear eventos con su propia carpeta de Google Drive.
+- `/admin.html`: administración privada. Al iniciar sesión muestra, para cada evento, el enlace de invitados y el enlace STAFF, con botones para copiar. También permite registrar lugares, crear eventos y descargar o eliminar sus archivos.
 - El enlace de invitados usa el formato `/l/{lugar}?event={evento}`. El invitado puede buscar con su nombre, apellido o ambos; si hay coincidencias, elige su nombre en la lista.
 - El enlace STAFF incluye una clave aleatoria limitada a un evento. Abre directamente el panel de ese evento, sin contraseña. La administración puede renovarlo; al hacerlo, el enlace anterior deja de funcionar.
 - El enlace discreto «Administración y STAFF» del final de la página inicial abre ambas opciones. Administración pide usuario y contraseña; STAFF permite seleccionar lugar y evento y comprobar el enlace STAFF de ese evento. También ofrece una vista de demostración.
 - `/staff.html` sin clave muestra el selector de lugar y evento. Para acceder a datos reales, se pega el enlace STAFF que comparte Administración; el enlace directo generado por Administración sigue abriendo el evento correspondiente.
 
-Los enlaces de eventos en preparación se pueden copiar antes del evento, pero solo funcionarán cuando el evento esté activo. La URL de Drive se captura por evento para admitir que cada boda use una carpeta distinta.
+Los enlaces de eventos en preparación se pueden copiar antes del evento, pero solo funcionarán cuando el evento esté activo.
 
 ## Qué hace la plataforma
 
 - La agenda abre la carga de fotos cinco minutos antes de cada actividad y la cierra cinco minutos antes de que termine. El servidor decide a qué actividad corresponde la foto y si participa en una dinámica.
 - Cada invitado puede enviar una foto por actividad. Una foto enviada fuera del horario todavía se conserva para el álbum, pero no participa en esa dinámica.
-- El navegador solo mantiene temporalmente la imagen durante la selección y vista previa. El archivo se manda a la carpeta de Drive del evento y no se guarda en la web.
-- Las dedicatorias se asocian con el nombre de quien las escribió y se sincronizan a una hoja de cálculo de ese evento.
+- El navegador solo mantiene temporalmente la imagen durante la selección y vista previa. Las fotos se guardan en Cloudflare R2 con rutas separadas por evento y actividad.
+- Las dedicatorias se asocian con el nombre de quien las escribió y se guardan con los datos del evento; la descarga del evento incluye un CSV para abrir en Excel.
+- Cada evento tiene una carpeta lógica en R2 y cada actividad una subcarpeta. La primera foto crea la ruta de fotos de esa actividad; las siguientes se guardan en la misma ruta.
+- La administración puede descargar un ZIP con la configuración, invitados, dedicatorias e imágenes del evento. También puede borrar solo sus fotos de invitados o eliminar el evento completo y todos sus archivos R2.
 - El enlace STAFF muestra resultados de dinámicas y permite registrar la entrega de premios.
 
 ## Regla de diseño para todas las pantallas
@@ -32,9 +34,9 @@ El repositorio incluye páginas estáticas, Cloudflare Pages Functions y migraci
 
 - `ADMIN_USERNAME` y `ADMIN_PASSWORD_HASH`: acceso a administración.
 - `SESSION_PEPPER`: valor secreto aleatorio para proteger sesiones y códigos de invitación.
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL` y `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`: cuenta de servicio que crea carpetas y hojas, y carga fotos.
+- Un bucket R2 enlazado a Pages con el binding `EVENT_MEDIA`.
 
-Las fotos que envían los invitados se guardan en la carpeta individual de Google Drive indicada para ese evento, dentro de subcarpetas por actividad. La cuenta de servicio de Google debe tener permiso para editar esa carpeta; el enlace por sí solo no concede acceso a la cuenta de servicio. Las fotografías de portada y las imágenes de referencia de actividades se guardan en un binding R2 de Cloudflare llamado `EVENT_MEDIA`, y se sirven desde `/api/media/{id}` para que cualquier persona que abra la invitación pueda verlas. Configura el binding `EVENT_MEDIA` en la sección de variables y bindings de Cloudflare Pages; R2 es necesario para esas imágenes aunque Drive ya esté conectado.
+Configura el binding `EVENT_MEDIA` en Cloudflare Pages y enlázalo a un bucket R2. Portadas, imágenes de actividades y fotos de invitados se guardan en ese bucket; las fotos de portada y referencia se sirven desde `/api/media/{id}`. La información estructurada se conserva en D1 y se agrega al ZIP de descarga junto con sus imágenes. No se necesita autorizar una carpeta externa del fotógrafo.
 
 ## Publicar
 
