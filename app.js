@@ -90,6 +90,133 @@ function setEvent(data) {
   }
 }
 
+let activityTicker = null;
+let currentAutoActivityIndex = -1;
+let isUserBrowsing = false;
+let userBrowsingTimer = null;
+
+function parseMomentMinutes(moment) {
+  if (!moment) return null;
+  if (moment.startsAt) {
+    const d = new Date(moment.startsAt);
+    if (!Number.isNaN(d.valueOf())) return d.getHours() * 60 + d.getMinutes();
+  }
+  const raw = moment.start || moment.startTime || "";
+  const match = String(raw).match(/(\d{1,2}):(\d{2})(?:\s*([ap]\.?m\.?))?/i);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const ampm = match[3] ? match[3].toLowerCase().replace(/\./g, "") : null;
+  if (ampm === "pm" && h < 12) h += 12;
+  if (ampm === "am" && h === 12) h = 0;
+  return h * 60 + m;
+}
+
+function getCurrentActivityIndex() {
+  if (!moments || !moments.length) return 0;
+  const now = new Date();
+  const nowEpoch = now.getTime();
+
+  // 1. If moments have full ISO timestamps on today's date
+  const firstStartsAt = moments[0].startsAt ? Date.parse(moments[0].startsAt) : NaN;
+  const isLiveToday = Number.isFinite(firstStartsAt) && (new Date(firstStartsAt).toDateString() === now.toDateString());
+
+  if (isLiveToday) {
+    if (nowEpoch < firstStartsAt) return 0;
+    let active = 0;
+    for (let i = 0; i < moments.length; i++) {
+      const start = Date.parse(moments[i].startsAt || "");
+      if (!Number.isFinite(start)) continue;
+      let nextStart = Infinity;
+      if (i + 1 < moments.length && moments[i + 1].startsAt) {
+        nextStart = Date.parse(moments[i + 1].startsAt);
+      } else if (moments[i].endsAt) {
+        nextStart = Date.parse(moments[i].endsAt);
+      }
+      if (nowEpoch >= start) {
+        active = i;
+        if (nowEpoch < nextStart) return i;
+      }
+    }
+    return active;
+  }
+
+  // If live event is on a future date: always start at the first activity (index 0)
+  if (Number.isFinite(firstStartsAt) && nowEpoch < firstStartsAt) {
+    return 0;
+  }
+
+  // 2. Device time-of-day comparison (for demo mode or relative testing)
+  const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const momentMins = moments.map((m) => {
+    const mins = parseMomentMinutes(m);
+    return mins !== null ? mins : 0;
+  });
+
+  const firstM = momentMins[0] || 0;
+  // Handle overnight activities (e.g. wedding starts at 17:00 and has activities past midnight < 06:00)
+  const normalizedMins = momentMins.map((mins) => {
+    if (firstM >= 12 * 60 && mins < 6 * 60) return mins + 24 * 60;
+    return mins;
+  });
+
+  let adjustedNow = nowMinutes;
+  if (firstM >= 12 * 60 && nowMinutes < 6 * 60) {
+    adjustedNow += 24 * 60;
+  }
+
+  // If accessed before the first activity schedule, always display the first activity
+  if (adjustedNow < normalizedMins[0]) {
+    return 0;
+  }
+
+  let currentIdx = 0;
+  for (let i = 0; i < normalizedMins.length; i++) {
+    const start = normalizedMins[i];
+    const nextStart = i + 1 < normalizedMins.length ? normalizedMins[i + 1] : start + 120;
+    if (adjustedNow >= start) {
+      currentIdx = i;
+      if (adjustedNow < nextStart) return i;
+    }
+  }
+  return currentIdx;
+}
+
+function updateMomentsState(activeIdx) {
+  moments.forEach((m, idx) => {
+    m.state = idx < activeIdx ? "finished" : idx === activeIdx ? "active" : "upcoming";
+  });
+  $$(".moment-card", $("#moment-carousel")).forEach((card, idx) => {
+    card.classList.toggle("is-active-moment", idx === activeIdx);
+  });
+}
+
+function checkActivityProgression(force = false) {
+  if (!moments || !moments.length) return;
+  const activeIdx = getCurrentActivityIndex();
+  updateMomentsState(activeIdx);
+
+  if (force || activeIdx !== currentAutoActivityIndex) {
+    const prevAuto = currentAutoActivityIndex;
+    currentAutoActivityIndex = activeIdx;
+    if (force || !isUserBrowsing || activeIdx !== prevAuto) {
+      isUserBrowsing = false;
+      if (userBrowsingTimer) { clearTimeout(userBrowsingTimer); userBrowsingTimer = null; }
+      selectMoment(activeIdx, false);
+      renderSchedule();
+    }
+  }
+}
+
+function startActivityTicker() {
+  if (activityTicker) window.clearInterval(activityTicker);
+  activityTicker = window.setInterval(() => {
+    if (document.body.dataset.screen === "home") {
+      checkActivityProgression(false);
+    }
+  }, 3000);
+}
+
 function showHome(profile, data, demo = false) {
   guest = profile;
   isDemo = demo;
@@ -105,26 +232,16 @@ function showHome(profile, data, demo = false) {
   $("#connected-count").textContent = hasLiveCount ? String(count) : "—";
   $("#presence-status").textContent = count === 1 ? "invitado participando" : "invitados participando";
   $("#guest-presence").classList.toggle("has-live-count", hasLiveCount);
-  const now = Date.now() + serverClockOffset;
-  const photoWindowIndex = moments.findIndex((moment) => {
-    const opensAt = Date.parse(moment.photoOpensAt || "");
-    const closesAt = Date.parse(moment.photoClosesAt || "");
-    return Number.isFinite(opensAt) && Number.isFinite(closesAt) && now >= opensAt && now < closesAt;
-  });
-  const nextPhotoWindowIndex = moments.reduce((soonestIndex, moment, index) => {
-    const opensAt = Date.parse(moment.photoOpensAt || "");
-    if (!Number.isFinite(opensAt) || opensAt <= now) return soonestIndex;
-    const soonestAt = soonestIndex < 0 ? Infinity : Date.parse(moments[soonestIndex].photoOpensAt || "");
-    return opensAt < soonestAt ? index : soonestIndex;
-  }, -1);
-  const active = photoWindowIndex >= 0 ? photoWindowIndex : moments.findIndex((moment) => moment.id === eventData.activeMomentId || moment.state === "active");
-  const next = nextPhotoWindowIndex >= 0 ? nextPhotoWindowIndex : moments.findIndex((moment) => moment.id === eventData.nextMomentId || moment.state === "upcoming");
-  selectedMomentIndex = active >= 0 ? active : next >= 0 ? next : 0;
+  const initialIndex = getCurrentActivityIndex();
+  currentAutoActivityIndex = initialIndex;
+  selectedMomentIndex = initialIndex;
+  updateMomentsState(initialIndex);
   renderCarousel();
   renderSchedule();
   resetUploadPanel();
   screen("home");
   showCarouselTapHint();
+  startActivityTicker();
 }
 
 function showCarouselTapHint() {
@@ -298,6 +415,20 @@ function selectMoment(index, openPanel) {
   if (submissions.has(String(moments[boundedIndex].id))) openPanel = false;
   updateCarousel();
   if (openPanel) openUploadPanel();
+
+  if (boundedIndex !== currentAutoActivityIndex) {
+    isUserBrowsing = true;
+    if (userBrowsingTimer) clearTimeout(userBrowsingTimer);
+    userBrowsingTimer = setTimeout(() => {
+      isUserBrowsing = false;
+      if (currentAutoActivityIndex >= 0 && currentAutoActivityIndex < moments.length) {
+        selectMoment(currentAutoActivityIndex, false);
+      }
+    }, 20000);
+  } else {
+    isUserBrowsing = false;
+    if (userBrowsingTimer) { clearTimeout(userBrowsingTimer); userBrowsingTimer = null; }
+  }
 }
 function moveCarousel(amount) {
   if (!moments.length || !amount) return;
@@ -308,9 +439,12 @@ function moveCarousel(amount) {
 function renderSchedule() {
   const list = $("#public-schedule");
   list.replaceChildren();
-  moments.forEach((moment) => {
+  moments.forEach((moment, idx) => {
     const row = document.createElement("div");
     row.className = "public-activity";
+    if (idx === currentAutoActivityIndex || moment.state === "active") {
+      row.classList.add("is-current");
+    }
     const time = document.createElement("time");
     time.textContent = moment.start || moment.startTime || "—";
     const mark = document.createElement("span");
@@ -414,6 +548,7 @@ async function refreshEvent() {
     if (Array.isArray(payload.submissions)) {
       submissions = new Map(payload.submissions.filter((item) => item.storageState === "stored").map((item) => [String(item.momentId), item]));
     }
+    checkActivityProgression(false);
     renderCarousel();
     renderSchedule();
   } catch { /* Keep the last confirmed schedule if the service is temporarily unavailable. */ }
@@ -720,6 +855,11 @@ if ("serviceWorker" in navigator) {
 }
 api("/api/events/current").then((payload) => setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload)).catch(() => {});
 window.setInterval(() => { if (guest && !isDemo) refreshEvent(); }, 30000);
-document.addEventListener("visibilitychange", () => setPresenceTracking(document.body.dataset.screen === "home"));
+document.addEventListener("visibilitychange", () => {
+  setPresenceTracking(document.body.dataset.screen === "home");
+  if (document.visibilityState === "visible" && document.body.dataset.screen === "home") {
+    checkActivityProgression(true);
+  }
+});
 window.addEventListener("pagehide", () => { if (document.body.dataset.screen === "home") void sendPresence(false, true); });
 screen("welcome");

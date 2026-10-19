@@ -160,9 +160,11 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .message-form-bottom > span { justify-self: end; color: #858a80; font-size: 12px; }
 .schedule-screen .step-heading { margin-bottom: 14px; }
 .public-schedule { display: grid; gap: 7px; overflow: hidden; }
-.public-activity { display: grid; grid-template-columns: 56px 10px 1fr; align-items: center; gap: 10px; min-height: 50px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); }
+.public-activity { display: grid; grid-template-columns: 56px 10px 1fr; align-items: center; gap: 10px; min-height: 50px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); transition: border-color .3s, box-shadow .3s; }
+.public-activity.is-current { border-color: var(--copper); box-shadow: 0 0 0 1px var(--copper), 0 4px 12px #b05c3c15; }
 .public-activity time { color: #727d73; font-size: 13px; font-variant-numeric: tabular-nums; }
 .public-activity-mark { width: 8px; height: 8px; border: 2px solid #a9b6a7; border-radius: 50%; }
+.public-activity.is-current .public-activity-mark { background: var(--copper); border-color: var(--copper); }
 .public-activity strong { font-size: 14px; font-weight: 500; }
 .screen-footnote { margin: auto 0 2px; color: #83877e; font-size: 12px; line-height: 1.4; }
 .staff-login-screen .step-heading { margin-bottom: 16px; }
