@@ -114,12 +114,17 @@ async function eventForGuest(db, guestId, eventId, now = Date.now()) {
   const shaped = await shapeEvent(db, event, venue, now);
   const submissions = await db.prepare("SELECT id,activity_id AS momentId,eligible,storage_state AS storageState,received_at AS receivedAt FROM photo_submissions WHERE guest_id=? AND event_id=? ORDER BY received_at")
     .bind(guestId, eventId).all();
-  const winner = await db.prepare(`SELECT c.name AS contest_name,c.kind,p.name AS prize_name
+  const winner = await db.prepare(`SELECT c.id,c.name AS contest_name,c.kind,p.name AS prize_name,p.instructions AS prize_instructions
     FROM contests c LEFT JOIN prizes p ON p.id=c.prize_id WHERE c.event_id=? AND c.winner_guest_id=? AND c.state='finished'
-      AND c.winner_confirmed_at>?`).bind(eventId, guestId, new Date(Date.now() - 12 * 3600000).toISOString()).first();
-  const winnerNotice = winner ? (winner.prize_name
-    ? { text: "¡Felicidades! Ganaste " + winner.contest_name + ". Acércate al staff para recibir tu premio." }
-    : { text: "¡Felicidades! Ganaste " + winner.contest_name + "." }) : null;
+    ORDER BY c.winner_confirmed_at DESC`).bind(eventId, guestId).first();
+  const winnerNotice = winner ? {
+    contestId: winner.id,
+    contestName: winner.contest_name,
+    prizeName: winner.prize_name || null,
+    text: winner.prize_name
+      ? `¡Felicidades! Ganaste el reto «${winner.contest_name}». Acércate al staff para recibir tu premio (${winner.prize_name}).`
+      : `¡Felicidades! Ganaste el reto «${winner.contest_name}».`
+  } : null;
   return { event: shaped, submissions: submissions.results || [], winnerNotice };
 }
 
@@ -237,9 +242,9 @@ export async function handleGuestApi(ctx, path) {
 async function eligibleForContest(db, event, activity, receivedAt) {
   if (!event.contests_enabled) return false;
   const insideActivityWindow = isEligible(receivedAt, activity.photo_opens_at, activity.photo_closes_at);
-  const contest = await db.prepare(`SELECT c.id FROM contests c JOIN contest_activities ca ON ca.contest_id=c.id
-    WHERE c.event_id=? AND ca.activity_id=? AND c.state='active' AND c.opens_at<=? AND c.closes_at>?
-      AND (c.kind='first_photo' OR ?=1) LIMIT 1`)
+  const contest = await db.prepare(`SELECT c.id FROM contests c LEFT JOIN contest_activities ca ON ca.contest_id=c.id
+    WHERE c.event_id=? AND (ca.activity_id=? OR ca.activity_id IS NULL) AND c.state IN ('active', 'draft')
+      AND (c.kind='first_photo' OR (c.opens_at<=? AND c.closes_at>? AND ?=1)) LIMIT 1`)
     .bind(event.id, activity.id, receivedAt, receivedAt, insideActivityWindow ? 1 : 0).first();
   return Boolean(contest);
 }
@@ -286,7 +291,50 @@ async function submitPhoto(request, env) {
       .bind("r2:" + saved.key, submissionId).run();
     await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'photo.stored','photo_submission',?,'{}',?)")
       .bind(newId(), event.id, session.guest_id, submissionId, nowIso()).run();
-    return json({ submission: { id: submissionId, momentId: activity.id, eligible, storageState: "stored", receivedAt } }, 201);
+
+    let winnerNotice = null;
+    if (event.contests_enabled) {
+      // Evaluar si esta foto hace ganador al invitado en un reto de primera foto (de la actividad o de todo el evento)
+      const candidate = await db.prepare(`SELECT c.*, p.name AS prize_name, p.instructions AS prize_instructions
+        FROM contests c LEFT JOIN prizes p ON p.id=c.prize_id
+        WHERE c.event_id=? AND c.winner_guest_id IS NULL AND c.state IN ('active', 'draft') AND c.kind='first_photo'
+          AND (
+            EXISTS (SELECT 1 FROM contest_activities ca WHERE ca.contest_id=c.id AND ca.activity_id=?)
+            OR NOT EXISTS (SELECT 1 FROM contest_activities ca WHERE ca.contest_id=c.id)
+            OR instr(c.rule_json, '"scope":"event"') > 0
+          )
+        ORDER BY CASE WHEN EXISTS (SELECT 1 FROM contest_activities ca WHERE ca.contest_id=c.id AND ca.activity_id=?) THEN 0 ELSE 1 END, c.opens_at ASC LIMIT 1`)
+        .bind(event.id, activity.id, activity.id).first();
+
+      if (candidate) {
+        // Asignación atómica del ganador
+        const crowned = await db.prepare(`UPDATE contests SET winner_guest_id=?, winner_confirmed_at=?, winner_confirmed_by='system', state='finished', updated_at=?
+          WHERE id=? AND winner_guest_id IS NULL`).bind(session.guest_id, receivedAt, receivedAt, candidate.id).run();
+        if (crowned.meta?.changes) {
+          const resultId = newId();
+          await db.prepare(`INSERT OR REPLACE INTO contest_results (id,contest_id,event_id,winner_guest_id,calculation,entry_count,trace_json,calculated_at)
+            VALUES (?,?,?,?,'first_photo',1,?,?)`).bind(resultId, candidate.id, event.id, session.guest_id, JSON.stringify({ submissionId }), receivedAt).run();
+          if (candidate.prize_id) {
+            const deliveryId = newId();
+            await db.prepare(`INSERT OR REPLACE INTO prize_deliveries (id,contest_id,prize_id,guest_id,created_at) VALUES (?,?,?,?,?)`)
+              .bind(deliveryId, candidate.id, candidate.prize_id, session.guest_id, receivedAt).run();
+          }
+          await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'system', 'first_photo', 'contest.winner_assigned','contest',?,?,?)")
+            .bind(newId(), event.id, candidate.id, JSON.stringify({ guestId: session.guest_id, contestName: candidate.name }), receivedAt).run();
+
+          winnerNotice = {
+            contestId: candidate.id,
+            contestName: candidate.name,
+            prizeName: candidate.prize_name || null,
+            text: candidate.prize_name
+              ? `¡Felicidades! Ganaste el reto «${candidate.name}». Acércate al staff para recibir tu premio (${candidate.prize_name}).`
+              : `¡Felicidades! Ganaste el reto «${candidate.name}».`
+          };
+        }
+      }
+    }
+
+    return json({ submission: { id: submissionId, momentId: activity.id, eligible, storageState: "stored", receivedAt }, winnerNotice }, 201);
   } catch (error) {
     await db.prepare("UPDATE photo_submissions SET storage_state='failed',error_code=? WHERE id=?").bind(String(error.code || "r2_upload_error").slice(0, 80), submissionId).run();
     await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'photo.r2_failed','photo_submission',?,?,?)")

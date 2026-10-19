@@ -294,10 +294,10 @@ async function downloadEvent(id) {
 }
 async function deleteEventPhotos(id) {
   const event = state.events.find((item) => item.id === id);
-  if (!event || !confirm(`¿Eliminar todas las fotos de invitados de «${event.name}»? Solo se borrarán las fotos de este evento; se conservarán su portada, referencias, agenda e invitados.`)) return;
+  if (!event || !confirm(`¿Eliminar todas las fotos de invitados y restablecer los retos de «${event.name}»? Solo se borrarán las fotos y los retos volverán a su estado inicial para que puedas hacer pruebas de nuevo.`)) return;
   try {
     const result = await api(`/api/admin/events/${encodeURIComponent(id)}/photos`, { method: "DELETE" });
-    message(`${Number(result.deletedCount || 0)} foto(s) eliminadas de «${event.name}».`);
+    message(`${Number(result.deletedCount || 0)} foto(s) eliminadas y retos restablecidos en «${event.name}».`);
     await loadDashboard();
   } catch (error) { message(error.message); }
 }

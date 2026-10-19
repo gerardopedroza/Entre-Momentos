@@ -84,7 +84,20 @@ export async function deleteAllEventPhotos(env, db, eventId) {
     deleted += photoKeys.length;
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
-  await db.prepare("UPDATE photo_submissions SET storage_state='failed',drive_file_id=NULL,error_code='photo_removed_by_admin' WHERE event_id=? AND storage_state='stored'").bind(eventId).run();
+
+  const stamp = nowIso();
+  // Eliminar completamente las participaciones previas para permitir nuevas pruebas limpias
+  await db.prepare("DELETE FROM photo_submissions WHERE event_id=?").bind(eventId).run();
+
+  // Restablecer los retos a su estado inicial para que puedan volver a jugarse y ganarse
+  await db.prepare(`UPDATE contests SET winner_guest_id=NULL, winner_confirmed_at=NULL, winner_confirmed_by=NULL,
+    state=CASE WHEN state='inactive' THEN 'inactive' ELSE 'active' END, updated_at=?
+    WHERE event_id=?`).bind(stamp, eventId).run();
+
+  // Limpiar resultados anteriores y registros de entrega de premios
+  await db.prepare("DELETE FROM contest_results WHERE event_id=?").bind(eventId).run();
+  await db.prepare("DELETE FROM prize_deliveries WHERE contest_id IN (SELECT id FROM contests WHERE event_id=?)").bind(eventId).run();
+
   return deleted;
 }
 

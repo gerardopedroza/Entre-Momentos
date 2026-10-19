@@ -40,6 +40,14 @@
 
         <section class="screen home-screen" id="screen-home" aria-labelledby="home-title" hidden>
           <div class="home-heading"><div><h1 id="home-title"><span id="home-guest-name">Invitado</span></h1><p id="home-guest-nickname" class="home-nickname" hidden></p><p class="home-thanks">Gracias por hacer este día tan especial.</p></div><span class="demo-badge" id="demo-badge" hidden>DEMO</span></div>
+          <aside class="winner-banner" id="winner-banner" role="alert" hidden>
+            <div class="winner-banner-badge" aria-hidden="true">🏆</div>
+            <div class="winner-banner-body">
+              <strong class="winner-banner-title">¡Ganaste un reto!</strong>
+              <p class="winner-banner-copy" id="winner-banner-copy">¡Felicidades! Acércate al staff para tu premio.</p>
+            </div>
+            <button type="button" class="winner-banner-btn" id="winner-banner-open">Ver premio</button>
+          </aside>
           <section class="carousel-section" aria-label="Momentos de la boda">
             <div class="carousel-heading">
               <nav class="home-actions" aria-label="Acciones principales">
@@ -83,6 +91,22 @@
           <div class="admin-view staff-data-view" id="admin-event" hidden><h2>Datos del evento</h2><form id="staff-event-form" class="message-form"><label class="field-label" for="staff-event-name">Nombres de la pareja</label><input class="admin-input" id="staff-event-name" required /><label class="field-label" for="staff-event-date">Fecha</label><input class="admin-input" id="staff-event-date" type="date" /><label class="field-label" for="staff-cover-image">Foto de portada</label><input id="staff-cover-image" type="file" accept="image/*" /><button class="primary-button" type="submit">Guardar evento <span aria-hidden="true">→</span></button><p class="form-message" id="staff-event-feedback" role="status"></p></form></div>
         </section>
       </main>
+      <div class="winner-modal-overlay" id="winner-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="winner-modal-title" hidden>
+        <div class="winner-modal-backdrop" id="winner-modal-backdrop"></div>
+        <div class="winner-modal-card">
+          <div class="winner-modal-emoji" aria-hidden="true">🎉 🏆 🎉</div>
+          <p class="winner-modal-kicker">¡RETO COMPLETADO!</p>
+          <h2 class="winner-modal-title" id="winner-modal-title">¡Felicidades!</h2>
+          <div class="winner-modal-contest" id="winner-modal-contest">Reto del evento</div>
+          <p class="winner-modal-text" id="winner-modal-text">Has ganado este reto.</p>
+          <div class="winner-modal-prize" id="winner-modal-prize" hidden>
+            <span class="prize-tag">Tu premio</span>
+            <strong class="prize-title" id="winner-modal-prize-name"></strong>
+            <p class="prize-instructions" id="winner-modal-prize-instructions">Acércate al personal de coordinación o staff para recibir tu premio.</p>
+          </div>
+          <button type="button" class="primary-button winner-modal-btn" id="winner-modal-close">Aceptar <span aria-hidden="true">✓</span></button>
+        </div>
+      </div>
       <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     </div>
     <script src="/app.js"></script>

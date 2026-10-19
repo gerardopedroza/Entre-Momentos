@@ -123,8 +123,8 @@ export async function handleAdminApi(ctx, path) {
       if (method === "GET" && action === "download") return await downloadEventArchive(env, event);
       if (method === "DELETE" && action === "photos") {
         const deletedCount = await removeAllEventPhotos(env, event);
-        await log(db, "event.photos_deleted", "event", id, id, { deletedCount });
-        return json({ ok: true, deletedCount });
+        await log(db, "event.photos_deleted", "event", id, id, { deletedCount, contestsReset: true });
+        return json({ ok: true, deletedCount, contestsReset: true });
       }
       if (method === "DELETE") {
         await prepareEventRemoval(env, id);
@@ -385,6 +385,9 @@ async function updateEvent(request, env, event) {
   try {
     await db.prepare(`UPDATE events SET venue_id=?,name=?,slug=?,event_date=?,timezone=?,state=?,contests_enabled=?,updated_at=? WHERE id=?`)
       .bind(venue.id, name, slug, eventDate, venue.timezone, state, data.contestsEnabled === false ? 0 : data.contestsEnabled === true ? 1 : event.contests_enabled, nowIso(), event.id).run();
+    if (state === "active") {
+      await db.prepare("UPDATE contests SET state='active',updated_at=? WHERE event_id=? AND state='draft'").bind(nowIso(), event.id).run();
+    }
   } catch (error) {
     if (/UNIQUE/i.test(error.message)) return fail("La URL o el lugar ya tienen un evento activo en esa fecha.", 409, "event_conflict");
     if (/venue_inactive/.test(error.message)) return fail("Activa el lugar antes de activar el evento.", 409, "venue_inactive");

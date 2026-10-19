@@ -34,6 +34,57 @@ let presenceInterval = null;
 let presenceBusy = false;
 let carouselTapHintShown = false;
 let carouselTutorialTimers = [];
+let currentWinnerNotice = null;
+
+function showWinnerNotice(notice, forceModal = true) {
+  if (!notice || !notice.text) return;
+  currentWinnerNotice = notice;
+
+  const banner = $("#winner-banner");
+  const bannerCopy = $("#winner-banner-copy");
+  if (banner && bannerCopy) {
+    bannerCopy.textContent = notice.contestName ? `¡Ganaste «${notice.contestName}»!` : notice.text;
+    banner.hidden = false;
+  }
+
+  const contestEl = $("#winner-modal-contest");
+  if (contestEl) contestEl.textContent = notice.contestName ? `«${notice.contestName}»` : "Reto del evento";
+
+  const textEl = $("#winner-modal-text");
+  if (textEl) textEl.textContent = notice.text;
+
+  const prizeBox = $("#winner-modal-prize");
+  const prizeNameEl = $("#winner-modal-prize-name");
+  if (prizeBox && prizeNameEl) {
+    if (notice.prizeName) {
+      prizeNameEl.textContent = notice.prizeName;
+      prizeBox.hidden = false;
+    } else {
+      prizeBox.hidden = true;
+    }
+  }
+
+  if (forceModal) {
+    openWinnerModal();
+  }
+}
+
+function openWinnerModal() {
+  const modal = $("#winner-modal-overlay");
+  if (modal) modal.hidden = false;
+}
+
+function closeWinnerModal() {
+  const modal = $("#winner-modal-overlay");
+  if (modal) modal.hidden = true;
+}
+
+function clearWinnerNotice() {
+  currentWinnerNotice = null;
+  const banner = $("#winner-banner");
+  if (banner) banner.hidden = true;
+  closeWinnerModal();
+}
 
 function screen(name) {
   $$(".screen").forEach((item) => { item.hidden = item.id !== "screen-" + name; });
@@ -239,6 +290,12 @@ function showHome(profile, data, demo = false) {
   renderCarousel();
   renderSchedule();
   resetUploadPanel();
+  const notice = profile?.winnerNotice || data?.winnerNotice || null;
+  if (notice) {
+    showWinnerNotice(notice, false);
+  } else {
+    clearWinnerNotice();
+  }
   screen("home");
   showCarouselTapHint();
   startActivityTicker();
@@ -534,8 +591,12 @@ async function enterGuest(response) {
   if (!profile?.id) throw new Error("El servicio no confirmó tu identidad.");
   const payload = response.event ? response : await api("/api/events/current");
   const eventPayload = payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload;
-  const signedIn = { ...(payload.guest || profile), submissions: payload.submissions || payload.guest?.submissions || profile.submissions || [] };
+  const notice = payload.winnerNotice || response.winnerNotice || null;
+  const signedIn = { ...(payload.guest || profile), submissions: payload.submissions || payload.guest?.submissions || profile.submissions || [], winnerNotice: notice };
   showHome(signedIn, eventPayload, false);
+  if (notice) {
+    showWinnerNotice(notice, true);
+  }
 }
 
 async function refreshEvent() {
@@ -547,6 +608,11 @@ async function refreshEvent() {
     setEvent(currentEvent);
     if (Array.isArray(payload.submissions)) {
       submissions = new Map(payload.submissions.filter((item) => item.storageState === "stored").map((item) => [String(item.momentId), item]));
+    }
+    if (payload.winnerNotice) {
+      showWinnerNotice(payload.winnerNotice, false);
+    } else {
+      clearWinnerNotice();
     }
     checkActivityProgression(false);
     renderCarousel();
@@ -664,6 +730,9 @@ $("#send-photo").addEventListener("click", async () => {
     if (nextAvailable !== null) selectedMomentIndex = nextAvailable;
     renderCarousel();
     resetUploadPanel();
+    if (result.winnerNotice) {
+      showWinnerNotice(result.winnerNotice, true);
+    }
   } catch {
     $("#photo-feedback").textContent = "";
     $("#send-photo").disabled = false;
@@ -848,6 +917,9 @@ $("#close-admin").addEventListener("click", async () => {
   screen(guest ? "home" : "welcome");
 });
 $("#home-button").addEventListener("click", () => screen(guest ? "home" : "welcome"));
+$("#winner-banner-open")?.addEventListener("click", openWinnerModal);
+$("#winner-modal-close")?.addEventListener("click", closeWinnerModal);
+$("#winner-modal-backdrop")?.addEventListener("click", closeWinnerModal);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister())).catch(() => {});
