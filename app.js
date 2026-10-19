@@ -929,16 +929,44 @@ $("#winner-banner-open")?.addEventListener("click", openWinnerModal);
 $("#winner-modal-close")?.addEventListener("click", closeWinnerModal);
 $("#winner-modal-backdrop")?.addEventListener("click", closeWinnerModal);
 
+async function logoutGuest() {
+  try { await api("/api/guests/session", { method: "DELETE" }); } catch { /* Local session is cleared even if network fails */ }
+  guest = null;
+  submissions = new Map();
+  if (presenceInterval) { window.clearInterval(presenceInterval); presenceInterval = null; }
+  $("#search-message").textContent = "";
+  $("#guest-search").value = "";
+  screen("welcome");
+  setTimeout(() => $("#guest-search")?.focus(), 150);
+}
+$("#guest-switch-link")?.addEventListener("click", logoutGuest);
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister())).catch(() => {});
   if ("caches" in window) caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("entre-momentos-" )).map((key) => caches.delete(key)))).catch(() => {});
 }
-api("/api/events/current").then((payload) => {
+
+const bootParams = new URLSearchParams(window.location.search);
+const shouldResetGuest = bootParams.has("logout") || bootParams.has("reset") || bootParams.has("cambiar");
+if (shouldResetGuest) {
+  bootParams.delete("logout");
+  bootParams.delete("reset");
+  bootParams.delete("cambiar");
+  const newQuery = bootParams.toString();
+  const cleanUrl = window.location.pathname + (newQuery ? "?" + newQuery : "");
+  window.history.replaceState({}, "", cleanUrl);
+}
+
+const bootPromise = shouldResetGuest
+  ? api("/api/guests/session", { method: "DELETE" }).catch(() => {})
+  : Promise.resolve();
+
+bootPromise.then(() => api("/api/events/current")).then((payload) => {
   if (payload.event && !payload.event.demo) {
     demoSearchEnabled = false;
   }
   setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload);
-  if (payload.guest) {
+  if (payload.guest && !shouldResetGuest) {
     enterGuest(payload);
   }
 }).catch(() => {});

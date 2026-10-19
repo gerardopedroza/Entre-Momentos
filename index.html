@@ -4,8 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#24332c" />
-    <meta name="description" content="Entre Momentos — Una boda. Mil historias. Un recuerdo para siempre." />
+    <meta name="description" content="Entre Momentos — Tus fotos, tus mensajes, su historia. Comparte los mejores momentos de este gran día." />
     <title>Entre Momentos</title>
+
+    <!-- Open Graph / WhatsApp / Facebook Preview -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Entre Momentos" />
+    <meta property="og:title" content="Entre Momentos — Comparte los mejores momentos" />
+    <meta property="og:description" content="Tus fotos · Tus mensajes · Su historia. Sube y comparte tus fotos, envía dedicatorias a los novios y sé parte de este gran día." />
+    <meta property="og:image" content="/preview.jpg" />
+    <meta property="og:image:secure_url" content="/preview.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:alt" content="Entre Momentos — Tus fotos, tus mensajes, su historia" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Entre Momentos — Comparte los mejores momentos" />
+    <meta name="twitter:description" content="Tus fotos · Tus mensajes · Su historia. Sube y comparte tus fotos, envía dedicatorias a los novios y sé parte de este gran día." />
+    <meta name="twitter:image" content="/preview.jpg" />
+
+    <!-- Fallback link for social scrapers -->
+    <link rel="image_src" href="/preview.jpg" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Allura&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -39,7 +61,7 @@
         </section>
 
         <section class="screen home-screen" id="screen-home" aria-labelledby="home-title" hidden>
-          <div class="home-heading"><div><h1 id="home-title"><span id="home-guest-name">Invitado</span></h1><p id="home-guest-nickname" class="home-nickname" hidden></p><p class="home-thanks">Gracias por hacer este día tan especial.</p></div><span class="demo-badge" id="demo-badge" hidden>DEMO</span></div>
+          <div class="home-heading"><div><h1 id="home-title"><span id="home-guest-name">Invitado</span></h1><p id="home-guest-nickname" class="home-nickname" hidden></p><p class="home-thanks">Gracias por hacer este día tan especial. <button type="button" class="guest-switch-link" id="guest-switch-link" title="Cambiar de invitado o buscar otro nombre">¿No eres tú?</button></p></div><span class="demo-badge" id="demo-badge" hidden>DEMO</span></div>
           <aside class="winner-banner" id="winner-banner" role="alert" hidden>
             <div class="winner-banner-badge" aria-hidden="true">🏆</div>
             <div class="winner-banner-body">

@@ -78,6 +78,8 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .home-heading h1 { margin: 0; font: 400 clamp(27px,7vw,34px)/1.08 var(--serif); }
 .home-heading h1 span { color: var(--olive-dark); }
 .home-thanks { margin: 5px 0 0; color: var(--muted); font-size: 14px; line-height: 1.25; }
+.guest-switch-link { display: inline; padding: 0; margin-left: 6px; border: 0; background: transparent; color: var(--copper); text-decoration: underline; text-underline-offset: 2px; font-size: 12px; font-weight: 500; cursor: pointer; opacity: .9; transition: color .15s, opacity .15s; }
+.guest-switch-link:hover, .guest-switch-link:focus-visible { opacity: 1; color: var(--olive-dark); }
 .demo-badge { padding: 6px 8px; border: 1px solid #dbc8a7; border-radius: 20px; color: #927a56; font-size: 9px; font-weight: 600; letter-spacing: 1px; }
 .home-actions { display: grid; flex: 0 0 52px; grid-template-columns: repeat(3,1fr); }
 .home-action { display: grid; align-content: center; justify-items: center; gap: 3px; border: 0; background: transparent; color: var(--olive-dark); cursor: pointer; font-size: 13px; font-weight: 500; }
