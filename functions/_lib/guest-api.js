@@ -4,7 +4,7 @@ import { downloadDriveImage } from "./google-drive.js";
 import { storeDedication, uploadGuestPhoto } from "./r2-storage.js";
 
 let presenceTablePromise = null;
-const PRESENCE_TTL_MS = 45000;
+const PRESENCE_TTL_MS = 60000;
 
 async function ensurePresenceTable(db) {
   if (!presenceTablePromise) {
@@ -31,7 +31,7 @@ async function updateGuestPresence(request, env) {
   if (!session) return fail("Identifícate para registrar tu conexión.", 401, "guest_required");
   const data = await readJson(request, 2048);
   if (String(data.eventId || "") !== session.event_id) return fail("La conexión no corresponde a este evento.", 403, "event_session_mismatch");
-  const event = await env.DB.prepare("SELECT id FROM events WHERE id=? AND state='active'").bind(session.event_id).first();
+  const event = await env.DB.prepare("SELECT id FROM events WHERE id=? AND state IN ('active', 'draft')").bind(session.event_id).first();
   if (!event) return fail("Este evento ya no está activo.", 404, "event_unavailable");
   await ensurePresenceTable(env.DB);
   const stamp = nowIso();
@@ -46,7 +46,7 @@ async function updateGuestPresence(request, env) {
   return json({ activeCount: await activeGuestCount(env.DB, session.event_id) });
 }
 
-function publicUrl(event, venue) { return "/l/" + encodeURIComponent(venue.slug) + "?venue=" + encodeURIComponent(venue.slug); }
+function publicUrl(event, venue) { return venue?.slug ? "/l/" + encodeURIComponent(venue.slug) + "?venue=" + encodeURIComponent(venue.slug) : "/?event=" + encodeURIComponent(event.slug || ""); }
 
 async function resolvePublicEvent(request, env, eventSession = null) {
   const url = new URL(request.url);
@@ -55,16 +55,34 @@ async function resolvePublicEvent(request, env, eventSession = null) {
   let event = null;
   if (venueSlug) {
     const venue = await env.DB.prepare("SELECT * FROM venues WHERE slug=? COLLATE NOCASE AND active=1").bind(venueSlug).first();
-    if (venue) event = await env.DB.prepare("SELECT * FROM events WHERE venue_id=? AND event_date=? AND state='active' LIMIT 1")
-      .bind(venue.id, getEventDateLocal(new Date(), venue.timezone)).first();
+    if (venue) {
+      event = await env.DB.prepare("SELECT * FROM events WHERE venue_id=? AND event_date=? AND state IN ('active', 'draft') LIMIT 1")
+        .bind(venue.id, getEventDateLocal(new Date(), venue.timezone)).first();
+      if (!event) {
+        event = await env.DB.prepare("SELECT * FROM events WHERE venue_id=? AND state IN ('active', 'draft') ORDER BY CASE WHEN state='active' THEN 0 ELSE 1 END, event_date DESC LIMIT 1")
+          .bind(venue.id).first();
+      }
+    }
   }
-  if (!venueSlug && eventSession?.event_id) event = await env.DB.prepare("SELECT * FROM events WHERE id=? AND state='active'").bind(eventSession.event_id).first();
-  if (!venueSlug && !event && slug) event = await env.DB.prepare("SELECT * FROM events WHERE slug=? COLLATE NOCASE AND state='active'").bind(slug).first();
+  if (!venueSlug && eventSession?.event_id) {
+    event = await env.DB.prepare("SELECT * FROM events WHERE id=? AND state IN ('active', 'draft')").bind(eventSession.event_id).first();
+  }
+  if (!venueSlug && !event && slug) {
+    event = await env.DB.prepare("SELECT * FROM events WHERE slug=? COLLATE NOCASE AND state IN ('active', 'draft')").bind(slug).first();
+  }
+  // Si no se proporcionó parámetro o no se encontró, obtener el evento activo principal
+  if (!event) {
+    event = await env.DB.prepare("SELECT * FROM events WHERE state IN ('active', 'draft') ORDER BY CASE WHEN state='active' THEN 0 ELSE 1 END, event_date DESC LIMIT 1").first();
+  }
   return event;
 }
 
 async function shapeEvent(db, event, venue, now = Date.now()) {
   if (!event) return null;
+  if (!venue && event.venue_id) {
+    venue = await db.prepare("SELECT id,name,slug,timezone FROM venues WHERE id=?").bind(event.venue_id).first();
+  }
+  const timezone = event.timezone || venue?.timezone || "America/Mexico_City";
   const activities = await db.prepare("SELECT a.*,m.id AS asset_id FROM event_activities a LEFT JOIN media_assets m ON m.id=a.reference_asset_id WHERE a.event_id=? AND a.active=1 ORDER BY a.position,a.starts_at")
     .bind(event.id).all();
   const moments = (activities.results || []).map((activity) => ({
@@ -72,7 +90,7 @@ async function shapeEvent(db, event, venue, now = Date.now()) {
     name: activity.name,
     description: activity.description || "",
     position: activity.position,
-    start: new Intl.DateTimeFormat("es-MX", { timeZone: event.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(activity.starts_at)),
+    start: new Intl.DateTimeFormat("es-MX", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(activity.starts_at)),
     startsAt: activity.starts_at,
     endsAt: activity.ends_at,
     photoOpensAt: activity.photo_opens_at,
@@ -94,12 +112,12 @@ async function shapeEvent(db, event, venue, now = Date.now()) {
     name: event.name,
     slug: event.slug,
     date: event.event_date,
-    timezone: event.timezone,
+    timezone: timezone,
     state: event.state,
     coverUrl: event.cover_asset_id ? "/api/media/" + event.cover_asset_id : null,
     contestsEnabled: Boolean(event.contests_enabled),
-    venue: { id: venue.id, name: venue.name, slug: venue.slug },
-    publicUrl: publicUrl(event, venue),
+    venue: venue ? { id: venue.id, name: venue.name, slug: venue.slug } : { id: "", name: event.name || "Evento", slug: event.slug || "" },
+    publicUrl: venue ? publicUrl(event, venue) : "/?event=" + encodeURIComponent(event.slug || ""),
     moments,
     activeMomentId: current?.id || null,
     nextMomentId: next?.id || null,
@@ -107,10 +125,9 @@ async function shapeEvent(db, event, venue, now = Date.now()) {
 }
 
 async function eventForGuest(db, guestId, eventId, now = Date.now()) {
-  const event = await db.prepare("SELECT * FROM events WHERE id=? AND state='active'").bind(eventId).first();
+  const event = await db.prepare("SELECT * FROM events WHERE id=? AND state IN ('active', 'draft')").bind(eventId).first();
   if (!event) return null;
-  const venue = await db.prepare("SELECT id,name,slug,timezone FROM venues WHERE id=? AND active=1").bind(event.venue_id).first();
-  if (!venue) return null;
+  const venue = await db.prepare("SELECT id,name,slug,timezone FROM venues WHERE id=?").bind(event.venue_id).first();
   const shaped = await shapeEvent(db, event, venue, now);
   const submissions = await db.prepare("SELECT id,activity_id AS momentId,eligible,storage_state AS storageState,received_at AS receivedAt FROM photo_submissions WHERE guest_id=? AND event_id=? ORDER BY received_at")
     .bind(guestId, eventId).all();
@@ -129,8 +146,11 @@ async function eventForGuest(db, guestId, eventId, now = Date.now()) {
 }
 
 async function resolveEventFromBody(data, request, env) {
-  const eventId = data.eventId;
-  if (eventId) return env.DB.prepare("SELECT * FROM events WHERE id=? AND state='active'").bind(eventId).first();
+  const eventId = data?.eventId;
+  if (eventId) {
+    const event = await env.DB.prepare("SELECT * FROM events WHERE id=? AND state IN ('active', 'draft')").bind(eventId).first();
+    if (event) return event;
+  }
   return resolvePublicEvent(request, env);
 }
 
@@ -386,9 +406,9 @@ async function serveMedia(assetId, env) {
 }
 
 export async function currentEventForStaff(db, eventId) {
-  const event = await db.prepare("SELECT * FROM events WHERE id=? AND state='active'").bind(eventId).first();
+  const event = await db.prepare("SELECT * FROM events WHERE id=? AND state IN ('active', 'draft')").bind(eventId).first();
   if (!event) return null;
-  const venue = await db.prepare("SELECT id,name,slug,timezone FROM venues WHERE id=? AND active=1").bind(event.venue_id).first();
+  const venue = await db.prepare("SELECT id,name,slug,timezone FROM venues WHERE id=?").bind(event.venue_id).first();
   const shaped = await shapeEvent(db, event, venue);
   return { event: shaped, serverTime: nowIso() };
 }

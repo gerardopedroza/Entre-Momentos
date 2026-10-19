@@ -341,14 +341,66 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   box-shadow: 0 4px 0 #205b4940,0 7px 12px #286b5912;
   filter: grayscale(.15);
 }
-.photo-review-actions .send-photo-button {
-  border-radius: 50%;
+.photo-review-actions > button,
+.screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions > button,
+.photo-review-actions .send-photo-button,
+.screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions .send-photo-button {
+  width: 50px !important;
+  height: 50px !important;
+  min-height: 50px !important;
+  max-height: 50px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
-.photo-review-actions > button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.photo-review-actions > button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+}
+.photo-review-actions .send-photo-button svg {
+  /* Optical alignment: center the paper airplane mass and tip within the circular button */
+  transform: translate(-1.5px, 1.5px);
+}
 .screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions .change-photo-button { border: 1px solid #fff8d9; border-bottom: 4px solid #d7a632; background: linear-gradient(145deg,#ffe994,#f4c44f); color: #674a13; box-shadow: 0 3px 0 #d7a632,0 7px 13px #8a651d24; }
 .screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions .cancel-photo-button { border: 1px solid #ffe2dc; border-bottom: 4px solid #b92e3b; background: linear-gradient(145deg,#f98a7b,#dc4f59); color: #fff; box-shadow: 0 3px 0 #b92e3b,0 7px 13px #a43c3c24; }
 .photo-review-actions .change-photo-button:active,
 .photo-review-actions .cancel-photo-button:active { transform: translateY(2px); border-bottom-width: 2px; }
+
+/* Botón de eliminar evento en rojo fuerte */
+.admin-page .admin-button.danger,
+.admin-button.danger,
+.delete-event-button {
+  background: linear-gradient(135deg, #d32f2f, #b71c1c) !important;
+  color: #ffffff !important;
+  border: 1px solid #9a1010 !important;
+  border-bottom: 3px solid #7f0000 !important;
+  box-shadow: 0 4px 12px rgba(183, 28, 28, 0.35), 0 2px 0 #7f0000 !important;
+  font-weight: 700 !important;
+}
+.admin-page .admin-button.danger:hover,
+.admin-button.danger:hover,
+.delete-event-button:hover {
+  background: linear-gradient(135deg, #e53935, #c62828) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 16px rgba(183, 28, 28, 0.45), 0 2px 0 #7f0000 !important;
+  transform: translateY(-1px);
+}
+.admin-page .admin-button.danger:active,
+.admin-button.danger:active,
+.delete-event-button:active {
+  transform: translateY(2px);
+  border-bottom-width: 1px !important;
+  box-shadow: 0 1px 0 #7f0000, 0 2px 6px rgba(183, 28, 28, 0.3) !important;
+}
 .screen:not(.staff-login-screen):not(.admin-screen) .secondary-button {
   border: 1px solid #ffffff;
   border-bottom: 3px solid #cdbfe1;
@@ -565,7 +617,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
   .photo-review { grid-template-columns: 60px minmax(0,1fr); gap: 8px; }
   .photo-review > img { width: 60px; height: 60px; }
   .photo-review-actions { grid-template-columns: repeat(3,46px); gap: 8px; }
-  .photo-review-actions > button { width: 46px; height: 46px; min-height: 46px; }
+  .photo-review-actions > button,
+  .screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions > button,
+  .photo-review-actions .send-photo-button,
+  .screen:not(.staff-login-screen):not(.admin-screen) .photo-review-actions .send-photo-button {
+    width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    max-height: 46px !important;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .moment-slide,.moment-card { transition: none; }

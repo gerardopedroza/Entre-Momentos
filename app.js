@@ -575,7 +575,7 @@ function guestChoice(profile) {
         showHome({ id: profile.id, name: profile.name, nickname: profile.nickname, table: profile.reference?.replace(/^Mesa /, "") }, demoEvent, true);
         return;
       }
-      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id }) }));
+      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: profile.id, eventId: eventData?.id }) }));
     }
     catch (error) { button.disabled = false; $("#homonym-feedback").textContent = error.message; }
   });
@@ -589,6 +589,7 @@ async function enterGuest(response) {
   const eventPayload = payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload;
   const notice = payload.winnerNotice || response.winnerNotice || null;
   const signedIn = { ...(payload.guest || profile), submissions: payload.submissions || payload.guest?.submissions || profile.submissions || [], winnerNotice: notice };
+  demoSearchEnabled = false;
   showHome(signedIn, eventPayload, false);
   if (notice) {
     showWinnerNotice(notice, true);
@@ -602,6 +603,9 @@ async function refreshEvent() {
     const payload = await api("/api/events/current");
     const currentEvent = payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload;
     setEvent(currentEvent);
+    if (payload.event?.presence?.activeCount !== undefined) {
+      setPresenceCount(payload.event.presence.activeCount);
+    }
     if (Array.isArray(payload.submissions)) {
       submissions = new Map(payload.submissions.filter((item) => item.storageState === "stored").map((item) => [String(item.momentId), item]));
     }
@@ -623,7 +627,7 @@ $("#guest-form").addEventListener("submit", async (event) => {
   $("#search-message").textContent = "Buscando tu nombre…";
   $("#homonym-results").replaceChildren();
   try {
-    const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, eventId: eventData?.id }) });
     if (Array.isArray(result.matches) && result.matches.length > 1) {
       result.matches.forEach((profile) => guestChoice(profile));
       $("#homonym-title").textContent = `Encuentra tu nombre en la lista (${result.matches.length})`;
@@ -631,7 +635,7 @@ $("#guest-form").addEventListener("submit", async (event) => {
       screen("homonyms");
       return;
     } else if (Array.isArray(result.matches) && result.matches.length === 1) {
-      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: result.matches[0].id }) }));
+      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: result.matches[0].id, eventId: eventData?.id }) }));
       return;
     } else {
       await enterGuest(result);
@@ -934,6 +938,9 @@ api("/api/events/current").then((payload) => {
     demoSearchEnabled = false;
   }
   setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload);
+  if (payload.guest) {
+    enterGuest(payload);
+  }
 }).catch(() => {});
 window.setInterval(() => { if (guest && !isDemo) refreshEvent(); }, 30000);
 document.addEventListener("visibilitychange", () => {
