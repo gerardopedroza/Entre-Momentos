@@ -131,18 +131,47 @@ async function eventForGuest(db, guestId, eventId, now = Date.now()) {
   const shaped = await shapeEvent(db, event, venue, now);
   const submissions = await db.prepare("SELECT id,activity_id AS momentId,eligible,storage_state AS storageState,received_at AS receivedAt FROM photo_submissions WHERE guest_id=? AND event_id=? ORDER BY received_at")
     .bind(guestId, eventId).all();
-  const winner = await db.prepare(`SELECT c.id,c.name AS contest_name,c.kind,p.name AS prize_name,p.instructions AS prize_instructions
-    FROM contests c LEFT JOIN prizes p ON p.id=c.prize_id WHERE c.event_id=? AND c.winner_guest_id=? AND c.state='finished'
-    ORDER BY c.winner_confirmed_at DESC`).bind(eventId, guestId).first();
-  const winnerNotice = winner ? {
-    contestId: winner.id,
-    contestName: winner.contest_name,
-    prizeName: winner.prize_name || null,
-    text: winner.prize_name
-      ? `¡Felicidades! Ganaste el reto «${winner.contest_name}». Acércate al staff para recibir tu premio (${winner.prize_name}).`
-      : `¡Felicidades! Ganaste el reto «${winner.contest_name}».`
+  const wonContests = await db.prepare(`SELECT c.id, c.name AS contest_name, c.kind, c.winner_confirmed_at,
+      p.id AS prize_id, p.name AS prize_name, p.instructions AS prize_instructions, pd.delivered_at
+    FROM contests c
+    LEFT JOIN prizes p ON p.id = c.prize_id
+    LEFT JOIN prize_deliveries pd ON pd.contest_id = c.id
+    WHERE c.event_id = ? AND c.winner_guest_id = ? AND c.state = 'finished'
+    ORDER BY c.winner_confirmed_at DESC`).bind(eventId, guestId).all();
+
+  const wonPrizes = (wonContests.results || []).map((w) => ({
+    contestId: w.id,
+    contestName: w.contest_name,
+    kind: w.kind,
+    isPhysical: Boolean(w.prize_name && String(w.prize_name).trim().length > 0),
+    prizeName: w.prize_name ? String(w.prize_name).trim() : null,
+    prizeInstructions: w.prize_instructions ? String(w.prize_instructions).trim() : "Acércate al staff o coordinación para recibir tu regalo.",
+    deliveredAt: w.delivered_at || null,
+    isDelivered: Boolean(w.delivered_at),
+    confirmedAt: w.winner_confirmed_at
+  }));
+
+  const pendingPhysical = wonPrizes.filter((w) => w.isPhysical && !w.isDelivered);
+  const deliveredPhysical = wonPrizes.filter((w) => w.isPhysical && w.isDelivered);
+  const virtualWins = wonPrizes.filter((w) => !w.isPhysical);
+
+  const primary = pendingPhysical[0] || deliveredPhysical[0] || virtualWins[0] || null;
+  const winnerNotice = primary ? {
+    contestId: primary.contestId,
+    contestName: primary.contestName,
+    isPhysical: primary.isPhysical,
+    prizeName: primary.prizeName,
+    prizeInstructions: primary.prizeInstructions,
+    deliveredAt: primary.deliveredAt,
+    isDelivered: primary.isDelivered,
+    text: primary.isPhysical
+      ? (pendingPhysical.length > 1
+          ? `¡Felicidades! Tienes ${pendingPhysical.length} premios por reclamar con el staff.`
+          : `¡Felicidades! Ganaste el reto «${primary.contestName}». Acércate al staff para recibir tu premio (${primary.prizeName}).`)
+      : `¡Felicidades! Ganaste el reto «${primary.contestName}». ¡Gracias por compartir tus fotos!`
   } : null;
-  return { event: shaped, submissions: submissions.results || [], winnerNotice };
+
+  return { event: shaped, submissions: submissions.results || [], winnerNotice, wonPrizes };
 }
 
 async function resolveEventFromBody(data, request, env) {
@@ -345,16 +374,38 @@ async function submitPhoto(request, env) {
           winnerNotice = {
             contestId: candidate.id,
             contestName: candidate.name,
+            isPhysical: Boolean(candidate.prize_name && String(candidate.prize_name).trim().length > 0),
             prizeName: candidate.prize_name || null,
+            prizeInstructions: candidate.prize_instructions || "Acércate al staff para recibir tu regalo.",
             text: candidate.prize_name
               ? `¡Felicidades! Ganaste el reto «${candidate.name}». Acércate al staff para recibir tu premio (${candidate.prize_name}).`
-              : `¡Felicidades! Ganaste el reto «${candidate.name}».`
+              : `¡Felicidades! Ganaste el reto «${candidate.name}». ¡Gracias por compartir tus fotos!`
           };
         }
       }
     }
 
-    return json({ submission: { id: submissionId, momentId: activity.id, eligible, storageState: "stored", receivedAt }, winnerNotice }, 201);
+    const wonContests = await db.prepare(`SELECT c.id, c.name AS contest_name, c.kind, c.winner_confirmed_at,
+        p.id AS prize_id, p.name AS prize_name, p.instructions AS prize_instructions, pd.delivered_at
+      FROM contests c
+      LEFT JOIN prizes p ON p.id = c.prize_id
+      LEFT JOIN prize_deliveries pd ON pd.contest_id = c.id
+      WHERE c.event_id = ? AND c.winner_guest_id = ? AND c.state = 'finished'
+      ORDER BY c.winner_confirmed_at DESC`).bind(event.id, session.guest_id).all();
+
+    const wonPrizes = (wonContests.results || []).map((w) => ({
+      contestId: w.id,
+      contestName: w.contest_name,
+      kind: w.kind,
+      isPhysical: Boolean(w.prize_name && String(w.prize_name).trim().length > 0),
+      prizeName: w.prize_name ? String(w.prize_name).trim() : null,
+      prizeInstructions: w.prize_instructions ? String(w.prize_instructions).trim() : "Acércate al staff o coordinación para recibir tu regalo.",
+      deliveredAt: w.delivered_at || null,
+      isDelivered: Boolean(w.delivered_at),
+      confirmedAt: w.winner_confirmed_at
+    }));
+
+    return json({ submission: { id: submissionId, momentId: activity.id, eligible, storageState: "stored", receivedAt }, winnerNotice, wonPrizes }, 201);
   } catch (error) {
     await db.prepare("UPDATE photo_submissions SET storage_state='failed',error_code=? WHERE id=?").bind(String(error.code || "r2_upload_error").slice(0, 80), submissionId).run();
     await db.prepare("INSERT INTO audit_log (id,event_id,actor_type,actor_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,?, 'guest', ?, 'photo.r2_failed','photo_submission',?,?,?)")

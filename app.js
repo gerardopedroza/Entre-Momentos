@@ -34,42 +34,95 @@ let presenceInterval = null;
 let presenceBusy = false;
 let carouselTapHintShown = false;
 let carouselTutorialTimers = [];
+let currentWonPrizes = [];
 let currentWinnerNotice = null;
 
-function showWinnerNotice(notice, forceModal = true) {
-  if (!notice || !notice.text) return;
-  currentWinnerNotice = notice;
-
-  const banner = $("#winner-banner");
-  const bannerCopy = $("#winner-banner-copy");
-  if (banner && bannerCopy) {
-    bannerCopy.textContent = notice.contestName ? `¡Ganaste «${notice.contestName}»!` : notice.text;
-    banner.hidden = false;
-  }
-
-  const contestEl = $("#winner-modal-contest");
-  if (contestEl) contestEl.textContent = notice.contestName ? `«${notice.contestName}»` : "Reto del evento";
-
-  const textEl = $("#winner-modal-text");
-  if (textEl) textEl.textContent = notice.text;
-
-  const prizeBox = $("#winner-modal-prize");
-  const prizeNameEl = $("#winner-modal-prize-name");
-  if (prizeBox && prizeNameEl) {
-    if (notice.prizeName) {
-      prizeNameEl.textContent = notice.prizeName;
-      prizeBox.hidden = false;
-    } else {
-      prizeBox.hidden = true;
+function syncWonPrizes(prizes = [], incomingNotice = null, forceModal = false) {
+  if (Array.isArray(prizes) && prizes.length) {
+    currentWonPrizes = prizes.map((p) => ({
+      contestId: String(p.contestId || p.id || ""),
+      contestName: p.contestName || p.name || "Reto",
+      isPhysical: p.isPhysical !== false && Boolean(p.prizeName && String(p.prizeName).trim()),
+      prizeName: p.prizeName ? String(p.prizeName).trim() : null,
+      prizeInstructions: p.prizeInstructions || "Acércate al staff o coordinación para recibir tu regalo.",
+      deliveredAt: p.deliveredAt || null,
+      isDelivered: Boolean(p.isDelivered || p.deliveredAt)
+    }));
+  } else if (incomingNotice) {
+    const cid = String(incomingNotice.contestId || "");
+    const exists = currentWonPrizes.some((p) => p.contestId === cid);
+    if (!exists) {
+      currentWonPrizes.unshift({
+        contestId: cid,
+        contestName: incomingNotice.contestName || "Reto",
+        isPhysical: incomingNotice.isPhysical !== false && Boolean(incomingNotice.prizeName && String(incomingNotice.prizeName).trim()),
+        prizeName: incomingNotice.prizeName ? String(incomingNotice.prizeName).trim() : null,
+        prizeInstructions: incomingNotice.prizeInstructions || "Acércate al staff o coordinación para recibir tu regalo.",
+        deliveredAt: incomingNotice.deliveredAt || null,
+        isDelivered: Boolean(incomingNotice.isDelivered || incomingNotice.deliveredAt)
+      });
     }
   }
 
-  if (forceModal) {
+  const physicalPrizes = currentWonPrizes.filter((p) => p.isPhysical);
+  const pendingPhysical = physicalPrizes.filter((p) => !p.isDelivered);
+  const virtualWins = currentWonPrizes.filter((p) => !p.isPhysical);
+
+  // Regla: Agradecimientos virtuales solo se muestran una vez en modal
+  let unshownVirtualWin = null;
+  for (const vWin of virtualWins) {
+    const storageKey = "em_virtual_win_seen_" + vWin.contestId;
+    let seen = false;
+    try { seen = localStorage.getItem(storageKey) === "1"; } catch {}
+    if (!seen) {
+      unshownVirtualWin = vWin;
+      try { localStorage.setItem(storageKey, "1"); } catch {}
+      break;
+    }
+  }
+
+  // Actualizar banner en pantalla principal (solo para premios físicos pendientes)
+  const banner = $("#winner-banner");
+  const bannerTitle = $("#winner-banner-title");
+  const bannerCopy = $("#winner-banner-copy");
+  const bannerBtn = $("#winner-banner-open");
+
+  if (pendingPhysical.length > 0) {
+    if (banner) banner.hidden = false;
+    if (pendingPhysical.length === 1) {
+      if (bannerTitle) bannerTitle.textContent = "¡Ganaste un premio! 🎁";
+      if (bannerCopy) bannerCopy.textContent = `«${pendingPhysical[0].contestName}» · Regalo: ${pendingPhysical[0].prizeName}`;
+      if (bannerBtn) bannerBtn.textContent = "Ver premio";
+    } else {
+      if (bannerTitle) bannerTitle.textContent = `¡Tienes ${pendingPhysical.length} premios! 🎁`;
+      if (bannerCopy) bannerCopy.textContent = pendingPhysical.map((p) => p.prizeName).join(" · ");
+      if (bannerBtn) bannerBtn.textContent = `Ver mis ${pendingPhysical.length} premios`;
+    }
+  } else {
+    if (banner) banner.hidden = true;
+  }
+
+  // Si hay un agradecimiento virtual nuevo, se muestra emergente una sola vez
+  if (unshownVirtualWin) {
+    renderVirtualWinModal(unshownVirtualWin);
+    openWinnerModal();
+  } else if (forceModal && pendingPhysical.length > 0) {
+    renderPhysicalPrizesModal(pendingPhysical);
     openWinnerModal();
   }
 }
 
+function showWinnerNotice(notice, forceModal = true) {
+  if (!notice) return;
+  currentWinnerNotice = notice;
+  syncWonPrizes([], notice, forceModal);
+}
+
 function openWinnerModal() {
+  const pendingPhysical = currentWonPrizes.filter((p) => p.isPhysical && !p.isDelivered);
+  if (pendingPhysical.length > 0) {
+    renderPhysicalPrizesModal(pendingPhysical);
+  }
   const modal = $("#winner-modal-overlay");
   if (modal) modal.hidden = false;
 }
@@ -79,7 +132,99 @@ function closeWinnerModal() {
   if (modal) modal.hidden = true;
 }
 
+function renderVirtualWinModal(vWin) {
+  const emoji = $("#winner-modal-emoji");
+  if (emoji) emoji.textContent = "🎉 📷 🎉";
+  const kicker = $("#winner-modal-kicker");
+  if (kicker) kicker.textContent = "¡RETO COMPLETADO!";
+  const title = $("#winner-modal-title");
+  if (title) title.textContent = "¡Muchas gracias!";
+  const contestEl = $("#winner-modal-contest");
+  if (contestEl) {
+    contestEl.textContent = `«${vWin.contestName}»`;
+    contestEl.hidden = false;
+  }
+  const textEl = $("#winner-modal-text");
+  if (textEl) {
+    textEl.textContent = "¡Felicidades! Fuiste el primero en compartir en este momento. ¡Gracias por ayudarnos a capturar los mejores recuerdos!";
+    textEl.hidden = false;
+  }
+  const singlePrize = $("#winner-modal-prize");
+  if (singlePrize) singlePrize.hidden = true;
+  const listPrize = $("#winner-modal-prizes-list");
+  if (listPrize) listPrize.hidden = true;
+}
+
+function renderPhysicalPrizesModal(prizes) {
+  const emoji = $("#winner-modal-emoji");
+  if (emoji) emoji.textContent = "🎉 🏆 🎁";
+  const kicker = $("#winner-modal-kicker");
+  if (kicker) kicker.textContent = prizes.length > 1 ? "¡MÚLTIPLES PREMIOS GANADOS!" : "¡PREMIO GANADO!";
+  const title = $("#winner-modal-title");
+  if (title) title.textContent = prizes.length > 1 ? `¡Tienes ${prizes.length} premios!` : "¡Felicidades!";
+  const contestEl = $("#winner-modal-contest");
+  const textEl = $("#winner-modal-text");
+  const singlePrize = $("#winner-modal-prize");
+  const listPrize = $("#winner-modal-prizes-list");
+
+  if (prizes.length === 1) {
+    const p = prizes[0];
+    if (contestEl) {
+      contestEl.textContent = `«${p.contestName}»`;
+      contestEl.hidden = false;
+    }
+    if (textEl) {
+      textEl.textContent = "¡Ganaste este reto! Muestra esta pantalla al personal de coordinación o staff:";
+      textEl.hidden = false;
+    }
+    if (singlePrize) {
+      const prizeNameEl = $("#winner-modal-prize-name");
+      const prizeInstEl = $("#winner-modal-prize-instructions");
+      if (prizeNameEl) prizeNameEl.textContent = `🎁 ${p.prizeName}`;
+      if (prizeInstEl) prizeInstEl.textContent = p.prizeInstructions;
+      singlePrize.hidden = false;
+    }
+    if (listPrize) listPrize.hidden = true;
+  } else {
+    if (contestEl) contestEl.hidden = true;
+    if (textEl) {
+      textEl.textContent = `¡Enhorabuena! Has ganado ${prizes.length} retos con regalo físico. Presenta esta pantalla al staff para recogerlos:`;
+      textEl.hidden = false;
+    }
+    if (singlePrize) singlePrize.hidden = true;
+    if (listPrize) {
+      listPrize.replaceChildren();
+      prizes.forEach((p, idx) => {
+        const item = document.createElement("article");
+        item.className = "prize-card-item" + (p.isDelivered ? " is-delivered" : "");
+        const header = document.createElement("div");
+        header.className = "prize-card-header";
+        const badge = document.createElement("span");
+        badge.className = "prize-card-badge";
+        badge.textContent = `🏆 Reto ${idx + 1}: «${p.contestName}»`;
+        const status = document.createElement("span");
+        status.className = "prize-card-status" + (p.isDelivered ? " delivered" : "");
+        status.textContent = p.isDelivered ? "✓ Entregado" : "Pendiente";
+        header.append(badge, status);
+
+        const name = document.createElement("strong");
+        name.className = "prize-card-name";
+        name.textContent = `🎁 ${p.prizeName}`;
+
+        const instructions = document.createElement("p");
+        instructions.className = "prize-card-instructions";
+        instructions.textContent = p.prizeInstructions;
+
+        item.append(header, name, instructions);
+        listPrize.append(item);
+      });
+      listPrize.hidden = false;
+    }
+  }
+}
+
 function clearWinnerNotice() {
+  currentWonPrizes = [];
   currentWinnerNotice = null;
   const banner = $("#winner-banner");
   if (banner) banner.hidden = true;
@@ -291,8 +436,9 @@ function showHome(profile, data, demo = false) {
   renderSchedule();
   resetUploadPanel();
   const notice = profile?.winnerNotice || data?.winnerNotice || null;
-  if (notice) {
-    showWinnerNotice(notice, false);
+  const prizes = profile?.wonPrizes || data?.wonPrizes || (notice ? [notice] : []);
+  if (prizes.length || notice) {
+    syncWonPrizes(prizes, notice, false);
   } else {
     clearWinnerNotice();
   }
@@ -588,11 +734,12 @@ async function enterGuest(response) {
   const payload = response.event ? response : await api("/api/events/current");
   const eventPayload = payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload;
   const notice = payload.winnerNotice || response.winnerNotice || null;
-  const signedIn = { ...(payload.guest || profile), submissions: payload.submissions || payload.guest?.submissions || profile.submissions || [], winnerNotice: notice };
+  const prizes = payload.wonPrizes || response.wonPrizes || (notice ? [notice] : []);
+  const signedIn = { ...(payload.guest || profile), submissions: payload.submissions || payload.guest?.submissions || profile.submissions || [], winnerNotice: notice, wonPrizes: prizes };
   demoSearchEnabled = false;
   showHome(signedIn, eventPayload, false);
-  if (notice) {
-    showWinnerNotice(notice, true);
+  if (prizes.length || notice) {
+    syncWonPrizes(prizes, notice, true);
   }
 }
 
@@ -609,8 +756,8 @@ async function refreshEvent() {
     if (Array.isArray(payload.submissions)) {
       submissions = new Map(payload.submissions.filter((item) => item.storageState === "stored").map((item) => [String(item.momentId), item]));
     }
-    if (payload.winnerNotice) {
-      showWinnerNotice(payload.winnerNotice, false);
+    if (payload.wonPrizes || payload.winnerNotice) {
+      syncWonPrizes(payload.wonPrizes || [], payload.winnerNotice, false);
     } else {
       clearWinnerNotice();
     }
@@ -737,8 +884,8 @@ $("#send-photo").addEventListener("click", async () => {
     if (nextAvailable !== null) selectedMomentIndex = nextAvailable;
     renderCarousel();
     resetUploadPanel();
-    if (result.winnerNotice) {
-      showWinnerNotice(result.winnerNotice, true);
+    if (result.winnerNotice || result.wonPrizes) {
+      syncWonPrizes(result.wonPrizes || [], result.winnerNotice, true);
     }
   } catch (error) {
     $("#photo-feedback").textContent = error.message || "No se pudo enviar la foto.";
@@ -933,6 +1080,7 @@ async function logoutGuest() {
   try { await api("/api/guests/session", { method: "DELETE" }); } catch { /* Local session is cleared even if network fails */ }
   guest = null;
   submissions = new Map();
+  clearWinnerNotice();
   if (presenceInterval) { window.clearInterval(presenceInterval); presenceInterval = null; }
   $("#search-message").textContent = "";
   $("#guest-search").value = "";

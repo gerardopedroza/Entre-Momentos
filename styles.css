@@ -855,6 +855,66 @@ body[data-screen="welcome"] .app-frame main { z-index: 1; }
   font-size: 12px;
   color: #647067;
 }
+.winner-modal-prizes-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 16px;
+  max-height: 48dvh;
+  overflow-y: auto;
+  text-align: left;
+  padding: 2px;
+}
+.prize-card-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7f9f6;
+  border: 1.5px dashed var(--olive);
+  box-shadow: 0 2px 8px rgba(32,50,40,.05);
+}
+.prize-card-item.is-delivered {
+  border-style: solid;
+  border-color: #d8e2d9;
+  background: #fcfcfb;
+  opacity: .85;
+}
+.prize-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.prize-card-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--copper);
+  letter-spacing: .2px;
+}
+.prize-card-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background: #eaf3ec;
+  color: #2e6648;
+}
+.prize-card-status.delivered {
+  background: #eceee9;
+  color: #68736a;
+}
+.prize-card-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--olive-dark);
+  line-height: 1.25;
+}
+.prize-card-instructions {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #647067;
+  line-height: 1.35;
+}
 .winner-modal-btn {
   width: 100%;
   justify-content: center;

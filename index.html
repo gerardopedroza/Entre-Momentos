@@ -65,7 +65,7 @@
           <aside class="winner-banner" id="winner-banner" role="alert" hidden>
             <div class="winner-banner-badge" aria-hidden="true">🏆</div>
             <div class="winner-banner-body">
-              <strong class="winner-banner-title">¡Ganaste un reto!</strong>
+              <strong class="winner-banner-title" id="winner-banner-title">¡Ganaste un reto!</strong>
               <p class="winner-banner-copy" id="winner-banner-copy">¡Felicidades! Acércate al staff para tu premio.</p>
             </div>
             <button type="button" class="winner-banner-btn" id="winner-banner-open">Ver premio</button>
@@ -116,8 +116,8 @@
       <div class="winner-modal-overlay" id="winner-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="winner-modal-title" hidden>
         <div class="winner-modal-backdrop" id="winner-modal-backdrop"></div>
         <div class="winner-modal-card">
-          <div class="winner-modal-emoji" aria-hidden="true">🎉 🏆 🎉</div>
-          <p class="winner-modal-kicker">¡RETO COMPLETADO!</p>
+          <div class="winner-modal-emoji" id="winner-modal-emoji" aria-hidden="true">🎉 🏆 🎉</div>
+          <p class="winner-modal-kicker" id="winner-modal-kicker">¡RETO COMPLETADO!</p>
           <h2 class="winner-modal-title" id="winner-modal-title">¡Felicidades!</h2>
           <div class="winner-modal-contest" id="winner-modal-contest">Reto del evento</div>
           <p class="winner-modal-text" id="winner-modal-text">Has ganado este reto.</p>
@@ -126,6 +126,7 @@
             <strong class="prize-title" id="winner-modal-prize-name"></strong>
             <p class="prize-instructions" id="winner-modal-prize-instructions">Acércate al personal de coordinación o staff para recibir tu premio.</p>
           </div>
+          <div class="winner-modal-prizes-list" id="winner-modal-prizes-list" hidden></div>
           <button type="button" class="primary-button winner-modal-btn" id="winner-modal-close">Aceptar <span aria-hidden="true">✓</span></button>
         </div>
       </div>
