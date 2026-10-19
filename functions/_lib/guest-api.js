@@ -241,11 +241,10 @@ export async function handleGuestApi(ctx, path) {
 
 async function eligibleForContest(db, event, activity, receivedAt) {
   if (!event.contests_enabled) return false;
-  const insideActivityWindow = isEligible(receivedAt, activity.photo_opens_at, activity.photo_closes_at);
+  // Sin restricción de horario: siempre participa en el reto del evento o actividad
   const contest = await db.prepare(`SELECT c.id FROM contests c LEFT JOIN contest_activities ca ON ca.contest_id=c.id
-    WHERE c.event_id=? AND (ca.activity_id=? OR ca.activity_id IS NULL) AND c.state IN ('active', 'draft')
-      AND (c.kind='first_photo' OR (c.opens_at<=? AND c.closes_at>? AND ?=1)) LIMIT 1`)
-    .bind(event.id, activity.id, receivedAt, receivedAt, insideActivityWindow ? 1 : 0).first();
+    WHERE c.event_id=? AND (ca.activity_id=? OR ca.activity_id IS NULL) AND c.state IN ('active', 'draft') LIMIT 1`)
+    .bind(event.id, activity.id).first();
   return Boolean(contest);
 }
 
@@ -263,27 +262,28 @@ async function submitPhoto(request, env) {
   if (!(file instanceof File) || !file.type.startsWith("image/") || !file.size) return fail("Selecciona una imagen válida.");
   if (file.size > 15 * 1024 * 1024) return fail("La foto debe pesar menos de 15 MB.", 413, "photo_too_large");
   const activity = await db.prepare("SELECT * FROM event_activities WHERE id=? AND event_id=? AND active=1").bind(activityId, session.event_id).first();
-  const event = await db.prepare("SELECT * FROM events WHERE id=? AND state='active'").bind(session.event_id).first();
+  const event = await db.prepare("SELECT * FROM events WHERE id=? AND state IN ('active', 'draft')").bind(session.event_id).first();
   if (!activity || !event) return fail("Ese momento no pertenece a tu boda.", 403, "activity_event_mismatch");
   const receivedAt = nowIso();
   const eligible = await eligibleForContest(db, event, activity, receivedAt);
   const prior = await db.prepare("SELECT * FROM photo_submissions WHERE event_id=? AND activity_id=? AND guest_id=?")
     .bind(event.id, activity.id, session.guest_id).first();
   let submissionId;
-  if (prior?.storage_state === "stored") return fail("Ya enviaste tu foto definitiva para este momento.", 409, "photo_already_submitted");
   if (prior?.storage_state === "pending" && prior.request_key !== idempotencyKey) return fail("Ya se está procesando una foto para este momento.", 409, "photo_upload_in_progress");
-  if (prior?.storage_state === "failed") {
+  if (prior?.id) {
     submissionId = prior.id;
     await db.prepare("UPDATE photo_submissions SET request_key=?,received_at=?,eligible=?,storage_state='pending',error_code=NULL WHERE id=?")
       .bind(idempotencyKey, receivedAt, eligible ? 1 : 0, submissionId).run();
-  } else if (prior?.storage_state === "pending" && prior.request_key === idempotencyKey) {
-    submissionId = prior.id;
   } else {
     submissionId = newId();
     try {
       await db.prepare(`INSERT INTO photo_submissions (id,event_id,activity_id,guest_id,request_key,received_at,eligible,storage_state)
         VALUES (?,?,?,?,?,?,?,'pending')`).bind(submissionId, event.id, activity.id, session.guest_id, idempotencyKey, receivedAt, eligible ? 1 : 0).run();
-    } catch { return fail("Ya existe un envío registrado para este momento. Pide ayuda al fotógrafo.", 409, "photo_submission_conflict"); }
+    } catch {
+      submissionId = prior?.id || newId();
+      await db.prepare("UPDATE photo_submissions SET request_key=?,received_at=?,eligible=?,storage_state='pending',error_code=NULL WHERE id=?")
+        .bind(idempotencyKey, receivedAt, eligible ? 1 : 0, submissionId).run();
+    }
   }
   try {
     const saved = await uploadGuestPhoto(env, event, activity, session.guest_id, file, safeImageName(file.name, session.guest_id, activity.name));

@@ -459,17 +459,16 @@ function updateCarousel() {
   const submission = submissions.get(String(current.id));
   $("#selected-moment-state").textContent = (isDemo ? "EJEMPLO · " : "") + momentStatus(current).toLocaleUpperCase("es-MX");
   $("#upload-hint").textContent = isDemo
-    ? "Prueba el flujo. La foto no se enviará ni se guardará."
-    : submission ? "Ya compartiste una foto para este momento."
-      : "Tu foto se enviará a «" + current.name + "». Solo una por invitado.";
-  $("#send-photo").disabled = Boolean(submission) || isDemo || isSending;
+    ? "Prueba el flujo."
+    : submission ? "Ya compartiste una foto para este momento. Puedes enviar otra para cambiarla."
+      : "Tu foto se enviará a «" + current.name + "».";
+  $("#send-photo").disabled = isSending || !selectedPhoto;
 }
 
 function selectMoment(index, openPanel) {
   if (!moments.length) return;
   const boundedIndex = Math.max(0, Math.min(moments.length - 1, index));
   selectedMomentIndex = boundedIndex;
-  if (submissions.has(String(moments[boundedIndex].id))) openPanel = false;
   updateCarousel();
   if (openPanel) openUploadPanel();
 
@@ -516,9 +515,6 @@ function renderSchedule() {
 
 function openUploadPanel() {
   if (!moments.length) return toast("La agenda aún no está disponible.");
-  if (submissions.has(String(moments[selectedMomentIndex]?.id))) {
-    return toast("Ya compartiste una foto para este momento.");
-  }
   $("#screen-home").classList.add("is-uploading");
   $("#upload-panel").classList.add("open");
 }
@@ -626,7 +622,26 @@ $("#guest-form").addEventListener("submit", async (event) => {
   const name = $("#guest-search").value.trim();
   $("#search-message").textContent = "Buscando tu nombre…";
   $("#homonym-results").replaceChildren();
-  if (demoSearchEnabled) {
+  try {
+    const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    if (Array.isArray(result.matches) && result.matches.length > 1) {
+      result.matches.forEach((profile) => guestChoice(profile));
+      $("#homonym-title").textContent = `Encuentra tu nombre en la lista (${result.matches.length})`;
+      $("#homonym-feedback").textContent = "";
+      screen("homonyms");
+      return;
+    } else if (Array.isArray(result.matches) && result.matches.length === 1) {
+      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: result.matches[0].id }) }));
+      return;
+    } else {
+      await enterGuest(result);
+      return;
+    }
+  } catch (error) {
+    if (!demoSearchEnabled) {
+      $("#search-message").textContent = error.message;
+      return;
+    }
     const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
     const demoGuests = [
       { id: "demo-ana-4", name: "Ana López", reference: "Mesa 4" },
@@ -652,19 +667,7 @@ $("#guest-form").addEventListener("submit", async (event) => {
     }
     const formatted = name.split(/\s+/).map((w) => w.charAt(0).toLocaleUpperCase("es-MX") + w.slice(1).toLocaleLowerCase("es-MX")).join(" ");
     showHome({ id: "demo-" + Date.now(), name: formatted, reference: "Mesa Invitados" }, demoEvent, true);
-    return;
   }
-  try {
-    const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
-    if (Array.isArray(result.matches) && result.matches.length > 1) {
-      result.matches.forEach((profile) => guestChoice(profile));
-      $("#homonym-title").textContent = `Encuentra tu nombre en la lista (${result.matches.length})`;
-      $("#homonym-feedback").textContent = "";
-      screen("homonyms");
-    } else if (Array.isArray(result.matches) && result.matches.length === 1) {
-      await enterGuest(await api("/api/guests/identify/select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guestId: result.matches[0].id }) }));
-    } else await enterGuest(result);
-  } catch (error) { $("#search-message").textContent = error.message; }
 });
 
 $("#access-entry").addEventListener("click", () => { window.location.href = "/admin.html"; });
@@ -715,7 +718,7 @@ $("#change-photo").addEventListener("click", () => {
 $("#cancel-photo").addEventListener("click", clearPhotoPreview);
 $("#send-photo").addEventListener("click", async () => {
   const moment = moments[selectedMomentIndex];
-  if (!selectedPhoto || !moment || isSending || isDemo) return;
+  if (!selectedPhoto || !moment || isSending) return;
   isSending = true;
   $("#send-photo").disabled = true;
   $("#photo-feedback").textContent = "Enviando…";
@@ -733,8 +736,9 @@ $("#send-photo").addEventListener("click", async () => {
     if (result.winnerNotice) {
       showWinnerNotice(result.winnerNotice, true);
     }
-  } catch {
-    $("#photo-feedback").textContent = "";
+  } catch (error) {
+    $("#photo-feedback").textContent = error.message || "No se pudo enviar la foto.";
+    toast(error.message || "Error al enviar la foto.");
     $("#send-photo").disabled = false;
   } finally { isSending = false; }
 });
@@ -925,7 +929,12 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => registrations.forEach((registration) => registration.unregister())).catch(() => {});
   if ("caches" in window) caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("entre-momentos-" )).map((key) => caches.delete(key)))).catch(() => {});
 }
-api("/api/events/current").then((payload) => setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload)).catch(() => {});
+api("/api/events/current").then((payload) => {
+  if (payload.event && !payload.event.demo) {
+    demoSearchEnabled = false;
+  }
+  setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload);
+}).catch(() => {});
 window.setInterval(() => { if (guest && !isDemo) refreshEvent(); }, 30000);
 document.addEventListener("visibilitychange", () => {
   setPresenceTracking(document.body.dataset.screen === "home");
