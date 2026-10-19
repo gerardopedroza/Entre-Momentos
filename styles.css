@@ -68,11 +68,11 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .guest-identity strong { font-size: 14px; font-weight: 500; }
 .guest-identity small { color: var(--muted); font-size: 11px; }
 .result-arrow { color: var(--copper); }
-.homonyms-screen { gap: 8px; padding: 18px 18px 20px; }
-.homonyms-screen .back-button { margin-bottom: 6px; }
-.homonyms-screen .step-heading { margin-bottom: 8px; }
-.homonym-results { display: grid; align-content: start; gap: 8px; min-height: 0; overflow: hidden; }
-.homonym-results .guest-result { min-height: 54px; }
+.homonyms-screen { gap: 8px; padding: 18px 18px 24px; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.homonyms-screen .back-button { flex-shrink: 0; margin-bottom: 6px; }
+.homonyms-screen .step-heading { flex-shrink: 0; margin-bottom: 8px; }
+.homonym-results { display: grid; align-content: start; gap: 8px; min-height: 0; padding-bottom: 24px; }
+.homonym-results .guest-result { min-height: 54px; flex-shrink: 0; }
 .home-screen { --carousel-card-height: min(26dvh,245px); position: absolute; inset: 0; gap: 11px; padding: 15px 18px 16px; }
 .home-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; min-height: 72px; }
 .home-heading h1 { margin: 0; font: 400 clamp(27px,7vw,34px)/1.08 var(--serif); }

@@ -427,21 +427,37 @@ $("#guest-form").addEventListener("submit", async (event) => {
   $("#homonym-results").replaceChildren();
   if (demoSearchEnabled) {
     const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
-    if (!normalized.includes("ana")) {
-      $("#search-message").textContent = "En esta prueba, escribe Ana para ver a las dos invitadas homónimas.";
-      return;
-    }
-    [
+    const demoGuests = [
       { id: "demo-ana-4", name: "Ana López", reference: "Mesa 4" },
       { id: "demo-ana-8", name: "Ana López", reference: "Mesa 8" },
-    ].forEach((profile) => guestChoice(profile));
-    screen("homonyms");
+      { id: "demo-carlos-1", name: "Carlos Ramírez", reference: "Mesa 1" },
+      { id: "demo-maria-2", name: "María Gómez", reference: "Mesa 2" },
+      { id: "demo-gerardo-3", name: "Gerardo Pedroza", reference: "Mesa 3" },
+      { id: "demo-laura-5", name: "Laura Martínez", reference: "Mesa 5" },
+    ];
+    const matches = demoGuests.filter((g) => {
+      const gNorm = g.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
+      return gNorm.includes(normalized) || normalized.split(/\s+/).some((term) => term.length > 1 && gNorm.includes(term));
+    });
+    if (matches.length > 1) {
+      matches.forEach((profile) => guestChoice(profile));
+      $("#homonym-title").textContent = `Encuentra tu nombre en la lista (${matches.length})`;
+      $("#homonym-feedback").textContent = "";
+      screen("homonyms");
+      return;
+    } else if (matches.length === 1) {
+      showHome({ id: matches[0].id, name: matches[0].name, reference: matches[0].reference }, demoEvent, true);
+      return;
+    }
+    const formatted = name.split(/\s+/).map((w) => w.charAt(0).toLocaleUpperCase("es-MX") + w.slice(1).toLocaleLowerCase("es-MX")).join(" ");
+    showHome({ id: "demo-" + Date.now(), name: formatted, reference: "Mesa Invitados" }, demoEvent, true);
     return;
   }
   try {
     const result = await api("/api/guests/identify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
     if (Array.isArray(result.matches) && result.matches.length > 1) {
       result.matches.forEach((profile) => guestChoice(profile));
+      $("#homonym-title").textContent = `Encuentra tu nombre en la lista (${result.matches.length})`;
       $("#homonym-feedback").textContent = "";
       screen("homonyms");
     } else if (Array.isArray(result.matches) && result.matches.length === 1) {
@@ -453,7 +469,7 @@ $("#guest-form").addEventListener("submit", async (event) => {
 $("#access-entry").addEventListener("click", () => { window.location.href = "/admin.html"; });
 $("#home-upload").addEventListener("click", openUploadPanel);
 $("#home-dedication").addEventListener("click", () => { $("#message-feedback").textContent = ""; screen("message"); });
-$("#homonym-back").addEventListener("click", () => { screen("welcome"); $("#guest-search").focus(); });
+$("#homonym-back").addEventListener("click", () => { $("#homonym-title").textContent = "Encuentra tu nombre en la lista"; screen("welcome"); $("#guest-search").focus(); });
 $("#cancel-upload").addEventListener("click", resetUploadPanel);
 $("#carousel-stage").addEventListener("pointerdown", (event) => { dragStartX = event.clientX; });
 $("#carousel-stage").addEventListener("pointerup", (event) => {

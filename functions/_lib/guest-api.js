@@ -143,23 +143,51 @@ async function identifyGuest(request, env, select = false) {
   } else {
     const terms = [...new Set(name.split(/\s+/).filter((term) => term.length > 1))];
     if (!terms.length) return fail("Escribe al menos dos letras de tu nombre o apellido.");
-    const conditions = terms.map(() => "instr(g.name_key,?)>0").join(" OR ");
+    const conditions = terms.map(() => "(instr(g.name_key,?)>0 OR (g.nickname IS NOT NULL AND instr(lower(g.nickname),?)>0))").join(" OR ");
     let matches;
-    try { matches = await env.DB.prepare(`SELECT g.id,g.name,g.nickname,g.name_key,g.table_id,t.name AS table_name
-      FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
-      WHERE g.event_id=? AND g.active=1 AND ${conditions}
-      ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 6`).bind(event.id, ...terms, name).all(); }
-    catch (error) {
+    const termBindings = [];
+    terms.forEach((term) => { termBindings.push(term, term); });
+    try {
+      matches = await env.DB.prepare(`SELECT g.id,g.name,g.nickname,g.name_key,g.table_id,t.name AS table_name
+        FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
+        WHERE g.event_id=? AND g.active=1 AND (${conditions})
+        ORDER BY CASE WHEN g.name_key=? THEN 0 WHEN instr(g.name_key,?)=1 THEN 1 ELSE 2 END, g.name`).bind(event.id, ...termBindings, name, name).all();
+    } catch (error) {
       if (!/no such column: g\.nickname/i.test(error.message)) throw error;
+      const legacyConditions = terms.map(() => "instr(g.name_key,?)>0").join(" OR ");
       matches = await env.DB.prepare(`SELECT g.id,g.name,NULL AS nickname,g.name_key,g.table_id,t.name AS table_name
         FROM event_guests g LEFT JOIN event_tables t ON t.id=g.table_id
-        WHERE g.event_id=? AND g.active=1 AND ${conditions}
-        ORDER BY CASE WHEN g.name_key=? THEN 0 ELSE 1 END,g.name LIMIT 6`).bind(event.id, ...terms, name).all();
+        WHERE g.event_id=? AND g.active=1 AND (${legacyConditions})
+        ORDER BY CASE WHEN g.name_key=? THEN 0 WHEN instr(g.name_key,?)=1 THEN 1 ELSE 2 END, g.name`).bind(event.id, ...terms, name, name).all();
     }
     const found = matches.results || [];
     if (!found.length) return fail("No encontré ese nombre en la lista del evento. Revisa cómo está escrito.", 404, "guest_not_found");
+    if (terms.length > 1) {
+      found.sort((a, b) => {
+        const aKey = a.name_key || "";
+        const bKey = b.name_key || "";
+        if (aKey === name && bKey !== name) return -1;
+        if (bKey === name && aKey !== name) return 1;
+        const aAll = terms.every((t) => aKey.includes(t));
+        const bAll = terms.every((t) => bKey.includes(t));
+        if (aAll && !bAll) return -1;
+        if (bAll && !aAll) return 1;
+        const aCount = terms.filter((t) => aKey.includes(t)).length;
+        const bCount = terms.filter((t) => bKey.includes(t)).length;
+        if (aCount !== bCount) return bCount - aCount;
+        return a.name.localeCompare(b.name, "es-MX");
+      });
+    }
     if (found.length > 1 || found[0].name_key !== name) {
-      return json({ matches: found.slice(0, 5).map((match) => ({ id: match.id, name: match.name, nickname: match.nickname, reference: match.table_name ? "Mesa " + match.table_name : "Toca para confirmar" })), hasMore: found.length > 5 });
+      return json({
+        matches: found.map((match) => ({
+          id: match.id,
+          name: match.name,
+          nickname: match.nickname,
+          reference: match.table_name ? "Mesa " + match.table_name : "Toca para confirmar"
+        })),
+        hasMore: false
+      });
     }
     guest = found[0];
   }
