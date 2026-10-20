@@ -444,19 +444,20 @@ function showHome(profile, data, demo = false) {
     clearWinnerNotice();
   }
   screen("home");
-  showCarouselTapHint();
+  showCarouselTapHint(demo);
   startActivityTicker();
 }
 
-function showCarouselTapHint() {
+function showCarouselTapHint(replay = false) {
   const stage = $("#carousel-stage");
   if (!stage || !moments.length) return;
   let alreadyShown = false;
   try { alreadyShown = localStorage.getItem("em-carousel-gesture-seen-v5") === "1"; } catch {}
-  if (alreadyShown || carouselTapHintShown) return;
-  carouselTapHintShown = true;
+  if (!replay && (alreadyShown || carouselTapHintShown)) return;
   carouselTutorialTimers.forEach(window.clearTimeout);
   carouselTutorialTimers = [];
+  stage.classList.remove("swipe-tutorial", "tap-tutorial");
+  carouselTapHintShown = true;
   stage.classList.remove("swipe-tutorial", "tap-tutorial");
   void stage.offsetWidth;
   const hasSwipeTarget = moments.length > 1;
@@ -472,7 +473,8 @@ function showCarouselTapHint() {
     }, hasSwipeTarget ? 4800 : 100));
     carouselTutorialTimers.push(window.setTimeout(() => {
       stage.classList.remove("tap-tutorial");
-      try { localStorage.setItem("em-carousel-gesture-seen-v5", "1"); } catch {}
+      if (!replay) { try { localStorage.setItem("em-carousel-gesture-seen-v5", "1"); } catch {} }
+      carouselTapHintShown = false;
       carouselTutorialTimers = [];
     }, hasSwipeTarget ? 8300 : 3900));
   };
@@ -941,7 +943,20 @@ $("#send-photo").addEventListener("click", async () => {
 $("#message-text").addEventListener("input", (event) => { $("#message-count").textContent = event.target.value.length + " / 240"; });
 $("#message-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (isDemo) { $("#message-feedback").textContent = "Demostración: la dedicatoria no se envió ni guardó."; return; }
+  if (isDemo) {
+    const button = $("button[type=submit]", event.currentTarget);
+    const textarea = $("#message-text");
+    if (!textarea.value.trim()) { textarea.focus(); return; }
+    button.disabled = true;
+    $("#message-feedback").textContent = "Enviando dedicatoria de prueba…";
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    textarea.value = "";
+    $("#message-count").textContent = "0 / 240";
+    $("#message-feedback").textContent = "¡Dedicatoria enviada! Esta prueba no guardó el mensaje.";
+    toast("Dedicatoria enviada en la demostración.");
+    button.disabled = false;
+    return;
+  }
   const button = $("button[type=submit]", event.currentTarget);
   button.disabled = true;
   $("#message-feedback").textContent = "Enviando dedicatoria…";

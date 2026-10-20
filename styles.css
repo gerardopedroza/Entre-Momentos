@@ -25,7 +25,7 @@ button, input, textarea { font: inherit; }
 button { color: inherit; }
 button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #bc826480; outline-offset: 2px; }
 [hidden] { display: none !important; }
-.app-frame { position: relative; display: flex; flex-direction: column; width: min(100%, 480px); height: 100dvh; min-height: 0; margin: 0 auto; overflow: hidden; isolation: isolate; background: var(--paper); box-shadow: 0 0 70px #27352d18; }
+.app-frame { position: relative; display: flex; flex-direction: column; width: min(100%, 480px); height: var(--em-visible-height, 100dvh); min-height: 0; margin: 0 auto; overflow: hidden; isolation: isolate; background: var(--paper); box-shadow: 0 0 70px #27352d18; }
 .event-backdrop { position: absolute; z-index: -1; inset: 64px 0 auto; height: 38%; pointer-events: none; background: radial-gradient(ellipse at 50% 10%, #e4d9c7 0, #f0ede6 53%, transparent 78%); }
 .app-header { z-index: 2; display: flex; flex: 0 0 60px; align-items: center; justify-content: space-between; padding: 0 22px; border-bottom: 1px solid #e7e4da; background: #f8f6f0ed; }
 .wordmark { display: flex; align-items: center; gap: 9px; padding: 0; border: 0; background: none; cursor: pointer; font-size: 10px; font-weight: 600; letter-spacing: 1.4px; }
@@ -156,7 +156,8 @@ input::placeholder, textarea::placeholder { color: #a4a69b; }
 .step-heading .kicker { margin-bottom: 9px; }
 .step-heading h1, .step-heading h2 { margin: 0 0 8px; font: 400 clamp(30px,8vw,36px)/1.04 var(--serif); letter-spacing: -.4px; }
 .step-heading p:last-child { margin-bottom: 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
-.message-form { display: grid; gap: 9px; }
+.message-screen { overflow-y: auto; overscroll-behavior: contain; padding-bottom: max(12px, env(safe-area-inset-bottom)); scroll-padding-bottom: 20px; }
+.message-form { display: grid; gap: 9px; flex: 0 0 auto; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
 .message-form textarea { width: 100%; min-height: 135px; resize: none; padding: 13px; border: 1px solid #dfe1d7; border-radius: 5px; outline-color: var(--olive); background: var(--card); color: var(--ink); font: 16px/1.45 var(--sans); }
 .message-form-bottom { display: grid; gap: 8px; margin-top: 2px; }
 .message-form-bottom > span { justify-self: end; color: #858a80; font-size: 12px; }
@@ -596,7 +597,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 .moment-card.has-photo { background-color: #e9e5df; }
 .moment-card-submitted-check { position: absolute; top: 50%; left: 50%; display: grid; width: 48px; height: 48px; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #279357; color: #fff; box-shadow: 0 3px 12px #14251c70; transform: translate(-50%,-50%); }
 .moment-card-submitted-check svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.carousel-tap-hand { position: absolute; z-index: 20; top: 43%; left: 52%; display: none; width: 58px; height: 70px; filter: drop-shadow(0 3px 3px #17261f47); pointer-events: none; }
+.carousel-tap-hand { position: absolute; z-index: 20; top: 40%; left: 50%; display: none; width: clamp(66px, 19vw, 84px); height: auto; overflow: visible; filter: drop-shadow(0 10px 12px #17261f45); pointer-events: none; transform-origin: 52% 72%; }
 .carousel-stage.tap-tutorial .carousel-tap-hand { display: block; animation: hand-tap 3.5s ease-in-out both; }
 .carousel-stage.tap-tutorial .moment-slide[aria-current="true"] .moment-card { animation: photo-press 3.5s ease-in-out both; }
 @keyframes hand-tap {
@@ -923,3 +924,12 @@ body[data-screen="welcome"] .app-frame main { z-index: 1; }
   font-size: 15px;
 }
 
+
+/* Keep the visible app area aligned with the on-screen keyboard. */
+@supports (height: 100dvh) {
+  .app-frame { height: var(--em-visible-height, 100dvh); }
+}
+.message-form-bottom { position: sticky; bottom: 0; z-index: 3; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); background: linear-gradient(180deg, #f8f6f000 0%, var(--paper) 22%); }
+.message-form textarea { min-height: min(135px, 24dvh); }
+body.staff-page { height: var(--em-visible-height, 100dvh); min-height: 0; overflow-y: auto; }
+body.admin-page, body.admin-page .admin-wrap { height: var(--em-visible-height, 100dvh) !important; min-height: 0 !important; }
