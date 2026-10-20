@@ -78,17 +78,22 @@
                 <div class="home-action presence-action" id="guest-presence" role="status" aria-live="polite" aria-label="Estado de invitados conectados"><span class="presence-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1z"/><path d="M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v1h-4"/></svg></span><span class="presence-copy"><strong id="connected-count">—</strong><small id="presence-status">Sin datos en vivo</small></span></div>
               </nav>
             </div>
-            <div class="carousel-stage" id="carousel-stage"><div class="moment-carousel" id="moment-carousel" aria-live="polite"></div><span class="carousel-tap-hand" aria-hidden="true"><svg viewBox="0 0 112 136" role="presentation">
+            <div class="carousel-stage" id="carousel-stage"><div class="moment-carousel" id="moment-carousel" aria-live="polite"></div><span class="carousel-tap-hand" aria-hidden="true"><svg viewBox="0 0 104 140" role="presentation">
 <defs>
-  <linearGradient id="handSkin" x1="22" y1="22" x2="86" y2="116" gradientUnits="userSpaceOnUse"><stop stop-color="#fff1df"/><stop offset=".36" stop-color="#efc6a3"/><stop offset=".72" stop-color="#dc9d78"/><stop offset="1" stop-color="#bd765d"/></linearGradient>
-  <linearGradient id="handLight" x1="34" y1="26" x2="54" y2="100" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".86"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-  <linearGradient id="handCuff" x1="18" y1="96" x2="46" y2="126" gradientUnits="userSpaceOnUse"><stop stop-color="#e7c8a5"/><stop offset="1" stop-color="#b99372"/></linearGradient>
+  <linearGradient id="tapSkin" x1="23" y1="20" x2="70" y2="128" gradientUnits="userSpaceOnUse"><stop stop-color="#fff4e8"/><stop offset=".42" stop-color="#efc5a4"/><stop offset=".78" stop-color="#d99c7b"/><stop offset="1" stop-color="#bd7d62"/></linearGradient>
+  <linearGradient id="tapFingerLight" x1="17" y1="22" x2="41" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#fffdf8" stop-opacity=".94"/><stop offset="1" stop-color="#fffdf8" stop-opacity="0"/></linearGradient>
+  <linearGradient id="tapCuff" x1="43" y1="119" x2="73" y2="138" gradientUnits="userSpaceOnUse"><stop stop-color="#fff9ef"/><stop offset="1" stop-color="#dfcdb7"/></linearGradient>
+  <linearGradient id="tapGold" x1="46" y1="124" x2="68" y2="129" gradientUnits="userSpaceOnUse"><stop stop-color="#a97949"/><stop offset=".5" stop-color="#e3c58a"/><stop offset="1" stop-color="#aa7948"/></linearGradient>
 </defs>
-<path d="M35 91 28 37c-1-8 4-13 10-13 6 0 9 4 10 11l5 35V28c0-8 5-13 11-13s10 5 10 13v44l3-25c1-7 6-11 12-10 6 1 9 6 8 13l-2 28 5-14c2-6 7-9 12-7 6 2 8 8 6 14l-8 31c-3 12-11 20-25 24l-27 7c-12 3-21-1-29-10l-22-25c-5-6-4-13 1-17 5-4 11-3 16 2l11 11Z" fill="url(#handSkin)" stroke="#8e5b4b" stroke-width="2.2" stroke-linejoin="round"/>
-<path d="m35 87-6-49c-.7-6 2-9 6-9 4 0 6 3 7 8l6 40V29c0-5 3-8 7-8 3 0 6 3 6 8v44" fill="none" stroke="url(#handLight)" stroke-width="5" stroke-linecap="round"/>
-<path d="M22 99 9 109l22 17c6 4 13 5 21 3l12-3-13-25Z" fill="url(#handCuff)" stroke="#94745c" stroke-width="2"/>
-<path d="M77 31c7 0 12 5 12 12l-1 19M56 72c4 4 8 5 13 5M69 86c5 4 11 5 17 2" fill="none" stroke="#fff8ef" stroke-opacity=".78" stroke-width="2.6" stroke-linecap="round"/>
-<path d="M12 20 5 13m32-4V1m26 14 7-8M5 43H0" fill="none" stroke="#fff8ef" stroke-width="3" stroke-linecap="round"/>
+<!-- One extended index finger; the other fingers curl naturally into the palm. -->
+<path d="M46 91 25 29Q22 20 16 22 9 24 12 32L34 94Q37 101 45 104" fill="url(#tapSkin)" stroke="#a96f59" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="m16 28 20 59" fill="none" stroke="url(#tapFingerLight)" stroke-width="3.4" stroke-linecap="round"/>
+<path d="M42 91Q46 85 52 88L62 98 57 87Q55 82 59 79 64 76 68 81L81 102Q85 108 79 114L61 130Q53 136 43 129L24 114Q19 110 23 105 27 100 32 104L41 111 34 101Q31 96 35 92 39 89 44 94L52 101 47 94Q44 91 42 91Z" fill="url(#tapSkin)" stroke="#a96f59" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M15 25Q19 22 22 26L25 32Q20 35 15 33L13 29Q12 26 15 25Z" fill="#fff8f1" stroke="#cf9c80" stroke-width="1.2"/>
+<path d="M41 106Q46 111 52 111M49 98Q54 104 60 105M59 88Q64 94 69 95" fill="none" stroke="#fff7ee" stroke-opacity=".72" stroke-width="1.8" stroke-linecap="round"/>
+<path d="M40 121 61 128 73 119 83 129 62 139 39 131Z" fill="url(#tapCuff)" stroke="#c6ad91" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="m48 124 17 6" stroke="url(#tapGold)" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M11 16 7 12m28-2V5m17 12 5-5" fill="none" stroke="#f8e2c7" stroke-width="2" stroke-linecap="round" opacity=".9"/>
 </svg></span></div>
             <div class="carousel-pagination" id="carousel-pagination"></div>
           </section>
