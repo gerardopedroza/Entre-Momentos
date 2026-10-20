@@ -9,6 +9,7 @@ Web móvil para que los invitados compartan una foto y una dedicatoria en cada m
 - El enlace STAFF incluye una clave aleatoria limitada a un evento. Abre directamente el panel de ese evento, sin contraseña. La administración puede renovarlo; al hacerlo, el enlace anterior deja de funcionar.
 - El enlace discreto «Administración y STAFF» del final de la página inicial abre ambas opciones. Administración pide usuario y contraseña; STAFF permite seleccionar lugar y evento y comprobar el enlace STAFF de ese evento. También ofrece una vista de demostración.
 - `/staff.html` sin clave muestra el selector de lugar y evento. Para acceder a datos reales, se pega el enlace STAFF que comparte Administración; el enlace directo generado por Administración sigue abriendo el evento correspondiente.
+- El dominio principal (`/`) es una demostración local para compartir con clientes: usa nombres y contenidos de ejemplo, y no crea sesiones ni envía o guarda fotos y dedicatorias. `/admin.html` sigue conectado al acceso administrativo. Los enlaces de lugar (`/l/{lugar}?venue={lugar}`) y de evento (`/?event={evento}`) conservan el acceso a sus datos reales.
 
 Los enlaces de eventos en preparación se pueden copiar antes del evento, pero solo funcionarán cuando el evento esté activo.
 

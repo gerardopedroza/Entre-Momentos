@@ -23,7 +23,7 @@ let uploadRequestId = "";
 let staffDashboard = null;
 let staffAuthenticated = false;
 let isDemo = false;
-// The bare site URL is a clickable demo; event links always carry ?event= and use the live guest list.
+// The bare site URL is a local-only demo. Venue and event URLs remain connected to live data.
 let demoSearchEnabled = !new URLSearchParams(window.location.search).has("event") && !new URLSearchParams(window.location.search).has("venue");
 let isSending = false;
 let dragStartX = null;
@@ -768,9 +768,40 @@ async function refreshEvent() {
   finally { refreshingEvent = false; }
 }
 
+function enterDemoGuest(name) {
+  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
+  const demoGuests = [
+    { id: "demo-ana-4", name: "Ana López", reference: "Mesa 4" },
+    { id: "demo-ana-8", name: "Ana López", reference: "Mesa 8" },
+    { id: "demo-carlos-1", name: "Carlos Ramírez", reference: "Mesa 1" },
+    { id: "demo-maria-2", name: "María Gómez", reference: "Mesa 2" },
+    { id: "demo-gerardo-3", name: "Gerardo Pedroza", reference: "Mesa 3" },
+    { id: "demo-laura-5", name: "Laura Martínez", reference: "Mesa 5" },
+  ];
+  const matches = demoGuests.filter((g) => {
+    const gNorm = g.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
+    return gNorm.includes(normalized) || normalized.split(/\s+/).some((term) => term.length > 1 && gNorm.includes(term));
+  });
+  if (matches.length > 1) {
+    matches.forEach((profile) => guestChoice(profile));
+    $("#homonym-title").textContent = `Encuentra tu nombre en la lista (${matches.length})`;
+    $("#homonym-feedback").textContent = "";
+    screen("homonyms");
+  } else if (matches.length === 1) {
+    showHome({ id: matches[0].id, name: matches[0].name, reference: matches[0].reference }, demoEvent, true);
+  } else {
+    const formatted = name.split(/\s+/).map((w) => w.charAt(0).toLocaleUpperCase("es-MX") + w.slice(1).toLocaleLowerCase("es-MX")).join(" ");
+    showHome({ id: "demo-" + Date.now(), name: formatted, reference: "Mesa de demostración" }, demoEvent, true);
+  }
+}
+
 $("#guest-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = $("#guest-search").value.trim();
+  if (demoSearchEnabled) {
+    enterDemoGuest(name);
+    return;
+  }
   $("#search-message").textContent = "Buscando tu nombre…";
   $("#homonym-results").replaceChildren();
   try {
@@ -870,6 +901,7 @@ $("#cancel-photo").addEventListener("click", clearPhotoPreview);
 $("#send-photo").addEventListener("click", async () => {
   const moment = moments[selectedMomentIndex];
   if (!selectedPhoto || !moment || isSending) return;
+  if (isDemo) { $("#photo-feedback").textContent = "Demostración: la foto no se envió ni guardó."; return; }
   isSending = true;
   $("#send-photo").disabled = true;
   $("#photo-feedback").textContent = "Enviando…";
@@ -1077,7 +1109,9 @@ $("#winner-modal-close")?.addEventListener("click", closeWinnerModal);
 $("#winner-modal-backdrop")?.addEventListener("click", closeWinnerModal);
 
 async function logoutGuest() {
-  try { await api("/api/guests/session", { method: "DELETE" }); } catch { /* Local session is cleared even if network fails */ }
+  if (!isDemo) {
+    try { await api("/api/guests/session", { method: "DELETE" }); } catch { /* Local session is cleared even if network fails */ }
+  }
   guest = null;
   submissions = new Map();
   clearWinnerNotice();
@@ -1105,11 +1139,18 @@ if (shouldResetGuest) {
   window.history.replaceState({}, "", cleanUrl);
 }
 
-const bootPromise = shouldResetGuest
-  ? api("/api/guests/session", { method: "DELETE" }).catch(() => {})
-  : Promise.resolve();
+const bootPromise = demoSearchEnabled
+  ? Promise.resolve(null)
+  : shouldResetGuest
+    ? api("/api/guests/session", { method: "DELETE" }).catch(() => {}).then(() => api("/api/events/current"))
+    : api("/api/events/current");
 
-bootPromise.then(() => api("/api/events/current")).then((payload) => {
+bootPromise.then((payload) => {
+  if (!payload && demoSearchEnabled) {
+    setEvent(demoEvent);
+    return;
+  }
+  if (!payload) return;
   if (payload.event && !payload.event.demo) {
     demoSearchEnabled = false;
   }

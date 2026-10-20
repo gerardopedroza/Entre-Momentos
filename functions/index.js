@@ -5,7 +5,7 @@ export async function onRequest(context) {
     const assetUrl = new URL("/index.html", url.origin);
     const assetResponse = await env.ASSETS.fetch(new Request(assetUrl, request));
     const origin = url.origin;
-    const imageUrl = `${origin}/preview.jpg`;
+    const imageUrl = `${origin}/social-preview.png`;
     if (typeof HTMLRewriter !== "undefined") {
       return new HTMLRewriter()
         .on('meta[property="og:image"]', { element(e) { e.setAttribute("content", imageUrl); } })

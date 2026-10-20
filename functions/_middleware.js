@@ -9,7 +9,7 @@ export async function onRequest(context) {
 
   const url = new URL(request.url);
   const origin = url.origin;
-  const imageUrl = `${origin}/preview.jpg`;
+  const imageUrl = `${origin}/social-preview.png`;
 
   if (typeof HTMLRewriter !== "undefined") {
     return new HTMLRewriter()
