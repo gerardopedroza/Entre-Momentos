@@ -14,8 +14,17 @@ async function api(path, options = {}) {
 }
 const send = (path, method, data) => api(path, { method, body: JSON.stringify(data) });
 function message(text) { feedback.textContent = text; }
-function showLoggedOut(text = "") { loginCard.hidden = false; shell.hidden = true; message(text); }
-function showLoggedIn() { loginCard.hidden = true; shell.hidden = false; }
+function showLoggedOut(text = "") {
+  loginCard.hidden = false;
+  shell.hidden = true;
+  document.body.classList.add("admin-login-view");
+  message(text);
+}
+function showLoggedIn() {
+  loginCard.hidden = true;
+  shell.hidden = false;
+  document.body.classList.remove("admin-login-view");
+}
 function navigate(view) {
   $$(".admin-view").forEach((section) => { section.hidden = section.id !== `view-${view}`; });
   $$(".admin-nav [data-view]").forEach((button) => button.setAttribute("aria-current", button.dataset.view === view ? "page" : "false"));
