@@ -958,3 +958,36 @@ body.admin-page.admin-login-view #login-card {
 body.admin-page.admin-login-view #login-form {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
+
+/* Keep form fields and their actions within reach while the mobile keyboard is open. */
+.identify-screen,
+.staff-login-screen,
+.admin-screen {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-block: 16px;
+}
+.identify-screen .identity-form,
+.staff-login-screen .message-form {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  flex: 0 0 auto;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #f7f5f000 0%, var(--paper) 16%);
+}
+.identity-form .primary-button,
+.message-form .primary-button,
+.admin-screen .primary-button {
+  position: sticky;
+  bottom: 4px;
+  z-index: 5;
+}
+.admin-screen .admin-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--paper);
+}
