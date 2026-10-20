@@ -449,7 +449,7 @@ function showHome(profile, data, demo = false) {
     clearWinnerNotice();
   }
   screen("home");
-  showCarouselTapHint(demo);
+  showCarouselTapHint(true);
   startActivityTicker();
 }
 
