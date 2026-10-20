@@ -46,7 +46,7 @@ async function updateGuestPresence(request, env) {
   return json({ activeCount: await activeGuestCount(env.DB, session.event_id) });
 }
 
-function publicUrl(event, venue) { return venue?.slug ? "/l/" + encodeURIComponent(venue.slug) + "?venue=" + encodeURIComponent(venue.slug) : "/?event=" + encodeURIComponent(event.slug || ""); }
+function publicUrl(event, venue) { return venue?.slug ? "/l/" + encodeURIComponent(venue.slug) : "/?event=" + encodeURIComponent(event.slug || ""); }
 
 async function resolvePublicEvent(request, env, eventSession = null) {
   const url = new URL(request.url);
@@ -70,8 +70,8 @@ async function resolvePublicEvent(request, env, eventSession = null) {
   if (!venueSlug && !event && slug) {
     event = await env.DB.prepare("SELECT * FROM events WHERE slug=? COLLATE NOCASE AND state IN ('active', 'draft')").bind(slug).first();
   }
-  // Si no se proporcionó parámetro o no se encontró, obtener el evento activo principal
-  if (!event) {
+  // Una URL de lugar solo puede resolver a un evento de ese lugar; nunca caer al evento principal.
+  if (!event && !venueSlug) {
     event = await env.DB.prepare("SELECT * FROM events WHERE state IN ('active', 'draft') ORDER BY CASE WHEN state='active' THEN 0 ELSE 1 END, event_date DESC LIMIT 1").first();
   }
   return event;
