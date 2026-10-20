@@ -4,6 +4,7 @@ const demoEvent = {
   id: "demo-event",
   name: "Isa & Mateo",
   date: "2026-10-15",
+  coverUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=85",
   demo: true,
   moments: [
     { id: "demo-entrada", name: "Entrada de los novios", state: "sample", start: "17:00", coverUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=720&q=82" },
@@ -782,17 +783,15 @@ function enterDemoGuest(name) {
     const gNorm = g.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-MX");
     return gNorm.includes(normalized) || normalized.split(/\s+/).some((term) => term.length > 1 && gNorm.includes(term));
   });
-  if (matches.length > 1) {
-    matches.forEach((profile) => guestChoice(profile));
-    $("#homonym-title").textContent = `Encuentra tu nombre en la lista (${matches.length})`;
-    $("#homonym-feedback").textContent = "";
-    screen("homonyms");
-  } else if (matches.length === 1) {
-    showHome({ id: matches[0].id, name: matches[0].name, reference: matches[0].reference }, demoEvent, true);
-  } else {
-    const formatted = name.split(/\s+/).map((w) => w.charAt(0).toLocaleUpperCase("es-MX") + w.slice(1).toLocaleLowerCase("es-MX")).join(" ");
-    showHome({ id: "demo-" + Date.now(), name: formatted, reference: "Mesa de demostración" }, demoEvent, true);
-  }
+  const formatted = name.split(/\s+/).map((w) => w.charAt(0).toLocaleUpperCase("es-MX") + w.slice(1).toLocaleLowerCase("es-MX")).join(" ");
+  const choices = matches.length ? matches : [{ id: "demo-" + Date.now(), name: formatted, reference: "Mesa de demostración" }];
+  $("#homonym-results").replaceChildren();
+  choices.forEach((profile) => guestChoice(profile));
+  $("#homonym-title").textContent = choices.length > 1
+    ? `Encuentra tu nombre en la lista (${choices.length})`
+    : "Confirma tu nombre en la lista";
+  $("#homonym-feedback").textContent = "Elige tu nombre para continuar con la demostración.";
+  screen("homonyms");
 }
 
 $("#guest-form").addEventListener("submit", async (event) => {
@@ -901,7 +900,20 @@ $("#cancel-photo").addEventListener("click", clearPhotoPreview);
 $("#send-photo").addEventListener("click", async () => {
   const moment = moments[selectedMomentIndex];
   if (!selectedPhoto || !moment || isSending) return;
-  if (isDemo) { $("#photo-feedback").textContent = "Demostración: la foto no se envió ni guardó."; return; }
+  if (isDemo) {
+    isSending = true;
+    $("#send-photo").disabled = true;
+    $("#photo-feedback").textContent = "Enviando en la demostración…";
+    await new Promise((resolve) => window.setTimeout(resolve, 450));
+    submissions.set(String(moment.id), { momentId: moment.id, storageState: "stored", demo: true });
+    const nextAvailable = findAvailableMoment(selectedMomentIndex, 1) ?? findAvailableMoment(selectedMomentIndex, -1);
+    if (nextAvailable !== null) selectedMomentIndex = nextAvailable;
+    renderCarousel();
+    resetUploadPanel();
+    toast("Foto marcada como enviada en la demostración; no se guardó.");
+    isSending = false;
+    return;
+  }
   isSending = true;
   $("#send-photo").disabled = true;
   $("#photo-feedback").textContent = "Enviando…";
@@ -1114,6 +1126,7 @@ async function logoutGuest() {
   }
   guest = null;
   submissions = new Map();
+  resetUploadPanel();
   clearWinnerNotice();
   if (presenceInterval) { window.clearInterval(presenceInterval); presenceInterval = null; }
   $("#search-message").textContent = "";
