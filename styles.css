@@ -933,3 +933,28 @@ body[data-screen="welcome"] .app-frame main { z-index: 1; }
 .message-form textarea { min-height: min(135px, 24dvh); }
 body.staff-page { height: var(--em-visible-height, 100dvh); min-height: 0; overflow-y: auto; }
 body.admin-page, body.admin-page .admin-wrap { height: var(--em-visible-height, 100dvh) !important; min-height: 0 !important; }
+
+/* Let the admin sign-in form scroll above the mobile keyboard. */
+body.admin-page.admin-login-view {
+  overflow: hidden;
+}
+body.admin-page.admin-login-view .admin-wrap {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+body.admin-page.admin-login-view .admin-top {
+  position: sticky;
+  top: 0;
+  flex: 0 0 78px;
+}
+body.admin-page.admin-login-view #login-card {
+  flex: 0 0 auto;
+  margin: 16px auto 24px !important;
+  scroll-margin-block: 16px;
+}
+body.admin-page.admin-login-view #login-form {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
