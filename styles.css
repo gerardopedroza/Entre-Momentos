@@ -597,7 +597,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline-colo
 .moment-card.has-photo { background-color: #e9e5df; }
 .moment-card-submitted-check { position: absolute; top: 50%; left: 50%; display: grid; width: 48px; height: 48px; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #279357; color: #fff; box-shadow: 0 3px 12px #14251c70; transform: translate(-50%,-50%); }
 .moment-card-submitted-check svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.carousel-tap-hand { position: absolute; z-index: 20; top: 40%; left: 50%; display: none; width: clamp(66px, 19vw, 84px); height: auto; overflow: visible; filter: drop-shadow(0 10px 12px #17261f45); pointer-events: none; transform-origin: 52% 72%; }
+.carousel-tap-hand { position: absolute; z-index: 20; top: 40%; left: 50%; display: none; width: clamp(58px, 17vw, 76px); height: auto; overflow: visible; filter: drop-shadow(0 10px 12px #17261f45); pointer-events: none; transform-origin: 52% 72%; }
 .carousel-stage.tap-tutorial .carousel-tap-hand { display: block; animation: hand-tap 3.5s ease-in-out both; }
 .carousel-stage.tap-tutorial .moment-slide[aria-current="true"] .moment-card { animation: photo-press 3.5s ease-in-out both; }
 @keyframes hand-tap {
