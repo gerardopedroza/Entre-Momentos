@@ -2,7 +2,9 @@ export async function onRequest(context) {
   const { request, env, next } = context;
   const url = new URL(request.url);
   if (env.ASSETS) {
-    const assetUrl = new URL("/index.html", url.origin);
+    // Serve the root document internally so Pages does not canonicalize /index.html
+    // to / and drop the public /l/{venue}?venue={venue} URL.
+    const assetUrl = new URL("/", url.origin);
     const assetResponse = await env.ASSETS.fetch(new Request(assetUrl, request));
     const origin = url.origin;
     const imageUrl = `${origin}/social-preview.png`;
