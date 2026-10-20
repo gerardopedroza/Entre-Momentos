@@ -47,7 +47,7 @@ export async function handleAdminApi(ctx, path) {
         const access = await venueStaffToken(env, venue.id);
         return { ...venue,
           active_event_name: activeEvent?.name || "",
-          guestUrl: origin + "/l/" + encodeURIComponent(venue.slug) + "?venue=" + encodeURIComponent(venue.slug),
+          guestUrl: origin + "/l/" + encodeURIComponent(venue.slug),
           staffUrl: origin + "/staff.html?venue=" + encodeURIComponent(venue.slug) + "&access=" + access,
         };
       })), events: events.results || [] });

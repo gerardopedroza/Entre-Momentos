@@ -25,7 +25,11 @@ let staffDashboard = null;
 let staffAuthenticated = false;
 let isDemo = false;
 // The bare site URL is a local-only demo. Venue and event URLs remain connected to live data.
-let demoSearchEnabled = !new URLSearchParams(window.location.search).has("event") && !new URLSearchParams(window.location.search).has("venue");
+const initialParams = new URLSearchParams(window.location.search);
+const venuePathMatch = window.location.pathname.match(/^\/l\/([^/]+)\/?$/i);
+let pathVenueSlug = "";
+try { pathVenueSlug = venuePathMatch ? decodeURIComponent(venuePathMatch[1]) : ""; } catch {}
+let demoSearchEnabled = !initialParams.has("event") && !initialParams.has("venue") && !pathVenueSlug;
 let isSending = false;
 let dragStartX = null;
 let suppressCarouselClick = false;
@@ -239,8 +243,9 @@ function screen(name) {
 }
 
 async function api(path, options = {}) {
-  const eventSlug = new URLSearchParams(window.location.search).get("event");
-  const venueSlug = new URLSearchParams(window.location.search).get("venue");
+  const currentParams = new URLSearchParams(window.location.search);
+  const eventSlug = currentParams.get("event");
+  const venueSlug = currentParams.get("venue") || pathVenueSlug;
   if (eventSlug && (/^\/api\/guests\/identify(?:\/select)?$/.test(path) || path === "/api/events/current")) {
     const scoped = new URL(path, window.location.origin);
     scoped.searchParams.set("event", eventSlug);
@@ -1173,20 +1178,38 @@ const bootPromise = demoSearchEnabled
     ? api("/api/guests/session", { method: "DELETE" }).catch(() => {}).then(() => api("/api/events/current"))
     : api("/api/events/current");
 
+function showPublicLinkError() {
+  $("#event-name-display").textContent = "Evento no disponible";
+  $("#event-date-display").textContent = "VERIFICA TU ENLACE";
+  $("#search-message").textContent = "No pudimos cargar el evento de este lugar. Revisa tu conexión e intenta abrir el enlace de nuevo.";
+  $("#guest-search").disabled = true;
+  const submit = $("#guest-form button[type=submit]");
+  if (submit) submit.disabled = true;
+}
+
 bootPromise.then((payload) => {
   if (!payload && demoSearchEnabled) {
     setEvent(demoEvent);
     return;
   }
-  if (!payload) return;
+  if (!payload) {
+    if (!demoSearchEnabled) showPublicLinkError();
+    return;
+  }
   if (payload.event && !payload.event.demo) {
     demoSearchEnabled = false;
+  }
+  if (!payload.event && (pathVenueSlug || initialParams.has("venue") || initialParams.has("event"))) {
+    showPublicLinkError();
+    return;
   }
   setEvent(payload.event ? { ...payload.event, serverTime: payload.serverTime || payload.event.serverTime } : payload);
   if (payload.guest && !shouldResetGuest) {
     enterGuest(payload);
   }
-}).catch(() => {});
+}).catch(() => {
+  if (!demoSearchEnabled) showPublicLinkError();
+});
 window.setInterval(() => { if (guest && !isDemo) refreshEvent(); }, 30000);
 document.addEventListener("visibilitychange", () => {
   setPresenceTracking(document.body.dataset.screen === "home");

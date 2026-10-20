@@ -5,7 +5,7 @@ Web móvil para que los invitados compartan una foto y una dedicatoria en cada m
 ## Enlaces y accesos
 
 - `/admin.html`: administración privada. Al iniciar sesión muestra, para cada evento, el enlace de invitados y el enlace STAFF, con botones para copiar. También permite registrar lugares, crear eventos y descargar o eliminar sus archivos.
-- El enlace de invitados usa el formato `/l/{lugar}?event={evento}`. El invitado puede buscar con su nombre, apellido o ambos; si hay coincidencias, elige su nombre en la lista.
+- El enlace fijo de invitados del lugar usa el formato `/l/{lugar}`; muestra el evento activo de ese lugar. Las URLs anteriores con `?venue={lugar}` siguen funcionando. El invitado puede buscar con su nombre, apellido o ambos; si hay coincidencias, elige su nombre en la lista.
 - El enlace STAFF incluye una clave aleatoria limitada a un evento. Abre directamente el panel de ese evento, sin contraseña. La administración puede renovarlo; al hacerlo, el enlace anterior deja de funcionar.
 - El enlace discreto «Administración y STAFF» del final de la página inicial abre ambas opciones. Administración pide usuario y contraseña; STAFF permite seleccionar lugar y evento y comprobar el enlace STAFF de ese evento. También ofrece una vista de demostración.
 - `/staff.html` sin clave muestra el selector de lugar y evento. Para acceder a datos reales, se pega el enlace STAFF que comparte Administración; el enlace directo generado por Administración sigue abriendo el evento correspondiente.
