@@ -783,7 +783,7 @@ function enterDemoGuest(name) {
     { id: "demo-ana-8", name: "Ana López", reference: "Mesa 8" },
     { id: "demo-carlos-1", name: "Carlos Ramírez", reference: "Mesa 1" },
     { id: "demo-maria-2", name: "María Gómez", reference: "Mesa 2" },
-    { id: "demo-gerardo-3", name: "Gerardo Pedroza", reference: "Mesa 3" },
+    { id: "demo-gerardo-3", name: "Gerardo", reference: "Mesa 3" },
     { id: "demo-laura-5", name: "Laura Martínez", reference: "Mesa 5" },
   ];
   const matches = demoGuests.filter((g) => {
