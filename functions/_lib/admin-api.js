@@ -307,14 +307,15 @@ async function removeAllEventPhotos(env, event) {
 }
 
 async function downloadEventArchive(env, event) {
-  const bucket = await requireEventBucket(env);
   const db = env.DB;
-  const [photos, dedications, objects] = await Promise.all([
+  const [photos, dedications] = await Promise.all([
     db.prepare(`SELECT ps.*,a.name AS activity_name,g.name AS guest_name FROM photo_submissions ps
       JOIN event_activities a ON a.id=ps.activity_id JOIN event_guests g ON g.id=ps.guest_id WHERE ps.event_id=? ORDER BY ps.received_at`).bind(event.id).all(),
     db.prepare("SELECT d.*,g.name AS guest_name FROM dedications d JOIN event_guests g ON g.id=d.guest_id WHERE d.event_id=? ORDER BY d.created_at").bind(event.id).all(),
-    listEventObjects(bucket, event.id),
   ]);
+  const storedR2Photos = (photos.results || []).filter((photo) => String(photo.drive_file_id || "").startsWith("r2:"));
+  const bucket = storedR2Photos.length ? await requireEventBucket(env) : null;
+  const objects = bucket ? await listEventObjects(bucket, event.id) : [];
   const files = [
     { name: "Dedicatorias/dedicatorias.csv", bytes: new TextEncoder().encode("\ufeffNombre,Fecha,Mensaje\r\n" + (dedications.results || []).map((row) => [row.guest_name, row.created_at, row.message].map(csvCell).join(",")).join("\r\n")) },
   ];
