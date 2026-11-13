@@ -237,6 +237,7 @@ function clearWinnerNotice() {
 }
 
 function screen(name) {
+  if (name !== "home") hideCarouselTapHint();
   $$(".screen").forEach((item) => { item.hidden = item.id !== "screen-" + name; });
   document.body.dataset.screen = name;
   setPresenceTracking(name === "home");
@@ -449,41 +450,35 @@ function showHome(profile, data, demo = false) {
     clearWinnerNotice();
   }
   screen("home");
-  showCarouselTapHint(true);
+  showCarouselTapHint();
   startActivityTicker();
 }
 
-function showCarouselTapHint(replay = false) {
-  const stage = $("#carousel-stage");
-  if (!stage || !moments.length) return;
-  let alreadyShown = false;
-  try { alreadyShown = localStorage.getItem("em-carousel-gesture-seen-v5") === "1"; } catch {}
-  if (!replay && (alreadyShown || carouselTapHintShown)) return;
+function hideCarouselTapHint() {
   carouselTutorialTimers.forEach(window.clearTimeout);
   carouselTutorialTimers = [];
-  stage.classList.remove("swipe-tutorial", "tap-tutorial");
-  carouselTapHintShown = true;
-  stage.classList.remove("swipe-tutorial", "tap-tutorial");
-  void stage.offsetWidth;
-  const hasSwipeTarget = moments.length > 1;
-  const playTutorial = () => {
-    if (!stage.isConnected || document.body.dataset.screen !== "home") {
-      carouselTapHintShown = false;
-      return;
-    }
-    if (hasSwipeTarget) stage.classList.add("swipe-tutorial");
-    carouselTutorialTimers.push(window.setTimeout(() => {
-      stage.classList.remove("swipe-tutorial");
-      stage.classList.add("tap-tutorial");
-    }, hasSwipeTarget ? 4800 : 100));
-    carouselTutorialTimers.push(window.setTimeout(() => {
-      stage.classList.remove("tap-tutorial");
-      if (!replay) { try { localStorage.setItem("em-carousel-gesture-seen-v5", "1"); } catch {} }
-      carouselTapHintShown = false;
-      carouselTutorialTimers = [];
-    }, hasSwipeTarget ? 8300 : 3900));
-  };
-  requestAnimationFrame(() => requestAnimationFrame(playTutorial));
+  $("#carousel-stage")?.classList.remove("show-gesture-hint");
+}
+
+function showCarouselTapHint() {
+  const stage = $("#carousel-stage");
+  const hint = $("#carousel-gesture-hint");
+  if (!stage || !hint || !moments.length || carouselTapHintShown) return;
+  let alreadyShown = false;
+  try { alreadyShown = localStorage.getItem("em-carousel-guide-seen-v6") === "1"; } catch {}
+  if (alreadyShown) return;
+  stage.addEventListener("pointerdown", hideCarouselTapHint, { once: true });
+  stage.addEventListener("keydown", hideCarouselTapHint, { once: true });
+  hint.textContent = moments.length > 1
+    ? "Desliza para explorar · Toca una foto para compartir"
+    : "Toca la foto para compartir la tuya";
+  carouselTutorialTimers.push(window.setTimeout(() => {
+    if (document.body.dataset.screen !== "home") return;
+    carouselTapHintShown = true;
+    try { localStorage.setItem("em-carousel-guide-seen-v6", "1"); } catch {}
+    stage.classList.add("show-gesture-hint");
+    carouselTutorialTimers.push(window.setTimeout(hideCarouselTapHint, 4500));
+  }, 600));
 }
 
 function setPresenceCount(count) {
@@ -602,9 +597,7 @@ function updateCarousel() {
     slide.style.zIndex = String(10 - distance);
     slide.style.opacity = distance > 1 ? "0" : distance ? ".74" : "1";
     slide.style.pointerEvents = distance > 1 ? "none" : "auto";
-    const swipeDistance = Math.min(72, Math.max(46, window.innerWidth * 0.15));
-    slide.style.setProperty("--tutorial-swipe-left", -swipeDistance + "px");
-    slide.style.setProperty("--tutorial-swipe-right", swipeDistance + "px");
+  
     slide.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false");
   });
   $$(".carousel-dot", $("#carousel-pagination")).forEach((dot, index) => dot.setAttribute("aria-current", index === selectedMomentIndex ? "true" : "false"));
@@ -620,6 +613,7 @@ function updateCarousel() {
 }
 
 function selectMoment(index, openPanel) {
+  hideCarouselTapHint();
   if (!moments.length) return;
   const boundedIndex = Math.max(0, Math.min(moments.length - 1, index));
   selectedMomentIndex = boundedIndex;
