@@ -457,7 +457,7 @@ function showHome(profile, data, demo = false) {
 function hideCarouselTapHint() {
   carouselTutorialTimers.forEach(window.clearTimeout);
   carouselTutorialTimers = [];
-  $("#carousel-stage")?.classList.remove("show-gesture-hint");
+  $("#carousel-stage")?.classList.remove("show-gesture-hint", "gesture-swipe", "gesture-tap");
 }
 
 function showCarouselTapHint() {
@@ -465,19 +465,24 @@ function showCarouselTapHint() {
   const hint = $("#carousel-gesture-hint");
   if (!stage || !hint || !moments.length || carouselTapHintShown) return;
   let alreadyShown = false;
-  try { alreadyShown = localStorage.getItem("em-carousel-guide-seen-v6") === "1"; } catch {}
+  try { alreadyShown = localStorage.getItem("em-carousel-guide-seen-v7") === "1"; } catch {}
   if (alreadyShown) return;
   stage.addEventListener("pointerdown", hideCarouselTapHint, { once: true });
   stage.addEventListener("keydown", hideCarouselTapHint, { once: true });
-  hint.textContent = moments.length > 1
-    ? "Desliza para explorar · Toca una foto para compartir"
-    : "Toca la foto para compartir la tuya";
+  hint.textContent = moments.length > 1 ? "Desliza" : "Toca para subir";
   carouselTutorialTimers.push(window.setTimeout(() => {
     if (document.body.dataset.screen !== "home") return;
     carouselTapHintShown = true;
-    try { localStorage.setItem("em-carousel-guide-seen-v6", "1"); } catch {}
-    stage.classList.add("show-gesture-hint");
-    carouselTutorialTimers.push(window.setTimeout(hideCarouselTapHint, 4500));
+    try { localStorage.setItem("em-carousel-guide-seen-v7", "1"); } catch {}
+    stage.classList.add("show-gesture-hint", moments.length > 1 ? "gesture-swipe" : "gesture-tap");
+    if (moments.length > 1) {
+      carouselTutorialTimers.push(window.setTimeout(() => {
+        stage.classList.remove("gesture-swipe");
+        stage.classList.add("gesture-tap");
+        hint.textContent = "Toca para subir";
+      }, 1500));
+    }
+    carouselTutorialTimers.push(window.setTimeout(hideCarouselTapHint, moments.length > 1 ? 3300 : 1800));
   }, 600));
 }
 

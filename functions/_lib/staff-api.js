@@ -48,7 +48,7 @@ export async function handleStaffApi(ctx, path) {
     const board = [];
     for (const contest of contests.results || []) {
       const now = Date.now();
-      const state = contest.state === "inactive" || contest.state === "draft" ? contest.state
+      const state = ["inactive", "draft", "finished"].includes(contest.state) ? contest.state
         : now < Date.parse(contest.opens_at) ? "upcoming" : now < Date.parse(contest.closes_at) ? "active" : "closed";
       let winner = contest.winner_guest_id
         ? await guestDetails(db, contest.winner_guest_id, event.id)

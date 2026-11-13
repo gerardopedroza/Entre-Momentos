@@ -344,7 +344,7 @@ async function submitPhoto(request, env) {
     let winnerNotice = null;
     if (event.contests_enabled) {
       // Evaluar si esta foto hace ganador al invitado en un reto de primera foto (de la actividad o de todo el evento)
-      const candidate = await db.prepare(`SELECT c.*, p.name AS prize_name, p.instructions AS prize_instructions
+      const candidates = await db.prepare(`SELECT c.*, p.name AS prize_name, p.instructions AS prize_instructions
         FROM contests c LEFT JOIN prizes p ON p.id=c.prize_id
         WHERE c.event_id=? AND c.winner_guest_id IS NULL AND c.state IN ('active', 'draft') AND c.kind='first_photo'
           AND (
@@ -352,11 +352,11 @@ async function submitPhoto(request, env) {
             OR NOT EXISTS (SELECT 1 FROM contest_activities ca WHERE ca.contest_id=c.id)
             OR instr(c.rule_json, '"scope":"event"') > 0
           )
-        ORDER BY CASE WHEN EXISTS (SELECT 1 FROM contest_activities ca WHERE ca.contest_id=c.id AND ca.activity_id=?) THEN 0 ELSE 1 END, c.opens_at ASC LIMIT 1`)
-        .bind(event.id, activity.id, activity.id).first();
+        ORDER BY CASE WHEN EXISTS (SELECT 1 FROM contest_activities ca WHERE ca.contest_id=c.id AND ca.activity_id=?) THEN 0 ELSE 1 END, c.opens_at ASC`)
+        .bind(event.id, activity.id, activity.id).all();
 
-      if (candidate) {
-        // Asignación atómica del ganador
+      for (const candidate of candidates.results || []) {
+        // Asignación atómica del ganador por cada reto
         const crowned = await db.prepare(`UPDATE contests SET winner_guest_id=?, winner_confirmed_at=?, winner_confirmed_by='system', state='finished', updated_at=?
           WHERE id=? AND winner_guest_id IS NULL`).bind(session.guest_id, receivedAt, receivedAt, candidate.id).run();
         if (crowned.meta?.changes) {

@@ -988,3 +988,27 @@ body.admin-page.admin-login-view #login-form {
   z-index: 5;
   background: var(--paper);
 }
+
+/* Quiet, single gesture demonstration and legible photo labels. */
+.carousel-gesture-hint { bottom:18px; background:#fffaf6; color:#263b32; border:1px solid #d9d1c5; padding:7px 15px; font-size:12px; font-weight:500; box-shadow:0 3px 14px #14271d18; }
+.carousel-gesture-mark { position:absolute; z-index:19; top:50%; left:50%; width:26px; height:26px; border:1.5px solid #fffaf6; border-radius:50%; background:#263b3266; box-shadow:0 0 0 5px #fffaf62b; transform:translate(-50%,-50%); opacity:0; pointer-events:none; }
+.gesture-swipe .carousel-gesture-mark { animation:gesture-glide 1.35s ease-in-out both; }
+.gesture-tap .carousel-gesture-mark { animation:gesture-touch 1.5s ease-in-out both; }
+.gesture-swipe .moment-slide[aria-current="true"] { animation:card-glide 1.35s ease-in-out both; }
+@keyframes gesture-glide {
+  0%,100% { opacity:0; transform:translate(calc(-50% + 12px),-50%); }
+  20% { opacity:.9; transform:translate(calc(-50% + 12px),-50%); }
+  70% { opacity:.9; transform:translate(calc(-50% - 12px),-50%); }
+}
+@keyframes card-glide { 0%,100% { translate:0 0; } 45% { translate:-14px 0; } }
+@keyframes gesture-touch {
+  0%,100% { opacity:0; transform:translate(-50%,-50%) scale(1); }
+  30% { opacity:.85; transform:translate(-50%,-50%) scale(1); }
+  55% { opacity:.85; transform:translate(-50%,-50%) scale(.82); }
+  80% { opacity:0; transform:translate(-50%,-50%) scale(1.18); }
+}
+.home-screen .moment-card-name { display:inline-block; max-width:100%; padding:5px 11px; border-radius:8px; background:#fffaf6; color:#263b32; text-shadow:none; font-size:clamp(17px,4.5vw,21px); line-height:1.15; }
+.home-screen .moment-slide > .moment-card-meta { align-self:center; width:fit-content; margin:5px auto 0; padding:3px 10px; border-radius:12px; background:#fffaf6; color:#34483c; text-shadow:none; }
+@media (prefers-reduced-motion:reduce) {
+ .gesture-swipe .carousel-gesture-mark,.gesture-tap .carousel-gesture-mark,.gesture-swipe .moment-slide[aria-current="true"] { animation:none; }
+}
